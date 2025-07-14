@@ -120,3 +120,87 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* === CROSSFIT CALENDAR OVERRIDES (SAFE) === */
+
+/* 
+[0] Time Slot Height (Specific to Month View)
+- Override height for timeGridMonth only (can be different from [1])
+*/
+.fc-daygrid-day-frame {
+  height: 100px !important; /* Set fixed height */
+  overflow: hidden;
+}
+/* 
+[1] Time Slot Height (Specific to Week View)
+- Override height for timeGridWeek only (can be different from [1])
+*/
+.fc-timeGridWeek-view .fc-timegrid-slot {
+  height: 100px;
+}
+
+/* 
+[2] Time Slot Height (Specific to Day View)
+- Override height for timeGridDay only (can be different from [1])
+*/
+.fc-timeGridDay-view .fc-timegrid-slot {
+  height: 100px;
+}
+
+/* 
+[3] Event Box Overflow Handling
+- Ensures text inside event boxes does not overflow
+- You likely want to keep this
+*/
+.fc-timegrid-event *,
+.fc-timegrid-event div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 
+[4] Default Event Appearance Reset
+- Clears FullCalendar's background/border styles
+- Use this if you want to fully control styling via eventContent() in React
+*/
+.fc-event {
+  border: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.fc-event-main {
+  padding: 0 !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 
+[5] ShadCN-style Button Look
+- Uses Tailwind `@apply` to match your design system
+- Keep this if you use ShadCN buttons
+*/
+.fc .fc-button {
+  @apply border border-input bg-background text-foreground rounded-md px-3 py-1 text-sm hover:bg-accent hover:text-accent-foreground transition;
+}
+
+.fc .fc-button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* Style the "+ more" link */
+.fc .fc-more-link {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: #2563eb; /* Tailwind blue-600 */
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fc .fc-more-link:hover {
+  color: #1d4ed8; /* Tailwind blue-700 */
+}
