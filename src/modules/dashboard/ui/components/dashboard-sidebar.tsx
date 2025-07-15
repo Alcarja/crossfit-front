@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/sidebar";
 
 import {
+  Calendar1,
   CircleUserRound,
   FolderArchiveIcon,
-  LayoutDashboard,
+  LayoutDashboardIcon,
   PanelLeftIcon,
   PanelRightIcon,
   PodcastIcon,
@@ -32,19 +33,9 @@ import { useAuth } from "@/context/authContext";
 
 const firstSection = [
   {
-    icon: LayoutDashboard,
-    label: "Dashboard",
+    icon: Calendar1,
+    label: "Calendar",
     href: "/dashboard",
-  },
-  {
-    icon: CircleUserRound,
-    label: "My events",
-    href: "/dashboard/my-events",
-  },
-  {
-    icon: PodcastIcon,
-    label: "My posts",
-    href: "/dashboard/my-posts",
   },
 ];
 
@@ -68,14 +59,14 @@ const secondSection = [
 
 const adminSection = [
   {
-    icon: CircleUserRound,
-    label: "Admin Users",
-    href: "/dashboard/admin/users",
+    icon: LayoutDashboardIcon,
+    label: "Admin dashboard",
+    href: "/dashboard/admin/dashboard",
   },
   {
-    icon: PodcastIcon,
-    label: "Admin votations",
-    href: "/dashboard/admin/votations",
+    icon: CircleUserRound,
+    label: "Coaches",
+    href: "/dashboard/admin/coaches",
   },
 ];
 
@@ -171,7 +162,7 @@ export const DashboardSidebar = () => {
             <SidebarGroup>
               {state !== "collapsed" && (
                 <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
-                  General Section
+                  Personal Section
                 </h3>
               )}
               <SidebarGroupContent>

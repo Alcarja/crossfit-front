@@ -45,7 +45,7 @@ export const Navbar = () => {
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link href="/">
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="Logo" className="w-20 h-20" />
+              <img src="/logo.png" alt="Logo" className="w-14 h-14" />
             </div>
           </Link>
         </div>

@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMutation } from "@tanstack/react-query";
-import { createClass, getClasses, updateClass } from "../adapters/api";
+import {
+  createClass,
+  getClasses,
+  getClassesByMonthAndYear,
+  updateClass,
+} from "../adapters/api";
 
 export const useCreateClassQuery = () =>
   useMutation({
@@ -14,6 +19,14 @@ export const classesQueryOptions = (start: string, end: string) => ({
     return await getClasses(start, end);
   },
   enabled: !!start && !!end, // only runs if both dates exist
+});
+
+export const classesByMonthQueryOptions = (month: string, year: string) => ({
+  queryKey: ["classes", "byMonth", month, year],
+  queryFn: async () => {
+    return await getClassesByMonthAndYear(month, year);
+  },
+  enabled: !!month && !!year, // Only fetch when both values are present
 });
 
 export const useUpdateClassQuery = () =>

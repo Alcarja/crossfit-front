@@ -47,6 +47,10 @@ export const getClasses = async (start: string, end: string) => {
   });
 };
 
+export const getClassesByMonthAndYear = async (month: string, year: string) => {
+  return await stpApi.get(`/api/classes/${month}/${year}`, {});
+};
+
 export const updateClass = async (
   id: number,
   data: {
