@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ReactQueryProvider } from "@/lib/react-query-provider";
+import type { Metadata } from "next";
 import { Navbar } from "@/components/web/navbar";
+import { Toaster } from "@/components/ui/sonner";
+import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/authContext";
+import { ReactQueryProvider } from "@/lib/react-query-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
           <AuthProvider>
             <Navbar />
             {children}
+            <Toaster />
           </AuthProvider>
         </ReactQueryProvider>
       </body>
