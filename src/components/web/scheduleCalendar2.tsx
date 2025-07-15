@@ -36,8 +36,9 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersQueryOptions } from "@/app/queries/users";
 import { toast } from "sonner";
+import { useAuth } from "@/context/authContext";
 
-type CalendarEvent = {
+type Class = {
   id: string;
   start: string;
   end: string;
@@ -47,36 +48,30 @@ type CalendarEvent = {
   isClose: boolean;
 };
 
-type DialogMode = "create" | "edit";
-
-const formSchema = z.object({
-  coach: z.coerce.number().min(1, "Coach is required"),
+const createFormSchema = z.object({
+  coach: z.string().min(1, "Coach is required"),
   type: z.string().min(1, "Type is required"),
 });
 
-export default function ScheduleCalendar() {
-  // === STATE ===
-  const userId = 1;
-  const queryClient = useQueryClient();
+export default function ScheduleCalendar2() {
+  const { user } = useAuth();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false); //Controls the form dialog open / close
 
-  const [events, setEvents] = useState<CalendarEvent[]>([]); //Sets the events when the page loads
+  const [calendarClasses, setCalendarClasses] = useState<Class[]>([]); //Sets the classes when the page loads
 
-  const [dialogOpen, setDialogOpen] = useState(false); //Controls the form dialog open / close
+  const { data: users } = useQuery(usersQueryOptions()); //Get users
+
+  const [dateRange, setDateRange] = useState<{
+    //This date range comes from the calendar property "datesSet". You save datesSet to your state and use it in your query
+    start: string;
+    end: string;
+  } | null>(null);
+
   const [selectedRange, setSelectedRange] = useState<{
     //Time range to use in the getEvents call
     start: string;
     end: string;
   } | null>(null);
-
-  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [dialogMode, setDialogMode] = useState<DialogMode>("create"); //Determines if the form dialog is "crete" or "update"
-  const [dateRange, setDateRange] = useState<{
-    start: string;
-    end: string;
-  } | null>(null);
-
-  // === QUERIES ===
-  const { data: users } = useQuery(usersQueryOptions()); //Get users
 
   const { data: classes } = useQuery(
     //Get classes
@@ -85,195 +80,86 @@ export default function ScheduleCalendar() {
       : { queryKey: [], queryFn: async () => [] }
   );
 
-  // === HOOK: Populate Events from Backend ===
-
+  //Formats the classes from the query and saves them to the local state
   useEffect(() => {
-    //Formats the classes from the query and saves them to the local state
     if (!classes) return;
 
-    const formattedEvents: CalendarEvent[] = classes.results.map(
-      (cls: any) => ({
-        id: cls.id.toString(), // FullCalendar needs string IDs
-        start: cls.start,
-        end: cls.end,
-        type: cls.type,
-        coach: cls.coach?.name, // human-readable name for display
-        isOpen: cls.isOpen,
-        isClose: cls.isClose,
-      })
-    );
+    const formattedClasses: Class[] = classes.results.map((cls: any) => ({
+      id: cls.id.toString(), // FullCalendar needs string IDs and the id from the DB comes as a number
+      start: cls.start,
+      end: cls.end,
+      type: cls.type,
+      coach: cls.coach?.name, // human-readable name for display
+      isOpen: cls.isOpen,
+      isClose: cls.isClose,
+    }));
 
-    setEvents(formattedEvents);
+    setCalendarClasses(formattedClasses);
   }, [classes]);
 
-  // === FORM SETUP ===
-  const form = useForm({
-    resolver: zodResolver(formSchema),
+  const createClassMutation = useCreateClassQuery();
+
+  const createForm = useForm<z.infer<typeof createFormSchema>>({
+    resolver: zodResolver(createFormSchema),
     defaultValues: {
       coach: "",
-      type: "WOD",
+      type: "",
     },
   });
 
-  // === OPEN CREATE DIALOG ===
+  //Opens dialog with create form. It uses "select" from the calendar to trigger. It saves the time range to our state "selectedRange" to use it in the dialog.
   const openCreateDialog = (range: DateSelectArg) => {
-    setDialogMode("create");
     setSelectedRange({ start: range.startStr, end: range.endStr });
 
-    form.reset({ coach: "", type: "WOD" });
-    setEditingEvent(null);
-    setDialogOpen(true);
+    createForm.reset({ coach: "", type: "WOD" });
+    setCreateDialogOpen(true);
   };
 
-  // === OPEN EDIT DIALOG ===
-  const openEditDialog = (info: EventClickArg) => {
-    const clickedStart = new Date(info.event.start!).toISOString();
-    const clickedEnd = new Date(info.event.end!).toISOString();
-
-    const found = events.find(
-      (e) =>
-        new Date(e.start).toISOString() === clickedStart &&
-        new Date(e.end).toISOString() === clickedEnd
-    );
-
-    if (!found) {
-      console.warn("⚠️ Could not find event to edit.");
-      return;
-    }
-
-    setDialogMode("edit");
-    setEditingEvent(found);
-
-    const matchedUserId =
-      users?.find((u: any) => u.name === found.coach)?.id || "";
-    form.reset({ coach: matchedUserId, type: found.type });
-
-    setDialogOpen(true);
-  };
-
-  // === CREATE / EDIT MUTATION HOOK ===
-  const createClassMutation = useCreateClassQuery();
-
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  //Submits the form from the createDialog
+  function onSubmit(values: z.infer<typeof createFormSchema>) {
     const coachId = values.coach;
     const coachData = users?.find((u: any) => u.id === Number(coachId));
-    const coachName = coachData
-      ? `${coachData.name} ${coachData.lastName}`
-      : coachId;
+    const coachName = coachData ? `${coachData.name}` : coachId;
 
-    //Edit class
-    if (dialogMode === "edit" && editingEvent) {
-      const classId = Number(editingEvent.id);
-      const coachId = Number(values.coach);
+    console.log(values);
+    console.log("coachId", coachId);
+    console.log("coachData", coachData);
+    console.log("coachName", coachName);
 
-      updateClassMutation.mutate(
-        {
-          id: classId,
-          data: {
-            coachId,
-            type: values.type,
-            start: editingEvent.start,
-            end: editingEvent.end,
-          },
-        },
-        {
-          onSuccess: () => {
-            toast.success("Class updated successfully!");
+    const newClass = {
+      start: selectedRange?.start,
+      end: selectedRange?.end,
+      coach: coachName,
+      type: values.type,
+      isOpen: false,
+      isClose: false,
+    };
 
-            // Optionally update local state optimistically (optional)
-            setEvents((prev) =>
-              prev.map((e) =>
-                Number(e.id) === classId
-                  ? { ...e, coach: coachName, type: values.type }
-                  : e
-              )
-            );
-
-            queryClient.invalidateQueries({ queryKey: ["classes"] });
-            setDialogOpen(false);
-          },
-          onError: (err) => {
-            toast.error("Failed to update class");
-            console.error("❌ Error updating class:", err);
-          },
-        }
-      );
-
+    if (!user?.id) {
+      toast.error("User not authenticated.");
       return;
     }
 
-    //Create class
-    if (dialogMode === "create" && selectedRange) {
-      console.log("➕ Submitting new class creation");
-
-      const newEvent = {
-        start: selectedRange.start,
-        end: selectedRange.end,
-        coach: coachName,
-        type: values.type,
-        isOpen: false,
-        isClose: false,
-      };
-
-      createClassMutation.mutate(
-        { userId, classData: { ...newEvent, coach: coachId } },
-        {
-          onSuccess: () => {
-            setEvents((prev) => [...prev, newEvent]);
-            toast.success("Class created successfully!");
-            setDialogOpen(false);
-          },
-          onError: (err) => {
-            toast.error("Error creating class");
-            console.error("❌ Failed to create class:", err);
-          },
-        }
-      );
-    }
-  };
-
-  // === DELETE HANDLER ===
-  const handleDelete = () => {
-    if (!editingEvent) return;
-
-    console.log("🗑️ Deleting event:", editingEvent);
-
-    setEvents((prev) =>
-      prev.filter(
-        (e) => !(e.start === editingEvent.start && e.end === editingEvent.end)
-      )
-    );
-
-    setDialogOpen(false);
-  };
-
-  // === DRAG-AND-DROP UPDATE ===
-  const updateClassMutation = useUpdateClassQuery();
-
-  const handleEventDrop = (info: any) => {
-    const eventId = Number(info.event.id);
-    const newStart = info.event.start?.toISOString();
-    const newEnd = info.event.end?.toISOString();
-
-    if (!newStart || !newEnd || isNaN(eventId)) {
-      console.warn("⚠️ Invalid event drop info.");
-      return;
-    }
-
-    updateClassMutation.mutate(
-      { id: eventId, data: { start: newStart, end: newEnd } },
+    createClassMutation.mutate(
+      { userId: user?.id, classData: { ...newClass, coach: coachId } },
       {
-        onSuccess: () => {
-          toast.success("Class updated successfully!");
-          queryClient.invalidateQueries({ queryKey: ["classes"] });
+        onSuccess: (createdClass) => {
+          const classWithCoachName = {
+            ...createdClass,
+            coach: coachName, // replace coachId with name
+          };
+          setCalendarClasses((prev) => [...prev, classWithCoachName]); //Updates the classes state to the new information is reflected in the calendar immediately
+          toast.success("Class created successfully!");
+          setCreateDialogOpen(false);
         },
-        onError: (error) => {
-          toast.error("Failed to update class");
-          console.error("❌ Update failed:", error);
+        onError: (err) => {
+          toast.error("Error creating class");
+          console.error("❌ Failed to create class:", err);
         },
       }
     );
-  };
+    //Devuelve type and coachId
+  }
 
   return (
     <div className="relative w-full overflow-auto">
@@ -293,19 +179,18 @@ export default function ScheduleCalendar() {
           firstDay={1}
           selectable
           editable
-          eventDrop={handleEventDrop}
           selectMirror
           selectOverlap
           eventOverlap
           nowIndicator
-          events={events}
+          events={calendarClasses}
           datesSet={(arg) => {
             const start = arg.startStr;
             const end = arg.endStr;
             setDateRange({ start, end });
           }}
           select={openCreateDialog}
-          eventClick={openEditDialog}
+          //eventClick={openEditDialog}
           dayHeaderFormat={{ day: "numeric", month: "long" }}
           dayMaxEvents={true}
           slotLabelContent={({ date }) => {
@@ -367,12 +252,15 @@ export default function ScheduleCalendar() {
       </div>
 
       {/* === MODAL === */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Form {...createForm}>
+            <form
+              onSubmit={createForm.handleSubmit(onSubmit)}
+              className="space-y-6"
+            >
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="coach"
                 render={({ field }) => (
                   <FormItem>
@@ -396,7 +284,7 @@ export default function ScheduleCalendar() {
               />
 
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="type"
                 render={({ field }) => (
                   <FormItem>
@@ -418,19 +306,16 @@ export default function ScheduleCalendar() {
               />
 
               <DialogFooter className="pt-4 gap-2">
-                {dialogMode === "edit" && (
-                  <Button
-                    type="button"
-                    variant="delete"
-                    onClick={handleDelete}
-                    className="w-auto"
-                  >
-                    Delete
-                  </Button>
-                )}
-                <Button type="submit">
-                  {dialogMode === "edit" ? "Update" : "Add"}
+                <Button
+                  type="button"
+                  variant="delete"
+                  onClick={() => {}}
+                  className="w-auto"
+                >
+                  Delete
                 </Button>
+
+                <Button type="submit">Add</Button>
               </DialogFooter>
             </form>
           </Form>

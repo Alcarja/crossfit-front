@@ -159,6 +159,10 @@
   text-overflow: ellipsis;
 }
 
+.fc-timegrid-event {
+  max-height: 70%;
+}
+
 /* 
 [4] Default Event Appearance Reset
 - Clears FullCalendar's background/border styles
