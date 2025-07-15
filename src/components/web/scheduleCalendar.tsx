@@ -360,6 +360,11 @@ export default function ScheduleCalendar() {
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
+          views={{
+            dayGridMonth: {
+              dayHeaders: false,
+            },
+          }}
           headerToolbar={{
             left: "prev,next today",
             center: "title",
