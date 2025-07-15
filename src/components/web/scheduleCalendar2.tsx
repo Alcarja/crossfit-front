@@ -53,9 +53,19 @@ const createFormSchema = z.object({
   type: z.string().min(1, "Type is required"),
 });
 
+const updateClassFormSchema = z.object({
+  coach: z.string().min(1, "Coach is required"),
+  type: z.string().min(1, "Type is required"),
+});
+
 export default function ScheduleCalendar2() {
   const { user } = useAuth();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false); //Controls the form dialog open / close
+  const queryClient = useQueryClient();
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false); //Controls the create class dialog
+
+  const [updateClassDialogOpen, setUpdateClassDialogOpen] = useState(false); //Controls the update class dialog
+  const [editingEvent, setEditingEvent] = useState<Class | null>(null); //Sets the event you want to edit to use it in the form later
 
   const [calendarClasses, setCalendarClasses] = useState<Class[]>([]); //Sets the classes when the page loads
 
@@ -99,6 +109,7 @@ export default function ScheduleCalendar2() {
 
   const createClassMutation = useCreateClassQuery();
 
+  //CREATE NEW CLASS FORM
   const createForm = useForm<z.infer<typeof createFormSchema>>({
     resolver: zodResolver(createFormSchema),
     defaultValues: {
@@ -116,15 +127,10 @@ export default function ScheduleCalendar2() {
   };
 
   //Submits the form from the createDialog
-  function onSubmit(values: z.infer<typeof createFormSchema>) {
+  function onSubmitCreateClass(values: z.infer<typeof createFormSchema>) {
     const coachId = values.coach;
     const coachData = users?.find((u: any) => u.id === Number(coachId));
     const coachName = coachData ? `${coachData.name}` : coachId;
-
-    console.log(values);
-    console.log("coachId", coachId);
-    console.log("coachData", coachData);
-    console.log("coachName", coachName);
 
     const newClass = {
       start: selectedRange?.start,
@@ -158,7 +164,87 @@ export default function ScheduleCalendar2() {
         },
       }
     );
-    //Devuelve type and coachId
+  }
+
+  //UPDATE CLASS FORM
+  const updateClassForm = useForm<z.infer<typeof updateClassFormSchema>>({
+    resolver: zodResolver(updateClassFormSchema),
+    defaultValues: {
+      coach: "",
+      type: "",
+    },
+  });
+
+  const openEditDialog = (info: EventClickArg) => {
+    const eventId = info.event.id;
+    const found = calendarClasses.find((cls) => cls.id === eventId);
+
+    if (!found) {
+      console.warn("⚠️ Could not find event to edit.");
+      return;
+    }
+
+    setEditingEvent(found);
+
+    // Get coach ID by looking up the name
+    const matchedUserId = users?.find((u: any) => u.name === found.coach)?.id;
+
+    // Reset form values with existing class data
+    updateClassForm.reset({
+      coach: matchedUserId ? String(matchedUserId) : "", // must be a string if form expects string
+      type: found.type,
+    });
+
+    setUpdateClassDialogOpen(true);
+  };
+
+  const updateClassMutation = useUpdateClassQuery();
+
+  function onSubmitUpdateClass(values: z.infer<typeof createFormSchema>) {
+    //Edit class
+    const classId = editingEvent?.id;
+    const coachId = Number(values.coach);
+    const coachData = users?.find((u: any) => u.id === Number(coachId));
+    const coachName = coachData?.name ?? String(coachId);
+
+    updateClassMutation.mutate(
+      {
+        id: Number(classId),
+        data: {
+          coachId,
+          type: values.type,
+          start: editingEvent?.start,
+          end: editingEvent?.end,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Class updated successfully!");
+
+          // Optionally update local state optimistically (optional)
+          setCalendarClasses((prev) =>
+            prev.map((cls) =>
+              cls.id === classId
+                ? {
+                    ...cls,
+                    coach: coachName,
+                    type: values.type,
+                  }
+                : cls
+            )
+          );
+
+          queryClient.invalidateQueries({ queryKey: ["classes"] });
+          setUpdateClassDialogOpen(false);
+        },
+        onError: (err) => {
+          toast.error("Failed to update class");
+          console.error("❌ Error updating class:", err);
+        },
+      }
+    );
+
+    return;
   }
 
   return (
@@ -177,20 +263,36 @@ export default function ScheduleCalendar2() {
           slotDuration="01:00:00"
           allDaySlot={false}
           firstDay={1}
-          selectable
+          events={calendarClasses.map((cls) => ({
+            //Defines the shape of the events so you can track it using "event"
+            id: cls.id,
+            type: cls.type,
+            start: cls.start,
+            end: cls.end,
+            extendedProps: {
+              coach: cls.coach,
+              isOpen: cls.isOpen,
+              isClose: cls.isClose,
+            },
+          }))}
           editable
           selectMirror
           selectOverlap
           eventOverlap
           nowIndicator
-          events={calendarClasses}
           datesSet={(arg) => {
             const start = arg.startStr;
             const end = arg.endStr;
             setDateRange({ start, end });
           }}
-          select={openCreateDialog}
-          //eventClick={openEditDialog}
+          selectable //Allows to select a time range when clicking the calendar
+          select={openCreateDialog} //This property tracks when the calendar is clicked
+          selectAllow={(selectInfo) => {
+            //Blocks the select from working in the month view
+            const viewType = (selectInfo as DateSelectArg).view.type;
+            return viewType !== "dayGridMonth";
+          }}
+          eventClick={openEditDialog} //This property tracks if you click an existing event
           dayHeaderFormat={{ day: "numeric", month: "long" }}
           dayMaxEvents={true}
           slotLabelContent={({ date }) => {
@@ -251,12 +353,12 @@ export default function ScheduleCalendar2() {
         />
       </div>
 
-      {/* === MODAL === */}
+      {/* === CREATE CLASS MODAL === */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <Form {...createForm}>
             <form
-              onSubmit={createForm.handleSubmit(onSubmit)}
+              onSubmit={createForm.handleSubmit(onSubmitCreateClass)}
               className="space-y-6"
             >
               <FormField
@@ -316,6 +418,80 @@ export default function ScheduleCalendar2() {
                 </Button>
 
                 <Button type="submit">Add</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* === EDIT CLASS MODAL === */}
+      <Dialog
+        open={updateClassDialogOpen}
+        onOpenChange={setUpdateClassDialogOpen}
+      >
+        <DialogContent>
+          <Form {...updateClassForm}>
+            <form
+              onSubmit={updateClassForm.handleSubmit(onSubmitUpdateClass)}
+              className="space-y-6"
+            >
+              <FormField
+                control={updateClassForm.control}
+                name="coach"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Coach</FormLabel>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="w-full border border-input rounded-md px-3 py-2 text-sm"
+                      >
+                        <option value="">Select coach</option>
+                        {users?.map((user: any) => (
+                          <option key={user.id} value={user.id.toString()}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={updateClassForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <select
+                      {...field}
+                      className="w-full border border-input rounded-md px-3 py-2 text-sm"
+                    >
+                      <option value="WOD">WOD</option>
+                      <option value="Gymnastics">Gymnastics</option>
+                      <option value="Weightlifting">Weightlifting</option>
+                      <option value="Endurance">Endurance</option>
+                      <option value="Foundations">Foundations</option>
+                      <option value="Kids">Kids</option>
+                    </select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter className="pt-4 gap-2">
+                <Button
+                  type="button"
+                  variant="delete"
+                  onClick={() => {}}
+                  className="w-auto"
+                >
+                  Delete
+                </Button>
+
+                <Button type="submit">Edit</Button>
               </DialogFooter>
             </form>
           </Form>
