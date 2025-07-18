@@ -58,7 +58,55 @@ export const updateClass = async (
     end?: string;
     coachId?: number;
     type?: string;
+    isOpen?: boolean;
+    isClose?: boolean;
   }
 ) => {
   return await stpApi.put(`/api/classes/${id}`, data);
+};
+
+//Categories
+export const getAllCategories = async () => {
+  return await stpApi.get("/api/categories", {});
+};
+
+export const createCategory = async (name: string) => {
+  return await stpApi.post("/api/categories", { name });
+};
+
+export const deleteCategory = async (categoryId: number) => {
+  return await stpApi.delete("/api/categories", { categoryId });
+};
+
+//Inventory
+export const getAllInventory = async () => {
+  return await stpApi.get("/api/inventory", {});
+};
+
+export const createInventoryItem = async (
+  name: string,
+  categoryId: number,
+  priceRegular: number,
+  priceCoach: number
+) => {
+  return await stpApi.post("/api/inventory", {
+    name,
+    categoryId,
+    priceRegular,
+    priceCoach,
+  });
+};
+
+export const deleteInventoryItem = async (inventoryItemId: number) => {
+  return await stpApi.delete("/api/inventory", { inventoryItemId });
+};
+
+export const updateInventoryItem = async (data: {
+  inventoryItemId: number;
+  name: string;
+  categoryId: number;
+  priceRegular: number;
+  priceCoach: number;
+}) => {
+  return await stpApi.put("/api/inventory", { data });
 };

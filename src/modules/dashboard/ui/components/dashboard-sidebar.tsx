@@ -27,6 +27,7 @@ import {
   PanelRightIcon,
   PodcastIcon,
   Settings2Icon,
+  ShoppingBasketIcon,
   VoteIcon,
 } from "lucide-react";
 import { useAuth } from "@/context/authContext";
@@ -36,6 +37,11 @@ const firstSection = [
     icon: Calendar1,
     label: "Calendar",
     href: "/dashboard",
+  },
+  {
+    icon: ShoppingBasketIcon,
+    label: "Inventory",
+    href: "/dashboard/inventory",
   },
 ];
 

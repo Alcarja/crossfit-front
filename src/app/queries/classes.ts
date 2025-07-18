@@ -41,6 +41,8 @@ export const useUpdateClassQuery = () =>
         end?: string;
         coachId?: number;
         type?: string;
+        isOpen?: boolean;
+        isClose?: boolean;
       };
     }) => updateClass(id, data),
   });

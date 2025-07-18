@@ -51,8 +51,8 @@ type Class = {
   end: string;
   type: string;
   coach: string;
-  isOpen: boolean;
-  isClose: boolean;
+  isOpen?: boolean;
+  isClose?: boolean;
 };
 
 const createFormSchema = z.object({
@@ -107,7 +107,7 @@ export default function ScheduleCalendar() {
   useEffect(() => {
     if (!classes) return;
 
-    const formattedClasses: Class[] = classes.results.map((cls: any) => ({
+    const formattedClasses: Class[] = classes?.results?.map((cls: any) => ({
       id: cls.id.toString(), // FullCalendar needs string IDs and the id from the DB comes as a number
       start: cls.start,
       end: cls.end,
@@ -121,7 +121,7 @@ export default function ScheduleCalendar() {
   }, [classes]);
 
   //FILTERS
-  const filteredClasses = calendarClasses.filter((cls) => {
+  const filteredClasses = calendarClasses?.filter((cls) => {
     const matchesType = selectedType === "all" || cls.type === selectedType;
     const matchesCoach = selectedCoach === "all" || cls.coach === selectedCoach;
     return matchesType && matchesCoach;
@@ -152,13 +152,33 @@ export default function ScheduleCalendar() {
     const coachData = users?.find((u: any) => u.id === Number(coachId));
     const coachName = coachData ? `${coachData.name}` : coachId;
 
+    const startDate = selectedRange?.start
+      ? new Date(selectedRange.start)
+      : null;
+    const endDate = selectedRange?.end ? new Date(selectedRange.end) : null;
+
+    // Default flags
+    let isOpen = false;
+    let isClose = false;
+
+    if (startDate && endDate) {
+      const startHour = startDate.getHours();
+      const endHour = endDate.getHours();
+
+      if (startHour === 9 && endHour === 10) {
+        isOpen = true;
+      } else if (startHour === 21 && endHour === 22) {
+        isClose = true;
+      }
+    }
+
     const newClass = {
       start: selectedRange?.start,
       end: selectedRange?.end,
       coach: coachName,
       type: values.type,
-      isOpen: false,
-      isClose: false,
+      isOpen,
+      isClose,
     };
 
     if (!user?.id) {
@@ -172,9 +192,9 @@ export default function ScheduleCalendar() {
         onSuccess: (createdClass) => {
           const classWithCoachName = {
             ...createdClass,
-            coach: coachName, // replace coachId with name
+            coach: coachName,
           };
-          setCalendarClasses((prev) => [...prev, classWithCoachName]); //Updates the classes state to the new information is reflected in the calendar immediately
+          setCalendarClasses((prev) => [...prev, classWithCoachName]);
           toast.success("Class created successfully!");
           setCreateDialogOpen(false);
         },
@@ -270,28 +290,52 @@ export default function ScheduleCalendar() {
   //This uses the same function as the editClass one
   const handleEventDrop = (info: any) => {
     const eventId = info.event.id;
-    const newStart = info.event.start?.toISOString();
-    const newEnd = info.event.end?.toISOString();
+    const newStartStr = info.event.start?.toISOString();
+    const newEndStr = info.event.end?.toISOString();
 
-    if (!newStart || !newEnd || !eventId) {
+    if (!newStartStr || !newEndStr || !eventId) {
       console.warn("⚠️ Invalid event drop info.");
       return;
     }
 
+    const newStart = new Date(newStartStr);
+    const newEnd = new Date(newEndStr);
+
+    let isOpen = false;
+    let isClose = false;
+
+    const startHour = newStart.getHours();
+    const endHour = newEnd.getHours();
+
+    if (startHour === 9 && endHour === 10) {
+      isOpen = true;
+    } else if (startHour === 21 && endHour === 22) {
+      isClose = true;
+    }
+
     updateClassMutation.mutate(
-      { id: Number(eventId), data: { start: newStart, end: newEnd } },
+      {
+        id: Number(eventId),
+        data: {
+          start: newStartStr,
+          end: newEndStr,
+          isOpen,
+          isClose,
+        },
+      },
       {
         onSuccess: () => {
           toast.success("Class updated successfully!");
 
-          // Optimistically update the class in calendar state
           setCalendarClasses((prev) =>
             prev.map((cls) =>
               cls.id === eventId
                 ? {
                     ...cls,
-                    start: newStart,
-                    end: newEnd,
+                    start: newStartStr,
+                    end: newEndStr,
+                    isOpen,
+                    isClose,
                   }
                 : cls
             )
@@ -302,7 +346,7 @@ export default function ScheduleCalendar() {
         onError: (error) => {
           toast.error("Failed to update class");
           console.error("❌ Update failed:", error);
-          info.revert(); // revert event position if update fails
+          info.revert();
         },
       }
     );
@@ -324,7 +368,7 @@ export default function ScheduleCalendar() {
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {Array.from(
-                  new Set(calendarClasses.map((cls) => cls.type))
+                  new Set(calendarClasses?.map((cls) => cls.type))
                 ).map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
@@ -346,7 +390,7 @@ export default function ScheduleCalendar() {
               <SelectContent>
                 <SelectItem value="all">All Coaches</SelectItem>
                 {Array.from(
-                  new Set(calendarClasses.map((cls) => cls.coach))
+                  new Set(calendarClasses?.map((cls) => cls.coach))
                 ).map((coach) => (
                   <SelectItem key={coach} value={coach}>
                     {coach}
@@ -375,7 +419,7 @@ export default function ScheduleCalendar() {
           slotDuration="01:00:00"
           allDaySlot={false}
           firstDay={1}
-          events={filteredClasses.map((cls) => ({
+          events={filteredClasses?.map((cls) => ({
             //Defines the shape of the events so you can track it using "event"
             id: cls.id,
             type: cls.type,
