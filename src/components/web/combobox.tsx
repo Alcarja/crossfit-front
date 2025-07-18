@@ -28,6 +28,7 @@ interface ComboboxProps {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
+  size?: "full";
 }
 
 export default function Combobox({
@@ -35,6 +36,7 @@ export default function Combobox({
   value,
   onValueChange,
   placeholder = "Select...",
+  size,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -51,7 +53,10 @@ export default function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[300px] justify-between"
+          className={cn(
+            "justify-between",
+            size === "full" ? "w-full" : "w-[300px]"
+          )}
         >
           {value
             ? options.find((option) => option.value === value)?.label

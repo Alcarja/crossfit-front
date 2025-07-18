@@ -23,6 +23,7 @@ import {
   CircleUserRound,
   FolderArchiveIcon,
   LayoutDashboardIcon,
+  NotepadText,
   PanelLeftIcon,
   PanelRightIcon,
   PodcastIcon,
@@ -42,6 +43,11 @@ const firstSection = [
     icon: ShoppingBasketIcon,
     label: "Inventory",
     href: "/dashboard/inventory",
+  },
+  {
+    icon: NotepadText,
+    label: "Expenses",
+    href: "/dashboard/expenses",
   },
 ];
 

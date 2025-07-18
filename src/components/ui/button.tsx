@@ -13,7 +13,7 @@ const buttonVariants = cva(
         green:
           "bg-primary text-white shadow-xs hover:bg-[#51a373] w-[110px] rounded-md border border-[#2C583E] cursor-pointer",
         delete:
-          "bg-red-500 text-white hover:bg-red-600 w-[36px] h-[36px] rounded-md border border-red-700 cursor-pointer",
+          "bg-red-500 text-white hover:bg-red-600 w-[36px] h-[36px] rounded-md border border-red-700 cursor-pointer w-auto",
         outline:
           "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
         ghost:

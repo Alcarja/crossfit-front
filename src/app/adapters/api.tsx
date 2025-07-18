@@ -110,3 +110,24 @@ export const updateInventoryItem = async (data: {
 }) => {
   return await stpApi.put("/api/inventory", { data });
 };
+
+//Coach expenses
+export const getCoachExpensesByMonthAndYear = async (
+  month: string,
+  year: string
+) => {
+  return await stpApi.get(`/api/coach-expenses/${month}/${year}`, {});
+};
+
+export const createCoachExpense = async (data: {
+  coachId: number;
+  inventoryId: string;
+  quantity: number;
+  date: string;
+}) => {
+  return await stpApi.post(`/api/coach-expenses`, data);
+};
+
+export const deleteCoachExpense = async (expenseId: number) => {
+  return await stpApi.delete(`/api/coach-expenses/${expenseId}`);
+};
