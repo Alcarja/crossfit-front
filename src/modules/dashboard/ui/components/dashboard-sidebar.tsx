@@ -21,15 +21,15 @@ import {
 import {
   Calendar1,
   CircleUserRound,
-  FolderArchiveIcon,
+  //FolderArchiveIcon,
   LayoutDashboardIcon,
   NotepadText,
   PanelLeftIcon,
   PanelRightIcon,
-  PodcastIcon,
+  //PodcastIcon,
   Settings2Icon,
   ShoppingBasketIcon,
-  VoteIcon,
+  //VoteIcon,
 } from "lucide-react";
 import { useAuth } from "@/context/authContext";
 
@@ -51,7 +51,7 @@ const firstSection = [
   },
 ];
 
-const secondSection = [
+/* const secondSection = [
   {
     icon: FolderArchiveIcon,
     label: "All Events",
@@ -67,7 +67,7 @@ const secondSection = [
     label: "All votations",
     href: "/dashboard/all-votations",
   },
-];
+]; */
 
 const adminSection = [
   {
@@ -165,13 +165,13 @@ export const DashboardSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="px-4 py-2">
+        {/*  <div className="px-4 py-2">
           <Separator className=" text-[#5D6B68]" />
-        </div>
+        </div> */}
 
         <div className="h-full flex flex-col justify-between">
           <div>
-            <SidebarGroup>
+            {/* <SidebarGroup>
               {state !== "collapsed" && (
                 <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
                   Personal Section
@@ -201,7 +201,7 @@ export const DashboardSidebar = () => {
                   ))}
                 </SidebarMenu>
               </SidebarGroupContent>
-            </SidebarGroup>
+            </SidebarGroup> */}
 
             {user?.role === "admin" ? (
               <>

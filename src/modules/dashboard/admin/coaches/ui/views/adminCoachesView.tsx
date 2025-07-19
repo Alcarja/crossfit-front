@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { coachExpensesByMonthAndYearQueryOptions } from "@/app/queries/coach-expenses";
 
 export interface User {
   id: number;
@@ -73,6 +74,10 @@ const AdminCoachesView = () => {
     classesByMonthQueryOptions(selectedMonth, selectedYear)
   );
 
+  const { data: expensesData } = useQuery(
+    coachExpensesByMonthAndYearQueryOptions(selectedMonth, selectedYear)
+  );
+
   const userOptions = [
     { value: "", label: "All Coaches" }, // Add this line
     ...(usersData?.map((user: User) => ({
@@ -81,12 +86,13 @@ const AdminCoachesView = () => {
     })) ?? []),
   ];
 
-  const filteredData = (usersData ?? [])
+  const coachStats = (usersData ?? [])
     .filter(
       (user: User) => !selectedCoachId || String(user.id) === selectedCoachId
     )
     .map((user: User) => {
       const fullName = `${user.name} ${user.lastName}`;
+
       const userClasses =
         classesData?.results.filter(
           (cls: Class) => cls.coach?.id === user.id
@@ -118,24 +124,51 @@ const AdminCoachesView = () => {
         }
       });
 
-      const expenses = totalHours * 20;
+      const coachExpenses =
+        expensesData?.results.filter(
+          (item: any) => String(item.coachId) === String(user.id)
+        ) ?? [];
+
+      const totalExpenses = coachExpenses.reduce(
+        (sum: number, expense: any) => {
+          return sum + parseFloat(expense.totalPrice);
+        },
+        0
+      );
+
+      const totalPay =
+        Object.entries(classTypeHours).reduce((sum, [type, hours]) => {
+          const rate = hourlyRates[type] || 0;
+          return sum + rate * hours;
+        }, 0) +
+        (hourlyRates["isOpen"] || 0) * openHours +
+        (hourlyRates["isClose"] || 0) * closeHours;
+
+      const netTotal = totalPay - totalExpenses;
 
       return {
         id: user.id,
         name: fullName,
-        hours: totalHours.toFixed(1),
-        expenses: expenses.toFixed(2),
         classTypeHours,
         isOpenCount,
         isCloseCount,
         openHours,
         closeHours,
+        totalHours: totalHours.toFixed(1),
+        totalPay: totalPay.toFixed(2),
+        expenses: totalExpenses.toFixed(2),
+        netTotal: netTotal.toFixed(2),
+        expenseItems: coachExpenses,
       };
     });
 
   useEffect(() => {
-    console.log("Filtered data", filteredData);
-  }, [filteredData]);
+    console.log("Coach stats", coachStats);
+  }, [coachStats]);
+
+  useEffect(() => {
+    console.log("Expenses data", expensesData?.results);
+  }, [expensesData]);
 
   return (
     <div className="w-full h-auto p-6 space-y-8">
@@ -186,7 +219,7 @@ const AdminCoachesView = () => {
 
       {/* Summary Cards */}
       <div className="space-y-4">
-        {filteredData.map((coach: any) => {
+        {coachStats.map((coach: any) => {
           const colorMap: Record<string, string> = {
             WOD: "bg-blue-500",
             Gymnastics: "bg-yellow-500",
@@ -196,46 +229,44 @@ const AdminCoachesView = () => {
             Foundations: "bg-orange-500",
           };
 
-          const totalHours = Object.entries(
-            coach.classTypeHours as Record<string, number>
-          ).reduce((sum, [, hours]) => sum + hours, 0);
-
-          const totalPay =
-            Object.entries(
-              coach.classTypeHours as Record<string, number>
-            ).reduce((sum, [type, hours]) => {
-              const rate = hourlyRates[type] || 0;
-              return sum + rate * hours;
-            }, 0) +
-            (hourlyRates["isOpen"] || 0) * coach.openHours +
-            (hourlyRates["isClose"] || 0) * coach.closeHours;
-
           return (
-            <Card key={coach.name} className="w-full shadow-sm">
+            <Card key={coach.id} className="w-full shadow-sm">
               <CardHeader>
                 <CardTitle className="text-2xl">{coach.name}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col lg:flex-row justify-between gap-6">
-                {/* Summary Section */}
+                {/* Summary */}
                 <div className="space-y-4 w-full lg:w-1/2">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Hours</p>
-                    <p className="text-2xl font-bold">
-                      {totalHours.toFixed(1)} hrs
-                    </p>
+                    <p className="text-2xl font-bold">{coach.totalHours} hrs</p>
                   </div>
 
                   <div>
                     <p className="text-sm text-muted-foreground">
                       Total Payment
                     </p>
-                    <p className="text-xl font-semibold">
-                      {totalPay.toFixed(2)}€
+                    <p className="text-xl font-semibold">{coach.totalPay}€</p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Total Expenses
+                    </p>
+                    <p className="text-xl font-semibold text-red-600">
+                      {coach.expenses}€
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Net Total</p>
+                    <p className="text-xl font-semibold text-green-700">
+                      {coach.netTotal}€
                     </p>
                   </div>
                 </div>
 
-                {/* Table Section */}
+                {/* Class Breakdown Table */}
                 <div className="w-full lg:w-1/2">
                   <p className="text-sm text-muted-foreground mb-2">
                     Class Breakdown
@@ -249,40 +280,40 @@ const AdminCoachesView = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(coach.classTypeHours).map(
-                        ([type, hours]: [string, any]) => {
-                          const rate = hourlyRates[type] || 0;
-                          const total = rate * hours;
+                      {Object.entries(
+                        coach.classTypeHours as Record<string, number>
+                      ).map(([type, hours]) => {
+                        const rate = hourlyRates[type] || 0;
+                        const total = rate * hours;
 
-                          return (
-                            <tr key={type} className="border-t">
-                              <td className="px-2 py-1 flex items-center gap-2">
-                                <span
-                                  className={`w-2 h-2 rounded-full ${
-                                    colorMap[type] || "bg-gray-400"
-                                  }`}
-                                />
-                                {type}
-                              </td>
-                              <td className="text-right px-2 py-1">
-                                {hours.toFixed(1)} h
-                              </td>
-                              <td className="text-right px-2 py-1">
-                                {total.toFixed(2)}€
-                              </td>
-                            </tr>
-                          );
-                        }
-                      )}
+                        return (
+                          <tr key={type} className="border-t">
+                            <td className="px-2 py-1 flex items-center gap-2">
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  colorMap[type] || "bg-gray-400"
+                                }`}
+                              />
+                              {type}
+                            </td>
+                            <td className="text-right px-2 py-1">
+                              {hours.toFixed(1)} h
+                            </td>
+                            <td className="text-right px-2 py-1">
+                              {total.toFixed(2)}€
+                            </td>
+                          </tr>
+                        );
+                      })}
 
-                      {/* isOpen Row */}
+                      {/* Opening */}
                       <tr className="border-t">
                         <td className="px-2 py-1 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-green-500" />
                           Opening
                         </td>
                         <td className="text-right px-2 py-1">
-                          {coach.openHours.toFixed(1)}
+                          {coach.openHours.toFixed(1)} h
                         </td>
                         <td className="text-right px-2 py-1">
                           {(hourlyRates["isOpen"] * coach.openHours).toFixed(2)}
@@ -290,14 +321,14 @@ const AdminCoachesView = () => {
                         </td>
                       </tr>
 
-                      {/* isClose Row */}
+                      {/* Closing */}
                       <tr className="border-t">
                         <td className="px-2 py-1 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-red-500" />
                           Closing
                         </td>
                         <td className="text-right px-2 py-1">
-                          {coach.closeHours.toFixed(1)}
+                          {coach.closeHours.toFixed(1)} h
                         </td>
                         <td className="text-right px-2 py-1">
                           {(hourlyRates["isClose"] * coach.closeHours).toFixed(
@@ -307,18 +338,61 @@ const AdminCoachesView = () => {
                         </td>
                       </tr>
 
-                      {/* Totals Row */}
+                      {/* Totals */}
                       <tr className="border-t font-medium bg-gray-50">
                         <td className="px-2 py-1">Total</td>
                         <td className="text-right px-2 py-1">
-                          {totalHours.toFixed(1)} h
+                          {coach.totalHours} h
                         </td>
                         <td className="text-right px-2 py-1">
-                          {totalPay.toFixed(2)}€
+                          {coach.totalPay}€
                         </td>
                       </tr>
                     </tbody>
                   </table>
+
+                  {/* Expense Table */}
+                  {coach.expenseItems?.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-regular mb-2 text-muted-foreground">
+                        Expenses
+                      </h3>
+                      <table className="w-full text-xs border rounded-md overflow-hidden">
+                        <thead>
+                          <tr className="bg-muted">
+                            <th className="text-left px-2 py-1">Date</th>
+                            <th className="text-left px-2 py-1">Inventory</th>
+                            <th className="text-right px-2 py-1">Qty</th>
+                            <th className="text-right px-2 py-1">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {coach.expenseItems.map((item: any) => (
+                            <tr key={item.id} className="border-t">
+                              <td className="px-2 py-1">{item.date}</td>
+                              <td className="px-2 py-1">
+                                {item.inventory?.name}
+                              </td>
+                              <td className="text-right px-2 py-1">
+                                {item.quantity}
+                              </td>
+                              <td className="text-right px-2 py-1">
+                                {parseFloat(item.totalPrice).toFixed(2)}€
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="border-t font-medium bg-gray-50">
+                            <td colSpan={3} className="px-2 py-1 text-right">
+                              Total Expenses
+                            </td>
+                            <td className="text-right px-2 py-1">
+                              {coach.expenses}€
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -336,15 +410,25 @@ const AdminCoachesView = () => {
               <TableRow>
                 <TableHead>Coach</TableHead>
                 <TableHead>Hours</TableHead>
+                <TableHead>Open</TableHead>
+                <TableHead>Close</TableHead>
+                <TableHead>Total Pay</TableHead>
                 <TableHead>Expenses</TableHead>
+                <TableHead>Net Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((row: any) => (
+              {coachStats.map((row: any) => (
                 <TableRow key={row.name}>
                   <TableCell>{row.name}</TableCell>
-                  <TableCell>{row.hours}</TableCell>
-                  <TableCell>${row.expenses}</TableCell>
+                  <TableCell>{row.totalHours}</TableCell>
+                  <TableCell>{row.openHours.toFixed(1)} h</TableCell>
+                  <TableCell>{row.closeHours.toFixed(1)} h</TableCell>
+                  <TableCell>{row.totalPay}€</TableCell>
+                  <TableCell>{row.expenses}€</TableCell>
+                  <TableCell className="font-semibold text-green-700">
+                    {row.netTotal}€
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
