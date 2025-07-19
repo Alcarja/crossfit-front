@@ -88,7 +88,7 @@ export const InventoryView = () => {
       return matchesCategory && matchesSearch;
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .sort((a: any, b: any) => a.name.localeCompare(b.name));
+    .sort((a: InventoryItem, b: InventoryItem) => a.name.localeCompare(b.name));
 
   const { mutate: createCategory } = useCreateCategory();
 
