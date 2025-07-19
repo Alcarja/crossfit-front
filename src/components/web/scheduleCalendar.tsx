@@ -486,18 +486,29 @@ export default function ScheduleCalendar() {
             const classNames =
               colorMap[type] || "bg-gray-100 border-gray-300 text-gray-800";
 
+            const tooltipText = `Coach: ${coach}\n${new Date(
+              event.startStr
+            ).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })} – ${new Date(event.endStr).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}`;
+
             return (
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
+                      title={tooltipText} // ✅ Native fallback tooltip
                       className={`w-full h-full p-1 text-xs rounded-md shadow-sm border overflow-hidden cursor-pointer ${classNames}`}
                     >
                       <div className="text-[12px] truncate">{type}</div>
                       <div className="text-[12px] truncate">{coach}</div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-[200px]">
+                  <TooltipContent className="max-w-[200px] z-[99999]">
                     <div className="text-xs text-muted-foreground">
                       Coach: {coach}
                     </div>
