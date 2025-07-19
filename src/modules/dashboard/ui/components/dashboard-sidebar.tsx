@@ -39,11 +39,7 @@ const firstSection = [
     label: "Calendar",
     href: "/dashboard",
   },
-  {
-    icon: ShoppingBasketIcon,
-    label: "Inventory",
-    href: "/dashboard/inventory",
-  },
+
   {
     icon: NotepadText,
     label: "Expenses",
@@ -74,6 +70,11 @@ const adminSection = [
     icon: LayoutDashboardIcon,
     label: "Admin dashboard",
     href: "/dashboard/admin/dashboard",
+  },
+  {
+    icon: ShoppingBasketIcon,
+    label: "Inventory",
+    href: "/dashboard/inventory",
   },
   {
     icon: CircleUserRound,

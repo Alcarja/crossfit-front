@@ -74,8 +74,8 @@ export const InventoryView = () => {
 
   const { data: inventoryData } = useQuery(useAllInventoryQuery());
 
-  const filteredItems = inventoryData?.allInventory?.filter(
-    (item: InventoryItem) => {
+  const filteredItems = inventoryData?.allInventory
+    ?.filter((item: InventoryItem) => {
       const matchesCategory =
         filterCategory === "all" ||
         !filterCategory ||
@@ -86,8 +86,9 @@ export const InventoryView = () => {
         item.name.toLowerCase().includes(searchItem.toLowerCase());
 
       return matchesCategory && matchesSearch;
-    }
-  );
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .sort((a: any, b: any) => a.name.localeCompare(b.name));
 
   const { mutate: createCategory } = useCreateCategory();
 
