@@ -21,6 +21,7 @@ import {
 import {
   Calendar1,
   CircleUserRound,
+  DumbbellIcon,
   //FolderArchiveIcon,
   LayoutDashboardIcon,
   NotepadText,
@@ -39,11 +40,15 @@ const firstSection = [
     label: "Calendar",
     href: "/dashboard",
   },
-
   {
     icon: NotepadText,
     label: "Expenses",
     href: "/dashboard/expenses",
+  },
+  {
+    icon: DumbbellIcon,
+    label: "Workouts",
+    href: "/dashboard/workouts",
   },
 ];
 
