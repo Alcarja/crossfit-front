@@ -16,7 +16,9 @@ import interactionPlugin from "@fullcalendar/interaction";
 
 export type WorkoutPart = {
   title: "Warming-up" | "Strength" | "Workout" | "Midline" | "Accessories";
+  format?: "FOR TIME" | "EMOM" | "INTERVAL" | "AMRAP";
   content: string;
+  notes?: string;
 };
 
 export type Workout = {
@@ -29,7 +31,7 @@ export type Workout = {
     | "Endurance"
     | "Foundations"
     | "Kids";
-  format: "for time" | "EMOM" | "interval" | "AMRAP";
+
   focus?: string[]; // e.g. ["upper body", "VO2MAX"]
   cap?: string; // e.g. "20 min"
   parts?: WorkoutPart[];
@@ -45,14 +47,25 @@ const mockWorkouts: Workout[] = [
     id: "1",
     date: "2025-07-21",
     type: "WOD",
-    format: "for time",
     cap: "20 min",
     focus: ["upper body", "VO2MAX"],
     parts: [
       {
-        title: "Workout",
+        title: "Strength",
         content: `
-          <p><strong>21-15-9</strong></p>
+          <p>EVERY 90" FOR 15"</p>
+          <ul>
+            <li>4 BACK SQ @ 75%</li>
+          </ul>
+        `,
+        notes:
+          "Ir pesado desde la primera serie y subiendo de peso en cada ronda",
+      },
+      {
+        title: "Workout",
+        format: "FOR TIME",
+        content: `
+          <p>21-15-9</p>
           <ul>
             <li>Thrusters (42.5/30kg)</li>
             <li>Pull-ups</li>
@@ -73,7 +86,7 @@ const mockWorkouts: Workout[] = [
     versions: {
       rx: {
         description: `
-          <p>Perform the workout <strong>as written</strong>:</p>
+          <p>Perform the workout as written:</p>
           <ul>
             <li>Thrusters at 42.5/30kg</li>
             <li>Strict pull-ups</li>
@@ -102,7 +115,6 @@ const mockWorkouts: Workout[] = [
     id: "2",
     date: "2025-07-23",
     type: "Weightlifting",
-    format: "EMOM",
     focus: ["strength", "posterior chain"],
     parts: [
       {
@@ -151,12 +163,12 @@ const mockWorkouts: Workout[] = [
     id: "3",
     date: "2025-07-25",
     type: "Gymnastics",
-    format: "AMRAP",
     cap: "16 min",
     focus: ["core", "control", "upper body"],
     parts: [
       {
         title: "Workout",
+        format: "AMRAP",
         content: `
           <p><strong>AMRAP 16:</strong></p>
           <ul>
@@ -200,11 +212,11 @@ const mockWorkouts: Workout[] = [
     id: "4",
     date: "2025-07-27",
     type: "Endurance",
-    format: "interval",
     focus: ["VO2MAX", "engine"],
     parts: [
       {
         title: "Workout",
+        format: "INTERVAL",
         content: `
           <p><strong>6 rounds:</strong></p>
           <ul>
@@ -266,7 +278,7 @@ const WorkoutDialog = ({ workout }: { workout: Workout }) => (
     <DialogContent className="max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle className="flex flex-col gap-1">
-          {workout.type} • {workout.format.toUpperCase()}
+          {workout.type}
         </DialogTitle>
       </DialogHeader>
 
@@ -283,7 +295,9 @@ const WorkoutDialog = ({ workout }: { workout: Workout }) => (
           <h3 className="font-semibold text-sm mb-1">{part.title}</h3>
           <div
             className="prose prose-sm text-sm"
-            dangerouslySetInnerHTML={{ __html: part.content }}
+            dangerouslySetInnerHTML={{
+              __html: part.content || "",
+            }}
           />
         </div>
       ))}
@@ -441,7 +455,6 @@ const WorkoutCalendar = ({ workouts }: { workouts: Workout[] }) => {
           const workout = event.extendedProps.workout as Workout;
 
           const type = workout.type.toLowerCase();
-          const format = workout.format;
 
           const colorMap: Record<string, string> = {
             wod: "bg-blue-100 border-blue-300 text-blue-900",
@@ -457,11 +470,10 @@ const WorkoutCalendar = ({ workouts }: { workouts: Workout[] }) => {
 
           return (
             <div
-              title={`${type} • ${format}`}
+              title={`${type}`}
               className={`w-full h-full p-1 text-xs rounded-md shadow-sm border overflow-hidden cursor-pointer ${classNames}`}
             >
               <div className="text-[12px] font-medium truncate">{type}</div>
-              <div className="text-[11px] uppercase">{format}</div>
             </div>
           );
         }}
@@ -472,38 +484,74 @@ const WorkoutCalendar = ({ workouts }: { workouts: Workout[] }) => {
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex flex-col gap-1">
-                {selectedWorkout.type} • {selectedWorkout.format.toUpperCase()}
+                {selectedWorkout.type}
               </DialogTitle>
             </DialogHeader>
 
-            <div className="text-sm text-muted-foreground mb-4 space-y-1">
+            <div className="text-sm text-muted-foreground space-y-1">
               <p>{new Date(selectedWorkout.date).toLocaleDateString()}</p>
               {Array.isArray(selectedWorkout.focus) &&
                 selectedWorkout.focus.length > 0 && (
                   <p>Focus: {selectedWorkout.focus.join(", ")}</p>
                 )}
-              {selectedWorkout.cap && <p>CAP: {selectedWorkout.cap}</p>}
             </div>
 
             {selectedWorkout.parts?.map((part) => (
-              <div key={part.title} className="mb-4">
-                <h3 className="font-semibold text-sm mb-1">{part.title}</h3>
-                <p className="text-sm whitespace-pre-line">{part.content}</p>
+              <div key={part.title} className="w-full">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <h3 className="font-bold text-sm">{part.title}</h3>
+
+                    {part.title === "Workout" && (
+                      <>
+                        -
+                        {part.format && (
+                          <span className="text-sm font-bold uppercase">
+                            {part.format}
+                          </span>
+                        )}
+                        {selectedWorkout.cap && (
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            (CAP: {selectedWorkout.cap})
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className="prose text-sm"
+                  dangerouslySetInnerHTML={{ __html: part.content }}
+                />
+
+                {part.notes && (
+                  <div
+                    className="prose text-sm mt-2"
+                    dangerouslySetInnerHTML={{ __html: part.notes }}
+                  />
+                )}
               </div>
             ))}
 
-            <div className="mt-4">
+            <div>
               <h3 className="font-semibold text-sm mb-1">RX</h3>
-              <p className="text-sm">
-                {selectedWorkout.versions.rx.description}
-              </p>
+              <div
+                className="prose prose-sm text-sm"
+                dangerouslySetInnerHTML={{
+                  __html: selectedWorkout.versions.rx.description,
+                }}
+              />
 
               {selectedWorkout.versions.scaled && (
                 <>
-                  <h3 className="font-semibold text-sm mt-3 mb-1">Scaled</h3>
-                  <p className="text-sm">
-                    {selectedWorkout.versions.scaled.description}
-                  </p>
+                  <h3 className="font-semibold text-sm mb-1">Scaled</h3>
+                  <div
+                    className="prose prose-sm text-sm"
+                    dangerouslySetInnerHTML={{
+                      __html: selectedWorkout.versions.scaled.description,
+                    }}
+                  />
                 </>
               )}
 
