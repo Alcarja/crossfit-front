@@ -208,3 +208,123 @@
 .fc .fc-more-link:hover {
   color: #1d4ed8; /* Tailwind blue-700 */
 }
+
+/* PROSE */
+
+/* Make CKEditor fill its container */
+.ck-editor__editable_inline {
+  overflow-y: auto !important;
+  flex: 1 1 auto;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+}
+
+.ck-editor__main {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 300px !important;
+  height: auto !important;
+}
+
+/* ========== IMAGES ========== */
+.ck-content img {
+  max-height: 400px;
+  width: auto;
+  border-radius: 8px;
+}
+
+.prose img {
+  max-height: 400px; /* matched to ck-content */
+  width: auto; /* matched to ck-content */
+  display: block; /* centers image */
+  margin: 1rem auto; /* consistent spacing */
+  border-radius: 8px; /* matched */
+  object-fit: contain; /* safe scaling */
+}
+
+/* ========== HEADINGS ========== */
+.ck-content h1 {
+  font-size: 4rem;
+  font-weight: bold;
+  line-height: 1;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.prose h1 {
+  font-size: 4rem;
+  font-weight: bold;
+  line-height: 1;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.ck-content h2 {
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.prose h2 {
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.ck-content h3 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.prose h3 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.ck-content p {
+  line-height: 1.4;
+  font-size: 1.1rem;
+}
+
+.prose p {
+  line-height: 1;
+  font-size: 0.9rem;
+}
+
+/* ========== LISTS ========== */
+.ck-content ul,
+.ck-content ol {
+  padding-left: 0.9rem;
+  margin: 1rem 0;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.ck-content li {
+  margin-bottom: 0.25rem;
+}
+
+.prose li {
+  margin-bottom: 0.25rem;
+}
+
+/* ========== FIGURE (used by CKEditor for images) ========== */
+.prose figure.image {
+  margin: 2rem 0;
+  text-align: center;
+}
