@@ -32,7 +32,7 @@ export type Workout = {
 
 const WorkoutsView = () => {
   return (
-    <div className="w-full max-w-[2400px] mx-4">
+    <div className="w-full max-w-[2400px] m-6">
       <h1 className="text-2xl font-bold mb-4">Workouts</h1>
       <Tabs defaultValue="calendar" className="w-full">
         <TabsList className="flex flex-wrap items-center justify-center w-full">
