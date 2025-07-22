@@ -10,10 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import FullCalendar from "@fullcalendar/react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { CreateWorkoutForm } from "./forms/create-workout-form";
+import type { DateSelectArg } from "@fullcalendar/core";
 
 export type WorkoutPart = {
   title: "Warm-up" | "Strength" | "Workout" | "Midline" | "Accessories";
@@ -44,19 +45,37 @@ export type Workout = {
 };
 
 const WorkoutCalendar = () => {
-  const [calendarRange, setCalendarRange] = useState<{
-    start: string;
-    end: string;
-  } | null>(null);
+  const fallbackDate = useMemo(() => {
+    const now = new Date();
+    const year = 2025;
+    const month = now.getMonth(); // 0-based
+    const day = Math.min(now.getDate(), 28); // prevent invalid day
 
+    return new Date(year, month, day).toISOString().split("T")[0];
+  }, []);
+
+  const [calendarRange, setCalendarRange] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth(); // 🔁 Current month (0-based)
+
+    const start = new Date(year, month + 1, 1);
+    const end = new Date(year, month + 1, 0); // Last day of that month
+
+    return {
+      start: start.toISOString().split("T")[0],
+      end: end.toISOString().split("T")[0],
+    };
+  });
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
 
   const workoutsQueryOptions = calendarRange
     ? workoutsByDateRangeQueryOptions(calendarRange.start, calendarRange.end)
     : null;
 
-  const { data: workouts = [], isLoading } = useQuery(
+  const { data: workouts = [] } = useQuery(
     workoutsQueryOptions ?? {
       queryKey: ["workouts", "disabled"],
       queryFn: async () => [],
@@ -64,11 +83,10 @@ const WorkoutCalendar = () => {
     }
   );
 
-  useEffect(() => {
-    console.log("📦 fetched workouts:", workouts);
-  }, [workouts]);
-
-  if (isLoading) return <p>Loading calendar...</p>;
+  const openCreateDialog = (info: DateSelectArg) => {
+    setSelectedDate(info.startStr);
+    setShowForm(true);
+  };
 
   return (
     <div className="w-full h-screen p-6">
@@ -77,17 +95,29 @@ const WorkoutCalendar = () => {
       </Button>
 
       <FullCalendar
-        height="100%"
+        height="90%"
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
+        initialDate={calendarRange?.start || fallbackDate}
+        firstDay={1}
         datesSet={(arg) => {
-          setCalendarRange({ start: arg.startStr, end: arg.endStr });
+          const newStart = arg.startStr;
+          const newEnd = arg.endStr;
+
+          setCalendarRange((prev) => {
+            if (prev?.start === newStart && prev?.end === newEnd) {
+              return prev; // 🔒 Don't re-set if nothing changed
+            }
+            return { start: newStart, end: newEnd };
+          });
         }}
         headerToolbar={{
           left: "prev,next today",
           center: "title",
           right: "",
         }}
+        selectable={true} // required for "select" to work
+        select={openCreateDialog}
         events={workouts.map((w: Workout) => ({
           id: w.id,
           start: w.date,
@@ -158,6 +188,7 @@ const WorkoutCalendar = () => {
             open={showForm}
             setOpen={setShowForm}
             onSubmit={() => {}}
+            initialDate={selectedDate}
           />
         </DialogContent>
       </Dialog>

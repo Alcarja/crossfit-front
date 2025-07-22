@@ -223,7 +223,7 @@
 .ck-editor__main {
   display: flex !important;
   flex-direction: column !important;
-  min-height: 300px !important;
+  min-height: 150px !important;
   height: auto !important;
 }
 

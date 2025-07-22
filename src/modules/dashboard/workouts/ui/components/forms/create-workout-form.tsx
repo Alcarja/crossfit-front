@@ -76,15 +76,17 @@ const FORMATS = ["FOR TIME", "EMOM", "INTERVAL", "AMRAP"] as const;
 export function CreateWorkoutForm({
   open,
   setOpen,
+  initialDate,
 }: {
   open: boolean;
   setOpen: (value: boolean) => void;
   onSubmit: (workout: Workout) => void;
+  initialDate?: string;
 }) {
   const createWorkoutMutation = useCreateWorkoutQuery();
 
   const [formData, setFormData] = useState<Partial<Workout>>({
-    date: new Date().toISOString(),
+    date: initialDate || new Date().toISOString(),
     type: "WOD",
     focus: [],
     versions: { rx: { description: "" } },
