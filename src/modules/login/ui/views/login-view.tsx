@@ -36,7 +36,7 @@ export const LoginView = () => {
     onSuccess: (data) => {
       setUser(data); //Save user data to the authContext
       toast.success("Logged in correctly.");
-      window.location.href = "/";
+      window.location.href = "/dashboard";
     },
     onError: (err: any) => {
       console.error("❌ Login failed:", err.message);
