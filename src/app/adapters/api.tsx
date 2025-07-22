@@ -131,3 +131,32 @@ export const createCoachExpense = async (data: {
 export const deleteCoachExpense = async (expenseId: number) => {
   return await stpApi.delete(`/api/coach-expenses/${expenseId}`);
 };
+
+//Workouts
+export const createWorkout = async (data: {
+  date: string;
+  type: string;
+
+  focus?: string[];
+  parts?: {
+    title: string;
+    format?: string;
+    content: string;
+    notes?: string;
+    cap?: string;
+    versions?: {
+      rx?: { description: string };
+      scaled?: { description: string };
+      beginner?: { description: string };
+    };
+  }[];
+}) => {
+  return await stpApi.post("/api/workouts", data);
+};
+
+export const getWorkoutsByDateRange = async (start: string, end: string) => {
+  const data = await stpApi.get("/api/workouts", {
+    params: { start, end },
+  });
+  return data;
+};
