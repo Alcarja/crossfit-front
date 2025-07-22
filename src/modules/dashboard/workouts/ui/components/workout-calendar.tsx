@@ -158,18 +158,41 @@ const WorkoutCalendar = () => {
       {/* Workout Dialog */}
       {selectedWorkout && (
         <Dialog open onOpenChange={() => setSelectedWorkout(null)}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{selectedWorkout.type}</DialogTitle>
-            </DialogHeader>
-            <div className="text-sm text-muted-foreground">
-              {new Date(selectedWorkout.date).toLocaleDateString()}
+          <DialogContent className="max-h-[90vh] h-auto overflow-y-auto bg-white border border-neutral-200 rounded-2xl shadow-xl p-6 space-y-3">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <DialogHeader className="p-0">
+                  <DialogTitle className="text-xl font-bold text-black">
+                    {selectedWorkout.type}
+                  </DialogTitle>
+                </DialogHeader>
+                <span className="text-neutral-400">•</span>
+                <div className="text-sm text-neutral-500">
+                  {new Date(selectedWorkout.date).toLocaleDateString(
+                    undefined,
+                    {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    }
+                  )}
+                </div>
+              </div>
             </div>
-            {selectedWorkout.parts?.map((part) => (
-              <div key={part.title} className="mt-4">
-                <h3 className="font-bold">{part.title}</h3>
+
+            {/* Workout Parts */}
+            {selectedWorkout.parts?.map((part, idx) => (
+              <div
+                key={`${part.title}-${idx}`}
+                className="border-l-4 pl-4 py-4 px-4 bg-blue-50 rounded-lg shadow-sm border-blue-600 space-y-2"
+              >
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                  {part.title}
+                </h3>
                 <div
-                  className="prose text-sm"
+                  className="prose prose-sm max-w-none text-black"
                   dangerouslySetInnerHTML={{ __html: part.content }}
                 />
               </div>
