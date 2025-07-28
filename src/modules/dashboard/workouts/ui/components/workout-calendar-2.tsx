@@ -9,18 +9,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { workoutsByDateRangeQueryOptions } from "@/app/queries/workouts";
 import { Workout } from "../types";
 import { WorkoutDialog } from "./workout-dialog";
+import {
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  isBefore,
+  isSameDay as isSameDayFn,
+  format,
+} from "date-fns";
 
 export const WorkoutsCalendar2 = () => {
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
-  const [search, setSearch] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
@@ -49,60 +55,37 @@ export const WorkoutsCalendar2 = () => {
   }, [workouts]);
 
   const today = new Date();
-  const isSameDay = (d1: Date, d2: Date) =>
-    d1.getDate() === d2.getDate() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getFullYear() === d2.getFullYear();
+  const isSameDay = (d1: Date, d2: Date) => isSameDayFn(d1, d2);
 
   const calendarDays = useMemo(() => {
-    const firstDay = new Date(selectedYear, selectedMonth, 1);
-    const lastDay = new Date(selectedYear, selectedMonth + 1, 0);
+    const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1);
+    const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
+
+    const start = startOfWeek(firstDayOfMonth, { weekStartsOn: 1 });
+    const end = endOfWeek(lastDayOfMonth, { weekStartsOn: 1 });
 
     const days: Date[] = [];
+    let current = start;
 
-    const startDayOfWeek = (firstDay.getDay() + 6) % 7;
-    for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      const d = new Date(firstDay);
-      d.setDate(firstDay.getDate() - i - 1);
-      days.push(d);
-    }
-
-    for (let i = 1; i <= lastDay.getDate(); i++) {
-      days.push(new Date(selectedYear, selectedMonth, i));
-    }
-
-    const trailing = 42 - days.length;
-    for (let i = 1; i <= trailing; i++) {
-      const d = new Date(lastDay);
-      d.setDate(lastDay.getDate() + i);
-      days.push(d);
+    while (isBefore(current, addDays(end, 1))) {
+      days.push(new Date(current));
+      current = addDays(current, 1);
     }
 
     return days;
   }, [selectedYear, selectedMonth]);
 
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    workouts.forEach((w: any) => years.add(new Date(w.date).getFullYear()));
-    return Array.from(years).sort((a, b) => b - a);
-  }, [workouts]);
+  const availableYears = [2025, 2026, 2027, 2028];
 
   return (
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-4 items-center">
-        <Input
-          placeholder="Search workouts..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-
         <Select
           value={String(selectedMonth)}
           onValueChange={(val) => setSelectedMonth(parseInt(val))}
         >
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[300px]">
             <SelectValue placeholder="Select month" />
           </SelectTrigger>
           <SelectContent>
@@ -118,7 +101,7 @@ export const WorkoutsCalendar2 = () => {
           value={String(selectedYear)}
           onValueChange={(val) => setSelectedYear(parseInt(val))}
         >
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-[300px]">
             <SelectValue placeholder="Select year" />
           </SelectTrigger>
           <SelectContent>
@@ -133,7 +116,7 @@ export const WorkoutsCalendar2 = () => {
 
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-2">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+        {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
           <div key={day} className="text-sm font-semibold text-center">
             {day}
           </div>
@@ -141,7 +124,7 @@ export const WorkoutsCalendar2 = () => {
 
         {calendarDays.map((date, i) => {
           try {
-            const dateStr = date.toISOString().split("T")[0];
+            const dateStr = format(date, "yyyy-MM-dd");
             const isCurrentMonth = date.getMonth() === selectedMonth;
             const dayWorkouts = workoutsByDate[dateStr] || [];
             const isToday = isSameDay(date, today);
@@ -150,7 +133,7 @@ export const WorkoutsCalendar2 = () => {
               <div
                 key={i}
                 className={`border rounded-md p-2 min-h-[100px] text-sm
-                  ${isToday ? "bg-blue-400 text-white font-semibold" : ""}
+                  ${isToday ? "border-2 border-blue-400 font-semibold" : ""}
                   ${!isToday && isCurrentMonth ? "bg-white" : ""}
                   ${!isToday && !isCurrentMonth ? "bg-muted text-gray-500" : ""}
                 `}
@@ -159,15 +142,13 @@ export const WorkoutsCalendar2 = () => {
                   {date.getDate().toString().padStart(2, "0")}
                 </div>
                 <div className="space-y-1">
-                  {dayWorkouts
-                    .filter((w) =>
-                      w.parts?.some((p) =>
-                        p.content?.toLowerCase().includes(search.toLowerCase())
-                      )
-                    )
-                    .map((workout) => (
-                      <WorkoutDialog key={workout.id} workout={workout} />
-                    ))}
+                  {dayWorkouts.map((workout) => (
+                    <WorkoutDialog
+                      key={workout.id}
+                      workout={workout}
+                      isToday={isToday}
+                    />
+                  ))}
                 </div>
               </div>
             );

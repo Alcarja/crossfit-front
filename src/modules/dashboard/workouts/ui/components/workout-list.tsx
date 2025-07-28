@@ -79,12 +79,7 @@ export const MonthlyWorkoutCalendar = () => {
     return map;
   }, [workouts]);
 
-  // Generate available years from data
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    workouts.forEach((w: any) => years.add(new Date(w.date).getFullYear()));
-    return Array.from(years).sort((a, b) => b - a);
-  }, [workouts]);
+  const availableYears = [2025, 2026, 2027, 2028];
 
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [createDate, setCreateDate] = useState<string | null>(null);
@@ -101,7 +96,7 @@ export const MonthlyWorkoutCalendar = () => {
           value={String(selectedMonth)}
           onValueChange={(val) => setSelectedMonth(parseInt(val))}
         >
-          <SelectTrigger className="w-[260px]">
+          <SelectTrigger className="w-[300px]">
             <SelectValue placeholder="Select month" />
           </SelectTrigger>
           <SelectContent>
@@ -117,7 +112,7 @@ export const MonthlyWorkoutCalendar = () => {
           value={String(selectedYear)}
           onValueChange={(val) => setSelectedYear(parseInt(val))}
         >
-          <SelectTrigger className="w-[260px]">
+          <SelectTrigger className="w-[300px]">
             <SelectValue placeholder="Select year" />
           </SelectTrigger>
           <SelectContent>
