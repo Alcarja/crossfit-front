@@ -39,10 +39,10 @@ export const WorkoutDialog = ({ workout }: { workout: Workout }) => {
     <div>
       <Dialog>
         <DialogTrigger asChild>
-          <div className="cursor-pointer rounded-md border p-3 shadow-sm hover:bg-muted transition">
+          <div className="cursor-pointer rounded-md border p-3 shadow-sm hover:bg-muted transition flex items-center justify-between">
             <h2 className="font-semibold">{workout.type}</h2>
             <p className="text-sm text-muted-foreground">
-              {new Date(workout.date).toDateString()}
+              {new Date(workout.date).toLocaleDateString("es-ES")}
             </p>
           </div>
         </DialogTrigger>

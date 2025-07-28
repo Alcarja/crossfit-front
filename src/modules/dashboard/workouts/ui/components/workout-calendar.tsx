@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import FullCalendar from "@fullcalendar/react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { CreateWorkoutForm } from "./forms/create-workout-form";
@@ -67,6 +67,10 @@ const WorkoutCalendar = () => {
   const openEditDialog = () => {
     setShowEditForm(true);
   };
+
+  useEffect(() => {
+    console.log("selected date", selectedDate);
+  }, [selectedDate]);
 
   return (
     <div className="w-full h-screen p-6">

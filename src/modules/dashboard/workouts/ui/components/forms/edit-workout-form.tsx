@@ -16,6 +16,7 @@ import { RichTextEditor } from "@/components/web/richTextEditor";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Workout, WorkoutPart } from "../../types";
+import { format } from "date-fns";
 
 const WORKOUT_TYPES = [
   "WOD",
@@ -36,6 +37,16 @@ const PART_TITLES = [
 
 const FORMATS = ["FOR TIME", "EMOM", "INTERVAL", "AMRAP"] as const;
 
+const normalizeDateString = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return format(date, "yyyy-MM-dd");
+  } catch {
+    return "";
+  }
+};
+
 export function EditWorkoutForm({
   setOpen,
   workoutData,
@@ -54,6 +65,10 @@ export function EditWorkoutForm({
     versions: { rx: { description: "" } },
     parts: [],
   });
+
+  useEffect(() => {
+    console.log("Workout data", workoutData);
+  }, [workoutData]);
 
   useEffect(() => {
     if (!workoutData) return;
@@ -79,7 +94,7 @@ export function EditWorkoutForm({
 
     setFormData({
       id: workoutData.id,
-      date: workoutData.date,
+      date: normalizeDateString(workoutData.date),
       type: workoutData.type,
       parts: normalizedParts,
     });

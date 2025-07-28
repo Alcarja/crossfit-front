@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useCreateWorkoutQuery } from "@/app/queries/workouts";
 import { RichTextEditor } from "@/components/web/richTextEditor";
@@ -80,17 +80,32 @@ export function CreateWorkoutForm({
 }: {
   open: boolean;
   setOpen: (value: boolean) => void;
-  initialDate?: string;
+  initialDate?: string; // ✅ Fix here
 }) {
   const queryClient = useQueryClient();
   const createWorkoutMutation = useCreateWorkoutQuery();
 
   const [formData, setFormData] = useState<Partial<Workout>>({
-    date: initialDate || new Date().toISOString(),
+    date: "",
     type: "WOD",
     versions: { rx: { description: "" } },
     parts: [],
   });
+
+  useEffect(() => {
+    console.log("initialDate", initialDate);
+  }, [initialDate]);
+
+  useEffect(() => {
+    if (initialDate && open) {
+      setFormData({
+        date: initialDate,
+        type: "WOD",
+        versions: { rx: { description: "" } },
+        parts: [],
+      });
+    }
+  }, [initialDate, open]);
 
   const handleAddPart = () => {
     setFormData((prev) => ({
@@ -163,11 +178,11 @@ export function CreateWorkoutForm({
             <label className="text-sm font-medium">Date</label>
             <Input
               type="date"
-              value={new Date(formData.date || "").toISOString().split("T")[0]}
+              value={formData.date || ""} // already in YYYY-MM-DD
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  date: new Date(e.target.value).toISOString(),
+                  date: e.target.value, // also YYYY-MM-DD
                 }))
               }
             />
