@@ -160,3 +160,25 @@ export const getWorkoutsByDateRange = async (start: string, end: string) => {
   });
   return data;
 };
+
+export const updateWorkoutById = async (
+  workoutId: number,
+  data: {
+    date: string;
+    type: string;
+    parts?: {
+      title: string;
+      format?: string;
+      content: string;
+      notes?: string;
+      cap?: string;
+      versions?: {
+        rx?: { description: string };
+        scaled?: { description: string };
+        beginner?: { description: string };
+      };
+    }[];
+  }
+) => {
+  return await stpApi.put(`/api/workouts/${workoutId}`, data);
+};

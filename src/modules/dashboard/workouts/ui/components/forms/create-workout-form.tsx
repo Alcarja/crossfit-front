@@ -19,6 +19,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useCreateWorkoutQuery } from "@/app/queries/workouts";
 import { RichTextEditor } from "@/components/web/richTextEditor";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type WorkoutPart = {
   title: "Warm-up" | "Strength" | "Workout" | "Midline" | "Accessories";
@@ -44,7 +45,6 @@ export type Workout = {
     | "Foundations"
     | "Kids";
 
-  focus?: string[]; // e.g. ["upper body", "VO2MAX"]
   cap?: string; // e.g. "20 min"
   parts?: WorkoutPart[];
   versions?: {
@@ -80,15 +80,14 @@ export function CreateWorkoutForm({
 }: {
   open: boolean;
   setOpen: (value: boolean) => void;
-  onSubmit: (workout: Workout) => void;
   initialDate?: string;
 }) {
+  const queryClient = useQueryClient();
   const createWorkoutMutation = useCreateWorkoutQuery();
 
   const [formData, setFormData] = useState<Partial<Workout>>({
     date: initialDate || new Date().toISOString(),
     type: "WOD",
-    focus: [],
     versions: { rx: { description: "" } },
     parts: [],
   });
@@ -129,7 +128,6 @@ export function CreateWorkoutForm({
       {
         date: formData.date,
         type: formData.type,
-        focus: formData.focus || [],
         parts: formData.parts,
       },
       {
@@ -138,8 +136,10 @@ export function CreateWorkoutForm({
           setFormData({
             date: new Date().toISOString(),
             type: "WOD",
-            focus: [],
             parts: [],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["workouts", "byRange"],
           });
         },
         onError: (err) => {
@@ -198,30 +198,10 @@ export function CreateWorkoutForm({
             </Select>
           </div>
 
-          {/* Focus */}
-          <div>
-            <label className="text-sm font-medium">
-              Focus (comma separated)
-            </label>
-            <Input
-              value={formData.focus?.join(", ") || ""}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  focus: e.target.value.split(",").map((f) => f.trim()),
-                }))
-              }
-            />
-          </div>
-
           {/* Parts */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-sm">Workout Parts</h3>
-              <Button variant="outline" size="sm" onClick={handleAddPart}>
-                <Plus className="w-4 h-4 mr-1" />
-                Add Part
-              </Button>
             </div>
 
             {(formData.parts || []).map((part, i) => (
@@ -233,7 +213,7 @@ export function CreateWorkoutForm({
                   className="absolute top-2 right-2 text-muted-foreground"
                   onClick={() => handleRemovePart(i)}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4 text-red-600" />
                 </button>
 
                 {/* Title */}
@@ -366,6 +346,15 @@ export function CreateWorkoutForm({
                 )}
               </div>
             ))}
+            <Button
+              className="w-full"
+              variant="outline"
+              size="sm"
+              onClick={handleAddPart}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Part
+            </Button>
           </div>
 
           {/* Save Button */}

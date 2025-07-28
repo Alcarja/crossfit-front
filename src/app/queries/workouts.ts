@@ -3,7 +3,7 @@ import {
   createWorkout,
   getClasses,
   getWorkoutsByDateRange,
-  updateClass,
+  updateWorkoutById,
 } from "../adapters/api";
 
 export const useCreateWorkoutQuery = () =>
@@ -11,7 +11,6 @@ export const useCreateWorkoutQuery = () =>
     mutationFn: (data: {
       date: string;
       type: string;
-      focus?: string[];
       parts?: {
         title: string;
         format?: string;
@@ -46,20 +45,28 @@ export const workoutsByDateRangeQueryOptions = (
   },
 });
 
-export const useUpdateClassQuery = () =>
+export const useUpdateWorkoutQuery = () =>
   useMutation({
     mutationFn: ({
-      id,
+      workoutId,
       data,
     }: {
-      id: number;
+      workoutId: number;
       data: {
-        start?: string;
-        end?: string;
-        coachId?: number;
-        type?: string;
-        isOpen?: boolean;
-        isClose?: boolean;
+        date: string;
+        type: string;
+        parts?: {
+          title: string;
+          format?: string;
+          content: string;
+          notes?: string;
+          cap?: string;
+          versions?: {
+            rx?: { description: string };
+            scaled?: { description: string };
+            beginner?: { description: string };
+          };
+        }[];
       };
-    }) => updateClass(id, data),
+    }) => updateWorkoutById(workoutId, data),
   });

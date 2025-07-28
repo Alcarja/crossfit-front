@@ -15,34 +15,8 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { CreateWorkoutForm } from "./forms/create-workout-form";
 import type { DateSelectArg } from "@fullcalendar/core";
-
-export type WorkoutPart = {
-  title: "Warm-up" | "Strength" | "Workout" | "Midline" | "Accessories";
-  format?: "FOR TIME" | "EMOM" | "INTERVAL" | "AMRAP";
-  content: string;
-  notes?: string;
-};
-
-export type Workout = {
-  id: string;
-  date: string; // ISO string (for calendar display)
-  type:
-    | "WOD"
-    | "Gymnastics"
-    | "Weightlifting"
-    | "Endurance"
-    | "Foundations"
-    | "Kids";
-
-  focus?: string[]; // e.g. ["upper body", "VO2MAX"]
-  cap?: string; // e.g. "20 min"
-  parts?: WorkoutPart[];
-  versions?: {
-    rx: { description: string };
-    scaled?: { description: string };
-    beginner?: { description: string };
-  };
-};
+import { EditWorkoutForm } from "./forms/edit-workout-form";
+import { Workout } from "../types";
 
 const WorkoutCalendar = () => {
   const fallbackDate = useMemo(() => {
@@ -71,6 +45,8 @@ const WorkoutCalendar = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
 
+  const [showEditForm, setShowEditForm] = useState(false);
+
   const workoutsQueryOptions = calendarRange
     ? workoutsByDateRangeQueryOptions(calendarRange.start, calendarRange.end)
     : null;
@@ -86,6 +62,10 @@ const WorkoutCalendar = () => {
   const openCreateDialog = (info: DateSelectArg) => {
     setSelectedDate(info.startStr);
     setShowForm(true);
+  };
+
+  const openEditDialog = () => {
+    setShowEditForm(true);
   };
 
   return (
@@ -160,25 +140,36 @@ const WorkoutCalendar = () => {
         <Dialog open onOpenChange={() => setSelectedWorkout(null)}>
           <DialogContent className="max-h-[90vh] h-auto overflow-y-auto bg-white border border-neutral-200 rounded-2xl shadow-xl p-6 space-y-3">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <DialogHeader className="p-0">
-                  <DialogTitle className="text-xl font-bold text-black">
-                    {selectedWorkout.type}
-                  </DialogTitle>
-                </DialogHeader>
-                <span className="text-neutral-400">•</span>
-                <div className="text-sm text-neutral-500">
-                  {new Date(selectedWorkout.date).toLocaleDateString(
-                    undefined,
-                    {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    }
-                  )}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <DialogHeader className="p-0">
+                    <DialogTitle className="text-xl font-bold text-black">
+                      {selectedWorkout.type}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <span className="text-neutral-400">•</span>
+                  <div className="text-sm text-neutral-500">
+                    {new Date(selectedWorkout.date).toLocaleDateString(
+                      undefined,
+                      {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      }
+                    )}
+                  </div>
                 </div>
+              </div>
+              <div>
+                <Button
+                  onClick={() => {
+                    openEditDialog();
+                  }}
+                >
+                  Edit Workout
+                </Button>
               </div>
             </div>
 
@@ -191,10 +182,41 @@ const WorkoutCalendar = () => {
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-600">
                   {part.title}
                 </h3>
+
+                {/* Content */}
                 <div
                   className="prose prose-sm max-w-none text-black"
                   dangerouslySetInnerHTML={{ __html: part.content }}
                 />
+
+                {/* Notes */}
+                {part.notes && part.notes.trim() !== "" && (
+                  <p
+                    className="prose prose-sm max-w-none text-black text-sm italic"
+                    dangerouslySetInnerHTML={{ __html: part.notes ?? "" }}
+                  />
+                )}
+
+                {/* Versions (RX / Scaled) */}
+                {(part.versions?.rx || part.versions?.scaled) && (
+                  <div className="pt-2 space-y-1 italic">
+                    <p className="text-xs font-semibold text-gray-700 uppercase">
+                      Versions
+                    </p>
+                    {part.versions?.rx && (
+                      <p className="text-sm text-gray-800">
+                        <span className="font-medium">RX:</span>{" "}
+                        {part.versions.rx.description}
+                      </p>
+                    )}
+                    {part.versions?.scaled && (
+                      <p className="text-sm text-gray-800">
+                        <span className="font-medium">Scaled:</span>{" "}
+                        {part.versions.scaled.description}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </DialogContent>
@@ -210,8 +232,22 @@ const WorkoutCalendar = () => {
           <CreateWorkoutForm
             open={showForm}
             setOpen={setShowForm}
-            onSubmit={() => {}}
             initialDate={selectedDate}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Form Dialog */}
+      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+        <DialogContent className="!w-[800px] !max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Workout</DialogTitle>
+          </DialogHeader>
+
+          <EditWorkoutForm
+            setOpen={setShowEditForm}
+            workoutData={selectedWorkout}
+            setSelectedWorkout={setSelectedWorkout} // 👈 Pass this prop
           />
         </DialogContent>
       </Dialog>
