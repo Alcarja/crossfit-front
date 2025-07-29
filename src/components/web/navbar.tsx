@@ -25,13 +25,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/authContext";
-//import { useRouter } from "next/navigation";
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
-
-  //const router = useRouter();
-
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -40,32 +36,33 @@ export const Navbar = () => {
         "sticky top-0 z-50 w-full border-b-[1.5px] px-4 md:px-8 py-2 md:py-0 bg-white border-secondary"
       )}
     >
-      <div className="flex items-center justify-between h-16 w-full">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="grid grid-cols-3 items-center h-16 w-full">
+        {/* Left: Logo (only visible on sm+) */}
+        <div className="hidden sm:flex items-center gap-2 pl-2">
           <Link href="/">
-            <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="Logo" className="w-14 h-14" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="w-14 h-14" />
           </Link>
         </div>
 
-        <div className="hidden md:flex items-center space-x-6 bg-white border border-gray-200 rounded-md px-6 py-2 shadow-sm text-sm font-medium mx-auto">
-          <Link href="/" passHref>
-            <button className="text-gray-700 hover:text-black transition-colors">
-              Home
-            </button>
-          </Link>
-          <div className="h-4 border-l border-gray-300" />
-          <Link href="/explore" passHref>
-            <button className="text-gray-700 hover:text-black transition-colors">
-              Explore
-            </button>
-          </Link>
+        {/* Center: Navigation */}
+        <div className="flex justify-center">
+          <div className="hidden md:flex items-center space-x-6 bg-white border border-gray-200 rounded-md px-6 py-2 shadow-sm text-sm font-medium">
+            <Link href="/" passHref>
+              <button className="text-gray-700 hover:text-black transition-colors">
+                Home
+              </button>
+            </Link>
+            <div className="h-4 border-l border-gray-300" />
+            <Link href="/explore" passHref>
+              <button className="text-gray-700 hover:text-black transition-colors">
+                Explore
+              </button>
+            </Link>
+          </div>
         </div>
 
-        {/* Right: Auth / Theme / Dropdown */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Right: Auth / Dropdown / Mobile Toggle */}
+        <div className="flex justify-end items-center gap-3 pr-2">
           {!user && (
             <>
               {/* Desktop Auth Buttons */}
@@ -91,7 +88,7 @@ export const Navbar = () => {
                 </Link>
               </div>
 
-              {/* Mobile Avatar Dropdown */}
+              {/* Mobile Dropdown Avatar */}
               <div className="md:hidden">
                 <DropdownMenu>
                   <DropdownMenuTrigger>
@@ -154,7 +151,7 @@ export const Navbar = () => {
             </>
           )}
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Toggle */}
           <button
             className="md:hidden ml-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

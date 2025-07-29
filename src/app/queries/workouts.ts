@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import {
   createWorkout,
-  getClasses,
+  deleteWorkoutById,
   getWorkoutsByDateRange,
   updateWorkoutById,
 } from "../adapters/api";
@@ -25,14 +25,6 @@ export const useCreateWorkoutQuery = () =>
       }[];
     }) => createWorkout(data),
   });
-
-export const classesQueryOptions = (start: string, end: string) => ({
-  queryKey: ["classes", start, end],
-  queryFn: async () => {
-    return await getClasses(start, end);
-  },
-  enabled: !!start && !!end, // only runs if both dates exist
-});
 
 export const workoutsByDateRangeQueryOptions = (
   start: string,
@@ -69,4 +61,9 @@ export const useUpdateWorkoutQuery = () =>
         }[];
       };
     }) => updateWorkoutById(workoutId, data),
+  });
+
+export const useDeleteWorkoutMutation = () =>
+  useMutation({
+    mutationFn: deleteWorkoutById,
   });

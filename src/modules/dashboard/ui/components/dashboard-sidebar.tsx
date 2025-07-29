@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/authContext";
 import { Separator } from "@/components/ui/separator";
 
 import {
@@ -19,20 +20,24 @@ import {
 } from "@/components/ui/sidebar";
 
 import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+
+import {
   Calendar1,
   CircleUserRound,
   DumbbellIcon,
-  //FolderArchiveIcon,
   LayoutDashboardIcon,
   NotepadText,
   PanelLeftIcon,
   PanelRightIcon,
-  //PodcastIcon,
   Settings2Icon,
   ShoppingBasketIcon,
-  //VoteIcon,
+  ArrowDownLeftFromCircleIcon,
 } from "lucide-react";
-import { useAuth } from "@/context/authContext";
 
 const firstSection = [
   {
@@ -51,24 +56,6 @@ const firstSection = [
     href: "/dashboard/workouts",
   },
 ];
-
-/* const secondSection = [
-  {
-    icon: FolderArchiveIcon,
-    label: "All Events",
-    href: "/dashboard/all-events",
-  },
-  {
-    icon: PodcastIcon,
-    label: "All posts",
-    href: "/dashboard/all-posts",
-  },
-  {
-    icon: VoteIcon,
-    label: "All votations",
-    href: "/dashboard/all-votations",
-  },
-]; */
 
 const adminSection = [
   {
@@ -103,7 +90,7 @@ export const DashboardSidebar = () => {
 
   const { state, toggleSidebar, isMobile } = useSidebar();
 
-  return (
+  const sidebarContent = (
     <Sidebar
       collapsible="icon"
       className={cn(
@@ -171,44 +158,8 @@ export const DashboardSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/*  <div className="px-4 py-2">
-          <Separator className=" text-[#5D6B68]" />
-        </div> */}
-
         <div className="h-full flex flex-col justify-between">
           <div>
-            {/* <SidebarGroup>
-              {state !== "collapsed" && (
-                <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
-                  Personal Section
-                </h3>
-              )}
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {secondSection.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        className={cn(
-                          "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
-                          pathname === item.href &&
-                            "bg-linear-to-r/oklch border-[#5D6B68]/10"
-                        )}
-                        isActive={pathname === item.href}
-                      >
-                        <Link href={item.href}>
-                          <item.icon className="size-7 mr-2" />
-                          <span className="text-sm font-medium tracking-tight">
-                            {item.label}
-                          </span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup> */}
-
             {user?.role === "admin" ? (
               <>
                 <div className="px-4 py-2">
@@ -279,5 +230,102 @@ export const DashboardSidebar = () => {
         </div>
       </SidebarContent>
     </Sidebar>
+  );
+
+  return (
+    <>
+      {/* ✅ Mobile Drawer Button */}
+      {isMobile && (
+        <div className="fixed top-6 left-4 z-50">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button className="size-9">
+                <ArrowDownLeftFromCircleIcon />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-4 w-[250px] overflow-y-auto">
+              <div className="space-y-6 mt-8">
+                {/* App title */}
+                <h2 className="text-xl font-bold">Dashboard</h2>
+
+                {/* General section */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                    General
+                  </p>
+                  <div className="space-y-1">
+                    {firstSection.map((item) => (
+                      <SheetClose asChild key={item.href}>
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
+                            pathname === item.href && "bg-muted font-semibold"
+                          )}
+                        >
+                          <item.icon className="size-5" />
+                          {item.label}
+                        </Link>
+                      </SheetClose>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Admin section */}
+                {user?.role === "admin" && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                      Admin
+                    </p>
+                    <div className="space-y-1">
+                      {adminSection.map((item) => (
+                        <SheetClose asChild key={item.href}>
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
+                              pathname === item.href && "bg-muted font-semibold"
+                            )}
+                          >
+                            <item.icon className="size-5" />
+                            {item.label}
+                          </Link>
+                        </SheetClose>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer section */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                    Settings
+                  </p>
+                  <div className="space-y-1">
+                    {footerSection.map((item) => (
+                      <SheetClose asChild key={item.href}>
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
+                            pathname === item.href && "bg-muted font-semibold"
+                          )}
+                        >
+                          <item.icon className="size-5" />
+                          {item.label}
+                        </Link>
+                      </SheetClose>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
+
+      {/* ✅ Desktop Sidebar */}
+      {!isMobile && sidebarContent}
+    </>
   );
 };

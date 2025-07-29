@@ -182,3 +182,7 @@ export const updateWorkoutById = async (
 ) => {
   return await stpApi.put(`/api/workouts/${workoutId}`, data);
 };
+
+export const deleteWorkoutById = async (workoutId: number) => {
+  return await stpApi.delete(`/api/workouts/${workoutId}`);
+};

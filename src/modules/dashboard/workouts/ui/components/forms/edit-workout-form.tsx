@@ -11,12 +11,23 @@ import {
 } from "@/components/ui/select";
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { useUpdateWorkoutQuery } from "@/app/queries/workouts";
+import {
+  useDeleteWorkoutMutation,
+  useUpdateWorkoutQuery,
+} from "@/app/queries/workouts";
 import { RichTextEditor } from "@/components/web/richTextEditor";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Workout, WorkoutPart } from "../../types";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogFooter,
+  DialogTitle,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { DialogClose } from "@radix-ui/react-dialog";
 
 const WORKOUT_TYPES = [
   "WOD",
@@ -171,6 +182,21 @@ export function EditWorkoutForm({
         },
       }
     );
+  };
+
+  const deleteMutation = useDeleteWorkoutMutation();
+
+  const handleDelete = () => {
+    deleteMutation.mutate(Number(workoutData?.id), {
+      onSuccess: () => {
+        toast.success("Workout deleted!");
+        queryClient.invalidateQueries({ queryKey: ["workouts", "byRange"] });
+        setOpen(false);
+      },
+      onError: () => {
+        toast.error("Failed to delete workout.");
+      },
+    });
   };
 
   return (
@@ -368,11 +394,50 @@ export function EditWorkoutForm({
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end gap-2 pt-4">
-        <Button variant="outline" onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit}>Update</Button>
+      <div className="w-full flex items-center justify-between">
+        <div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="w-auto" variant={"delete"}>
+                Delete
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogTitle className="pb-8">
+                Are you sure you want to delete the workout?
+              </DialogTitle>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button>Cancel</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant={"delete"}
+                    onClick={() => handleDelete()}
+                  >
+                    Delete
+                  </Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            className="cursor-pointer"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            className="bg-green-300 hover:bg-green-500"
+          >
+            Update
+          </Button>
+        </div>
       </div>
     </div>
   );

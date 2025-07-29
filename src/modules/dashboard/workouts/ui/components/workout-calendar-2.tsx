@@ -30,15 +30,25 @@ export const WorkoutsCalendar2 = () => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
+  const calendarStartDate = useMemo(() => {
+    const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1);
+    return startOfWeek(firstDayOfMonth, { weekStartsOn: 1 });
+  }, [selectedYear, selectedMonth]);
+
+  const calendarEndDate = useMemo(() => {
+    const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
+    return endOfWeek(lastDayOfMonth, { weekStartsOn: 1 });
+  }, [selectedYear, selectedMonth]);
+
   const start = useMemo(
-    () => new Date(selectedYear, selectedMonth, 1).toISOString().split("T")[0],
-    [selectedYear, selectedMonth]
+    () => calendarStartDate.toISOString().split("T")[0],
+    [calendarStartDate]
   );
 
-  const end = useMemo(() => {
-    const lastDay = new Date(selectedYear, selectedMonth + 1, 0);
-    return lastDay.toISOString().split("T")[0];
-  }, [selectedYear, selectedMonth]);
+  const end = useMemo(
+    () => calendarEndDate.toISOString().split("T")[0],
+    [calendarEndDate]
+  );
 
   const { data: workouts = [] } = useQuery(
     workoutsByDateRangeQueryOptions(start, end)
@@ -58,22 +68,16 @@ export const WorkoutsCalendar2 = () => {
   const isSameDay = (d1: Date, d2: Date) => isSameDayFn(d1, d2);
 
   const calendarDays = useMemo(() => {
-    const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1);
-    const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
-
-    const start = startOfWeek(firstDayOfMonth, { weekStartsOn: 1 });
-    const end = endOfWeek(lastDayOfMonth, { weekStartsOn: 1 });
-
     const days: Date[] = [];
-    let current = start;
+    let current = new Date(calendarStartDate);
 
-    while (isBefore(current, addDays(end, 1))) {
+    while (isBefore(current, addDays(calendarEndDate, 1))) {
       days.push(new Date(current));
       current = addDays(current, 1);
     }
 
     return days;
-  }, [selectedYear, selectedMonth]);
+  }, [calendarStartDate, calendarEndDate]);
 
   const availableYears = [2025, 2026, 2027, 2028];
 
