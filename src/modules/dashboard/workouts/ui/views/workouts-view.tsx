@@ -11,10 +11,6 @@ const WorkoutsView = () => {
         <TabsList className="flex flex-wrap items-center justify-center w-full">
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="planner">Planner</TabsTrigger>
-          {/*   <TabsTrigger value="wod">WODs</TabsTrigger>
-          <TabsTrigger value="gymnastics">Gymnastics</TabsTrigger>
-          <TabsTrigger value="weightlifting">Weightlifting</TabsTrigger>
-          <TabsTrigger value="endurance">Endurance</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="calendar">

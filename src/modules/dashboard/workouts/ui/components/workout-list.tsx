@@ -126,7 +126,7 @@ export const MonthlyWorkoutCalendar = () => {
       </div>
 
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-2 text-center font-semibold text-sm text-gray-600">
+      <div className="hidden lg:grid grid-cols-7 gap-2 text-center font-semibold text-sm text-gray-600">
         {[
           "Lunes",
           "Martes",
@@ -142,9 +142,12 @@ export const MonthlyWorkoutCalendar = () => {
 
       {/* Calendar Weeks */}
       {weeks.map((week, wIndex) => (
-        <div key={wIndex} className="grid grid-cols-7 gap-2">
+        <div
+          key={wIndex}
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2"
+        >
           {week.map((date, i) => {
-            const dateStr = format(date, "yyyy-MM-dd"); // ✅ good — local time
+            const dateStr = format(date, "yyyy-MM-dd");
             const isToday = isSameDay(date, today);
             const workoutsForDay = workoutsByDate[dateStr] || [];
 
@@ -156,11 +159,15 @@ export const MonthlyWorkoutCalendar = () => {
                 }`}
                 onClick={() => {
                   const dateOnly = format(date, "yyyy-MM-dd");
-                  setCreateDate(dateOnly); // ✅ always set
-                  setShowCreateDialog(true); // ✅ always open
+                  setCreateDate(dateOnly);
+                  setShowCreateDialog(true);
                 }}
               >
                 <div className="font-semibold mb-1 text-center">
+                  {/* Show weekday name on small screens */}
+                  <span className="block lg:hidden text-xs text-muted-foreground">
+                    {format(date, "EEE")}
+                  </span>
                   {format(date, "dd/MM")}
                 </div>
 
@@ -172,7 +179,7 @@ export const MonthlyWorkoutCalendar = () => {
                       onClick={(e) => {
                         setSelectedWorkout(workout);
                         setShowEditForm(true);
-                        e.stopPropagation(); // 👈 Prevent outer onClick from triggering
+                        e.stopPropagation();
                       }}
                     >
                       <div className="text-xs uppercase font-medium text-gray-500">
@@ -203,6 +210,7 @@ export const MonthlyWorkoutCalendar = () => {
           })}
         </div>
       ))}
+
       {createDate && (
         <CreateWorkoutForm
           open={showCreateDialog}

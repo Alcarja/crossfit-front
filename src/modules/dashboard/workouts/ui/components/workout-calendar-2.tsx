@@ -119,13 +119,19 @@ export const WorkoutsCalendar2 = () => {
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-2">
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+        {/* Weekday headers: show only on large screens */}
         {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
-          <div key={day} className="text-sm font-semibold text-center">
+          <div
+            key={day}
+            className="hidden lg:block text-sm font-semibold text-center"
+          >
             {day}
           </div>
         ))}
 
+        {/* Calendar Days */}
         {calendarDays.map((date, i) => {
           try {
             const dateStr = format(date, "yyyy-MM-dd");
@@ -137,14 +143,22 @@ export const WorkoutsCalendar2 = () => {
               <div
                 key={i}
                 className={`border rounded-md p-2 min-h-[100px] text-sm
-                  ${isToday ? "border-2 border-blue-400 font-semibold" : ""}
-                  ${!isToday && isCurrentMonth ? "bg-white" : ""}
-                  ${!isToday && !isCurrentMonth ? "bg-muted text-gray-500" : ""}
-                `}
+            ${isToday ? "border-2 border-blue-400 font-semibold" : ""}
+            ${!isToday && isCurrentMonth ? "bg-white" : ""}
+            ${!isToday && !isCurrentMonth ? "bg-muted text-gray-500" : ""}
+          `}
               >
+                {/* Show day name inside cell on small screens */}
+                <div className="block lg:hidden text-xs font-semibold text-muted-foreground mb-1">
+                  {format(date, "EEE")}
+                </div>
+
+                {/* Day number */}
                 <div className="font-medium mb-1">
                   {date.getDate().toString().padStart(2, "0")}
                 </div>
+
+                {/* Workouts */}
                 <div className="space-y-1">
                   {dayWorkouts.map((workout) => (
                     <WorkoutDialog
