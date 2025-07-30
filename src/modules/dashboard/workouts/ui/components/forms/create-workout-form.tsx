@@ -179,6 +179,7 @@ export function CreateWorkoutForm({
             <Input
               className="w-[97%]"
               type="date"
+              autoFocus={false}
               value={formData.date || ""} // already in YYYY-MM-DD
               onChange={(e) =>
                 setFormData((prev) => ({
@@ -292,9 +293,7 @@ export function CreateWorkoutForm({
 
                 {/* Content */}
                 <div>
-                  <label className="text-sm font-medium">
-                    Content (HTML allowed)
-                  </label>
+                  <label className="text-sm font-medium">Content</label>
                   <RichTextEditor
                     value={part.content}
                     onChange={(html) => handleUpdatePart(i, "content", html)}

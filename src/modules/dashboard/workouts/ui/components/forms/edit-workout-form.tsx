@@ -315,9 +315,7 @@ export function EditWorkoutForm({
 
             {/* Content */}
             <div>
-              <label className="text-sm font-medium">
-                Content (HTML allowed)
-              </label>
+              <label className="text-sm font-medium">Content</label>
 
               <RichTextEditor
                 value={part.content}
