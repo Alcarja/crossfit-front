@@ -177,6 +177,7 @@ export function CreateWorkoutForm({
           <div>
             <label className="text-sm font-medium">Date</label>
             <Input
+              className="w-[99%]"
               type="date"
               value={formData.date || ""} // already in YYYY-MM-DD
               onChange={(e) =>
