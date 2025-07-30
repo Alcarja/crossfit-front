@@ -180,53 +180,59 @@ const ExpensesView = () => {
       <h2 className="text-2xl font-bold">Expenses Dashboard</h2>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-end">
-        <div className="flex flex-col gap-1">
-          <Label>Coaches</Label>
-          <Combobox
-            options={userOptions}
-            value={selectedCoachId}
-            onValueChange={setSelectedCoachId}
-            placeholder="Search and select a coach"
-          />
-        </div>
+      <div className="flex flex-wrap justify-between items-end gap-4">
+        <div className="flex flex-wrap items-center justify-start gap-4">
+          <div className="flex flex-col gap-1">
+            <Label>Coaches</Label>
+            <Combobox
+              options={userOptions}
+              value={selectedCoachId}
+              onValueChange={setSelectedCoachId}
+              placeholder="Search and select a coach"
+            />
+          </div>
 
-        <div className="flex flex-col gap-1 w-[300px]">
-          <Label>Month</Label>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }, (_, i) => (
-                <SelectItem key={i + 1} value={(i + 1).toString()}>
-                  {new Date(0, i).toLocaleString("default", { month: "long" })}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="flex flex-col gap-1 w-[300px]">
+            <Label>Month</Label>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>
+                    {new Date(0, i).toLocaleString("default", {
+                      month: "long",
+                    })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="flex flex-col gap-1 w-[300px]">
-          <Label>Year</Label>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2025">2025</SelectItem>
-              <SelectItem value="2026">2026</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1 w-[300px]">
+            <Label>Year</Label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2024">2024</SelectItem>
+                <SelectItem value="2025">2025</SelectItem>
+                <SelectItem value="2026">2026</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <Button
-          onClick={() => setExpenseDialogOpen(true)}
-          variant={"default"}
-          className="bg-primary text-white"
-        >
-          Add Expense
-        </Button>
+        <div>
+          <Button
+            onClick={() => setExpenseDialogOpen(true)}
+            variant={"default"}
+            className="bg-primary text-white hover:text-black"
+          >
+            Add Expense
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -257,7 +263,7 @@ const ExpensesView = () => {
                   </p>
 
                   <div className="w-full overflow-x-auto rounded-md border">
-                    <table className="min-w-[700px] text-sm">
+                    <table className="w-full min-w-[700px] text-sm">
                       <thead className="bg-muted">
                         <tr>
                           <th className="px-2 py-1 text-left">Date</th>
