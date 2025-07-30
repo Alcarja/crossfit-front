@@ -167,7 +167,7 @@ export function CreateWorkoutForm({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto w-full !max-w-[800px]">
+      <DialogContent className="w-[300px] max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto px-4">
         <DialogHeader>
           <DialogTitle>Create New Workout</DialogTitle>
         </DialogHeader>
@@ -214,7 +214,7 @@ export function CreateWorkoutForm({
           </div>
 
           {/* Parts */}
-          <div className="space-y-2">
+          <div className="space-y-2 w-full max-w-[90%]">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-sm">Workout Parts</h3>
             </div>
@@ -222,7 +222,7 @@ export function CreateWorkoutForm({
             {(formData.parts || []).map((part, i) => (
               <div
                 key={i}
-                className="p-3 border rounded-md bg-muted/50 space-y-2 relative"
+                className="p-3 border rounded-md bg-muted/50 space-y-2 relative w-full max-w-[90%]"
               >
                 <button
                   className="absolute top-2 right-2 text-muted-foreground"

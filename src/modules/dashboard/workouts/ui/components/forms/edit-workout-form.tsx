@@ -242,7 +242,7 @@ export function EditWorkoutForm({
       </div>
 
       {/* Parts */}
-      <div className="space-y-2">
+      <div className="space-y-2 max-w-[99%]">
         <div className="flex justify-between items-center">
           <h3 className="font-semibold text-sm">Workout Parts</h3>
         </div>
@@ -423,7 +423,7 @@ export function EditWorkoutForm({
             </DialogContent>
           </Dialog>
         </div>
-        <div className="flex justify-end gap-2 pt-4">
+        <div className="flex justify-end gap-2">
           <Button
             variant="outline"
             onClick={() => setOpen(false)}

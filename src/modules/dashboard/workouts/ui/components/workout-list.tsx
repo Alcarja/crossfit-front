@@ -220,7 +220,7 @@ export const MonthlyWorkoutCalendar = () => {
       )}
       {selectedWorkout && (
         <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-          <DialogContent className="!w-[800px] !max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="!w-[90%] !max-w-[800px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Workout</DialogTitle>
             </DialogHeader>

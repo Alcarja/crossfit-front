@@ -86,7 +86,7 @@ const ExpensesView = () => {
   const { data: inventoryData } = useQuery(useAllInventoryQuery());
 
   const userOptions = [
-    { value: "", label: "All Coaches" }, // Add this line
+    { value: "", label: "All Coaches" },
     ...(usersData?.map((user: User) => ({
       value: String(user.id),
       label: `${user.name} ${user.lastName}`,
@@ -255,60 +255,65 @@ const ExpensesView = () => {
                   <p className="text-sm text-muted-foreground mb-2">
                     Expense Breakdown
                   </p>
-                  <table className="w-full text-sm border rounded-md overflow-hidden">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="px-2 py-1 text-left">Date</th>
-                        <th className="px-2 py-1 text-left">Item</th>
-                        <th className="px-2 py-1 text-right">Quantity</th>
-                        <th className="px-2 py-1 text-right">Total (€)</th>
-                        <th className="px-2 py-1 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {coach.expenses.map((exp: any) => (
-                        <tr key={exp.id} className="border-t">
-                          <td className="px-2 py-1">{exp.date}</td>
-                          <td className="px-2 py-1">
-                            {exp.inventory?.name ?? "Unknown Item"}
-                          </td>
-                          <td className="px-2 py-1 text-right">
-                            {exp.quantity}
-                          </td>
-                          <td className="px-2 py-1 text-right">
-                            {parseFloat(exp.totalPrice).toFixed(2)}€
-                          </td>
-                          <td className="px-2 py-1 text-right">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="delete" size="sm">
-                                  Delete
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Confirm Deletion</DialogTitle>
-                                  <DialogDescription>
-                                    Are you sure you want to delete this
-                                    expense? This action cannot be undone.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="flex justify-end gap-2 pt-4">
-                                  <Button variant="outline">Cancel</Button>
-                                  <Button
-                                    variant="delete"
-                                    onClick={() => handleDeleteExpense(exp.id)}
-                                  >
-                                    Confirm Delete
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </td>
+
+                  <div className="w-full overflow-x-auto rounded-md border">
+                    <table className="min-w-[700px] text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="px-2 py-1 text-left">Date</th>
+                          <th className="px-2 py-1 text-left">Item</th>
+                          <th className="px-2 py-1 text-right">Quantity</th>
+                          <th className="px-2 py-1 text-right">Total (€)</th>
+                          <th className="px-2 py-1 text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {coach.expenses.map((exp: any) => (
+                          <tr key={exp.id} className="border-t">
+                            <td className="px-2 py-1">{exp.date}</td>
+                            <td className="px-2 py-1">
+                              {exp.inventory?.name ?? "Unknown Item"}
+                            </td>
+                            <td className="px-2 py-1 text-right">
+                              {exp.quantity}
+                            </td>
+                            <td className="px-2 py-1 text-right">
+                              {parseFloat(exp.totalPrice).toFixed(2)}€
+                            </td>
+                            <td className="px-2 py-1 text-right">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="delete" size="sm">
+                                    Delete
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Confirm Deletion</DialogTitle>
+                                    <DialogDescription>
+                                      Are you sure you want to delete this
+                                      expense? This action cannot be undone.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="flex justify-end gap-2 pt-4">
+                                    <Button variant="outline">Cancel</Button>
+                                    <Button
+                                      variant="delete"
+                                      onClick={() =>
+                                        handleDeleteExpense(exp.id)
+                                      }
+                                    >
+                                      Confirm Delete
+                                    </Button>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </CardContent>
             </Card>
