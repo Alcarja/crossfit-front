@@ -167,7 +167,7 @@ export function CreateWorkoutForm({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="!w-[90%] !max-w-[800px] max-h-[90vh] overflow-y-auto px-4">
+      <DialogContent className="!w-[99%] !max-w-[800px] max-h-[80vh] overflow-y-auto px-4">
         <DialogHeader>
           <DialogTitle>Create New Workout</DialogTitle>
         </DialogHeader>
@@ -177,7 +177,7 @@ export function CreateWorkoutForm({
           <div>
             <label className="text-sm font-medium">Date</label>
             <Input
-              className="w-[99%]"
+              className="w-[97%]"
               type="date"
               value={formData.date || ""} // already in YYYY-MM-DD
               onChange={(e) =>
