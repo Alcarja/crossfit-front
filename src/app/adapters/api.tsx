@@ -26,6 +26,10 @@ export const getAllUsers = async () => {
   return await stpApi.get("/api/users/allUsers");
 };
 
+export const getUserById = async (userId: number) => {
+  return await stpApi.get(`/api/users/${userId}`);
+};
+
 //Classes
 export const createClass = async (
   userId: number,
