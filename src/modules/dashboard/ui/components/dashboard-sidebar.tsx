@@ -37,6 +37,7 @@ import {
   Settings2Icon,
   ShoppingBasketIcon,
   ArrowDownLeftFromCircleIcon,
+  UserPlus2,
 } from "lucide-react";
 
 const firstSection = [
@@ -67,6 +68,11 @@ const adminSection = [
     icon: ShoppingBasketIcon,
     label: "Inventory",
     href: "/dashboard/inventory",
+  },
+  {
+    icon: UserPlus2,
+    label: "Register Coach",
+    href: "/dashboard/register",
   },
   {
     icon: CircleUserRound,

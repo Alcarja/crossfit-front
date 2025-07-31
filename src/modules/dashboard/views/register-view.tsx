@@ -63,76 +63,85 @@ export const RegisterView = () => {
   });
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-10">
-      <h1 className="text-2xl font-bold text-center">Register New User</h1>
+    <div className="w-full min-h-screen flex items-start justify-center bg-muted px-4 py-16">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight">
+            Create an Account
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Fill in the details to register a new user.
+          </p>
+        </div>
 
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6 bg-white shadow-md rounded-lg p-6 border"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-6 rounded-xl border bg-background p-8 shadow-sm"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="name"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="John" {...field} />
+                    <Input placeholder="johndoe@example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
-              name="lastName"
+              name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Last Name</FormLabel>
+                  <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input placeholder="Doe" {...field} />
+                    <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
 
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="johndoe@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="•••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <Button type="submit" className="w-full">
-            Submit
-          </Button>
-        </form>
-      </Form>
+            <Button type="submit" className="w-full">
+              Create Account
+            </Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 };

@@ -28,6 +28,8 @@ import {
   usersQueryOptions,
 } from "@/app/queries/users";
 import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Loader } from "lucide-react";
 
 export interface Category {
   id: number;
@@ -150,7 +152,17 @@ export const SettingsView = () => {
 
       {user?.role !== "admin" && (
         <>
-          <div className="w-[98%] max-w-[800px] mx-auto border shadow-sm rounded-md h-auto px-8 py-8 mt-8">
+          <div className="w-[98%] max-w-[800px] mx-auto border shadow-sm rounded-md h-auto px-8 py-8 mt-8 relative">
+            {mutation.isPending && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                <Card className="w-auto px-8 py-6 flex items-center gap-3">
+                  <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Updating user...
+                  </span>
+                </Card>
+              </div>
+            )}
             <div>
               <h2 className="text-2xl font-bold text-center pb-8">
                 User Settings

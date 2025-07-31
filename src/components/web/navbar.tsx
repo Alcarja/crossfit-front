@@ -12,12 +12,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  LogIn,
   User,
   Menu,
   X,
   User2Icon,
-  LogInIcon,
   LayoutDashboardIcon,
   LogOutIcon,
 } from "lucide-react";
@@ -67,7 +65,7 @@ export const Navbar = () => {
             <>
               {/* Desktop Auth Buttons */}
               <div className="hidden md:flex gap-2">
-                <Link href="/register">
+                {/*  <Link href="/register">
                   <Button
                     size="sm"
                     icon={<LogInIcon className="size-4 text-red" />}
@@ -75,7 +73,7 @@ export const Navbar = () => {
                   >
                     Register
                   </Button>
-                </Link>
+                </Link> */}
                 <Link href="/login">
                   <Button
                     variant="default"
@@ -102,12 +100,12 @@ export const Navbar = () => {
                   <DropdownMenuContent className="w-[160px]">
                     <DropdownMenuLabel>Authentication</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <Link href="/register">
+                    {/* <Link href="/register">
                       <DropdownMenuItem>
                         <LogIn className="mr-2 h-4 w-4" />
                         Register
                       </DropdownMenuItem>
-                    </Link>
+                    </Link> */}
                     <Link href="/login">
                       <DropdownMenuItem>
                         <User className="mr-2 h-4 w-4" />
