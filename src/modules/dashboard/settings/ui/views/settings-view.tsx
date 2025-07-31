@@ -140,21 +140,43 @@ export const SettingsView = () => {
   return (
     <div className="w-full p-6 space-y-10">
       {user?.role === "admin" && (
-        <>
-          <h2 className="text-2xl font-bold">User Settings</h2>
+        <section className="space-y-8 px-4 md:px-8">
+          <header className="space-y-1 pl-3">
+            <h2 className="text-3xl font-bold tracking-tight">User Settings</h2>
+            <p className="text-muted-foreground text-sm">
+              Manage coaches, staff, and all registered users.
+            </p>
+          </header>
 
-          <div className="w-full space-y-4 shadow-md bg-gray-50 p-5 rounded-lg">
-            <div>Filters</div>
-            {userData && <DataTable columns={columns} data={userData} />}{" "}
+          <div className="rounded-xl border shadow-md bg-card p-6 space-y-6">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="space-y-1">
+                <h3 className="text-lg font-medium">Filters</h3>
+                <p className="text-sm text-muted-foreground">
+                  Search or filter users by role, name, or date.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-background p-4 shadow-sm">
+              {userData && userData.length > 0 ? (
+                <DataTable columns={columns} data={userData} />
+              ) : (
+                <div className="text-center py-10 text-muted-foreground text-sm">
+                  No user data available.
+                </div>
+              )}
+            </div>
           </div>
-        </>
+        </section>
       )}
 
       {user?.role !== "admin" && (
-        <>
-          <div className="w-[98%] max-w-[800px] mx-auto border shadow-sm rounded-md h-auto px-8 py-8 mt-8 relative">
+        <section className="px-4 md:px-0 py-8">
+          <div className="relative w-full max-w-xl mx-auto rounded-xl border bg-background shadow-sm p-8 space-y-6">
+            {/* Loading Overlay */}
             {mutation.isPending && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
                 <Card className="w-auto px-8 py-6 flex items-center gap-3">
                   <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">
@@ -163,38 +185,46 @@ export const SettingsView = () => {
                 </Card>
               </div>
             )}
-            <div>
-              <h2 className="text-2xl font-bold text-center pb-8">
+
+            {/* Header */}
+            <div className="text-center space-y-1">
+              <h2 className="text-3xl font-bold tracking-tight">
                 User Settings
               </h2>
+              <p className="text-sm text-muted-foreground">
+                Update your account details and change your password.
+              </p>
             </div>
+
+            {/* Form */}
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8"
+                className="space-y-6"
               >
-                <div className="w-full flex flex-wrap items-center gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
-                      <FormItem className="w-full sm:flex-1">
-                        <FormLabel className="mb-0 ml-1">Name</FormLabel>
+                      <FormItem>
+                        <FormLabel>Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="shadcn" {...field} />
+                          <Input placeholder="Jane" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="lastName"
                     render={({ field }) => (
-                      <FormItem className="w-full sm:flex-1">
-                        <FormLabel className="mb-0 ml-1">Last Name</FormLabel>
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="shadcn" {...field} />
+                          <Input placeholder="Doe" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -206,10 +236,10 @@ export const SettingsView = () => {
                   control={form.control}
                   name="email"
                   render={({ field }) => (
-                    <FormItem className="w-full">
-                      <FormLabel className="mb-0 ml-1">Email</FormLabel>
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="shadcn" {...field} />
+                        <Input placeholder="jane.doe@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -220,10 +250,8 @@ export const SettingsView = () => {
                   control={form.control}
                   name="oldPassword"
                   render={({ field }) => (
-                    <FormItem className="w-full">
-                      <FormLabel className="mb-0 ml-1">
-                        Current Password
-                      </FormLabel>
+                    <FormItem>
+                      <FormLabel>Current Password</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
@@ -250,8 +278,8 @@ export const SettingsView = () => {
                   control={form.control}
                   name="newPassword"
                   render={({ field }) => (
-                    <FormItem className="w-full">
-                      <FormLabel className="mb-0 ml-1">New Password</FormLabel>
+                    <FormItem>
+                      <FormLabel>New Password</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
@@ -274,11 +302,13 @@ export const SettingsView = () => {
                   )}
                 />
 
-                <Button type="submit">Submit</Button>
+                <Button type="submit" className="w-full">
+                  Save Changes
+                </Button>
               </form>
             </Form>
           </div>
-        </>
+        </section>
       )}
     </div>
   );

@@ -171,11 +171,11 @@ const AdminCoachesView = () => {
   }, [expensesData]);
 
   return (
-    <div className="w-full h-auto p-6 space-y-8">
-      <h2 className="text-2xl font-bold">Coach Dashboard</h2>
+    <div className="w-full h-auto p-12 space-y-8">
+      <h2 className="text-2xl font-bold pl-1">Coach Dashboard</h2>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-end">
+      <div className="flex flex-wrap gap-4 items-end pl-1">
         <div className="flex flex-col gap-1">
           <Label>Coaches</Label>
           <Combobox

@@ -84,7 +84,7 @@ export const WorkoutsCalendar2 = () => {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-center">
+      <div className="flex flex-wrap gap-4 items-center py-2">
         <Select
           value={String(selectedMonth)}
           onValueChange={(val) => setSelectedMonth(parseInt(val))}

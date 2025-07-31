@@ -227,7 +227,7 @@ export const InventoryView = () => {
   const columns = getInventoryColumns(handleUpdate, handleDelete);
 
   return (
-    <div className="w-full p-6 space-y-10">
+    <div className="w-full p-12 space-y-10">
       <h2 className="text-2xl font-bold">Inventory Manager</h2>
 
       {/* Left: Category Manager */}

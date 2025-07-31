@@ -112,12 +112,11 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
   }
 
   return (
-    <>
-      {/* Loading state */}
-
-      <div className="w-full h-full mx-auto relative">
+    <section className="min-h-screen w-full flex items-start justify-center bg-muted px-4 py-16">
+      <div className="relative w-full max-w-xl rounded-xl border bg-background shadow-sm px-12 space-y-6 pb-12">
+        {/* Loader Overlay */}
         {mutation.isPending && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
             <Card className="w-auto px-8 py-6 flex items-center gap-3">
               <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -126,127 +125,139 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
             </Card>
           </div>
         )}
-        <div className="w-[98%] max-w-[800px] h-auto mx-auto border shadow-sm rounded-md px-8 py-8 mt-8">
-          <div className="w-full h-auto flex items-center justify-end">
-            <Button
-              onClick={() => router.back()}
-              variant="default"
-              className="w-9 h-9 text-black hover:text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-          <h2 className="text-2xl font-bold text-center pb-8">User Settings</h2>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <div className="w-full flex flex-wrap items-center gap-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem className="w-full sm:flex-1">
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="shadcn" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem className="w-full sm:flex-1">
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="shadcn" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem className="w-full">
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="shadcn" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem className="w-full">
-                    <FormLabel>New Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          type={showNewPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword((prev) => !prev)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                        >
-                          {showNewPassword ? "Hide" : "Show"}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="repeatNewPassword"
-                render={({ field }) => (
-                  <FormItem className="w-full">
-                    <FormLabel>Repeat New Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          type={showRepeatNewPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowRepeatNewPassword((prev) => !prev)
-                          }
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                        >
-                          {showRepeatNewPassword ? "Hide" : "Show"}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit">Submit</Button>
-            </form>
-          </Form>
+        {/* Close button */}
+        <div className="flex justify-end">
+          <Button
+            onClick={() => router.back()}
+            size="icon"
+            variant="ghost"
+            className="text-muted-foreground hover:text-destructive"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </Button>
         </div>
+
+        {/* Header */}
+        <div className="text-center space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight">User Settings</h2>
+          <p className="text-sm text-muted-foreground">
+            Update your personal info and password.
+          </p>
+        </div>
+
+        {/* Form */}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Jane" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="jane.doe@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="newPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>New Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                      >
+                        {showNewPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="repeatNewPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Repeat New Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showRepeatNewPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowRepeatNewPassword((prev) => !prev)
+                        }
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                      >
+                        {showRepeatNewPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" className="w-full">
+              Save Changes
+            </Button>
+          </form>
+        </Form>
       </div>
-    </>
+    </section>
   );
 };
 

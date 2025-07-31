@@ -5,8 +5,8 @@ import { MonthlyWorkoutCalendar } from "../components/workout-list";
 
 const WorkoutsView = () => {
   return (
-    <div className="w-full max-w-[2400px] m-6">
-      <h1 className="text-2xl font-bold mb-4">Workouts</h1>
+    <div className="w-full max-w-[2400px] m-6 md:p-6">
+      <h1 className="text-4xl font-bold mb-6">Workouts</h1>
       <Tabs defaultValue="calendar" className="w-full">
         <TabsList className="flex flex-wrap items-center justify-center w-full">
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
