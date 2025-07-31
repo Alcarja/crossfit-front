@@ -127,12 +127,10 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
         )}
 
         {/* Close button */}
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-8">
           <Button
             onClick={() => router.back()}
-            size="icon"
-            variant="ghost"
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive h-8 w-8"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
