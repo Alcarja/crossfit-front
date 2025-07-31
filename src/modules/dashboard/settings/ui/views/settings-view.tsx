@@ -119,7 +119,6 @@ export const SettingsView = () => {
   );
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("clcik");
     mutation.mutate(values, {
       onSuccess: () => {
         toast.success("User updated correctly!");

@@ -1,4 +1,9 @@
-import { getAllUsers, getUserById, updateUserById } from "../adapters/api";
+import {
+  getAllUsers,
+  getUserById,
+  updateUserById,
+  updateUserByIdAdmin,
+} from "../adapters/api";
 
 export const usersQueryOptions = () => ({
   queryKey: ["users"],
@@ -26,5 +31,18 @@ export const updateUserByIdMutationOptions = (userId: number) => ({
     newPassword?: string;
   }) => {
     return await updateUserById(userId, userData);
+  },
+});
+
+export const updateUserByIdAdminMutationOptions = (userId: number) => ({
+  mutationKey: ["updateUser", userId],
+  mutationFn: async (userData: {
+    name: string;
+    lastName: string;
+    email: string;
+    newPassword?: string;
+    repeatNewPassword?: string;
+  }) => {
+    return await updateUserByIdAdmin(userId, userData);
   },
 });

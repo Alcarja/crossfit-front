@@ -43,6 +43,19 @@ export const updateUserById = async (
   return stpApi.put(`/api/users/${userId}`, userData);
 };
 
+export const updateUserByIdAdmin = async (
+  userId: number,
+  userData: {
+    name: string;
+    lastName: string;
+    email: string;
+    newPassword?: string;
+    repeatNewPassword?: string;
+  }
+) => {
+  return stpApi.put(`/api/users/${userId}/admin`, userData);
+};
+
 //Classes
 export const createClass = async (
   userId: number,

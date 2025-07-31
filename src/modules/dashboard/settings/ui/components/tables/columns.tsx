@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
 import { PencilIcon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
 
 export type User = {
   id: number;
@@ -60,13 +61,15 @@ export const getUsersColumns = (
 
       return (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleUpdateUser(item)}
-          >
-            <PencilIcon />
-          </Button>
+          <Link href={`/dashboard/settings/${item.id}`}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleUpdateUser(item)}
+            >
+              <PencilIcon />
+            </Button>
+          </Link>
           <Button
             size="sm"
             variant="delete"
