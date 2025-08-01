@@ -43,7 +43,7 @@ export const Navbar = () => {
         </div>
 
         {/* Center: Navigation */}
-        <div className="flex justify-center">
+        {/*  <div className="flex justify-center">
           <div className="hidden md:flex items-center space-x-6 bg-white border border-gray-200 rounded-md px-6 py-2 shadow-sm text-sm font-medium">
             <Link href="/" passHref>
               <button className="text-gray-700 hover:text-black transition-colors">
@@ -57,7 +57,7 @@ export const Navbar = () => {
               </button>
             </Link>
           </div>
-        </div>
+        </div> */}
 
         {/* Right: Auth / Dropdown / Mobile Toggle */}
         <div className="flex justify-end items-center gap-3 pr-2">
@@ -65,15 +65,6 @@ export const Navbar = () => {
             <>
               {/* Desktop Auth Buttons */}
               <div className="hidden md:flex gap-2">
-                {/*  <Link href="/register">
-                  <Button
-                    size="sm"
-                    icon={<LogInIcon className="size-4 text-red" />}
-                    className="w-[80px] md:w-auto"
-                  >
-                    Register
-                  </Button>
-                </Link> */}
                 <Link href="/login">
                   <Button
                     variant="default"
@@ -100,12 +91,6 @@ export const Navbar = () => {
                   <DropdownMenuContent className="w-[160px]">
                     <DropdownMenuLabel>Authentication</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {/* <Link href="/register">
-                      <DropdownMenuItem>
-                        <LogIn className="mr-2 h-4 w-4" />
-                        Register
-                      </DropdownMenuItem>
-                    </Link> */}
                     <Link href="/login">
                       <DropdownMenuItem>
                         <User className="mr-2 h-4 w-4" />
