@@ -374,18 +374,21 @@ export function EditWorkoutForm({
                 Are you sure you want to delete the workout?
               </DialogTitle>
               <DialogFooter>
-                <DialogClose asChild>
-                  <Button>Cancel</Button>
-                </DialogClose>
-                <DialogClose asChild>
-                  <Button
-                    type="button"
-                    variant={"delete"}
-                    onClick={() => handleDelete()}
-                  >
-                    Delete
-                  </Button>
-                </DialogClose>
+                <div className="flex items-center justify-center gap-4">
+                  <DialogClose asChild>
+                    <Button className="flex-1">Cancel</Button>
+                  </DialogClose>
+                  <DialogClose asChild>
+                    <Button
+                      type="button"
+                      className="flex-1"
+                      variant={"delete"}
+                      onClick={() => handleDelete()}
+                    >
+                      Delete
+                    </Button>
+                  </DialogClose>
+                </div>
               </DialogFooter>
             </DialogContent>
           </Dialog>
