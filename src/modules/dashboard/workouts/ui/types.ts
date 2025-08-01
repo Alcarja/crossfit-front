@@ -1,4 +1,5 @@
 export type WorkoutPart = {
+  id: number;
   title: "Warm-up" | "Strength" | "Workout" | "Midline" | "Accessories";
   format?: "FOR TIME" | "EMOM" | "INTERVAL" | "AMRAP";
   content: string;

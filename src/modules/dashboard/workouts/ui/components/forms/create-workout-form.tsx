@@ -1,10 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,12 +32,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { useCreateWorkoutQuery } from "@/app/queries/workouts";
 import { RichTextEditor } from "@/components/web/richTextEditor";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export type WorkoutPart = {
+  id: number;
   title: "Warm-up" | "Strength" | "Workout" | "Midline" | "Accessories";
   format?: "FOR TIME" | "EMOM" | "INTERVAL" | "AMRAP";
   content: string;
@@ -93,10 +115,6 @@ export function CreateWorkoutForm({
   });
 
   useEffect(() => {
-    console.log("initialDate", initialDate);
-  }, [initialDate]);
-
-  useEffect(() => {
     if (initialDate && open) {
       setFormData({
         date: initialDate,
@@ -107,14 +125,56 @@ export function CreateWorkoutForm({
     }
   }, [initialDate, open]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const [partCounter, setPartCounter] = useState(1); // starts at 1, increment for each new part
+  const [openParts, setOpenParts] = useState<Record<number, boolean>>({});
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = formData.parts?.findIndex((p) => p.id === active.id);
+      const newIndex = formData.parts?.findIndex((p) => p.id === over?.id);
+      if (oldIndex !== undefined && newIndex !== undefined) {
+        const reordered = arrayMove(formData.parts!, oldIndex, newIndex);
+        setFormData((prev) => ({ ...prev, parts: reordered }));
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!formData.parts) return;
+
+    setOpenParts((prev) => {
+      const updated: Record<number, boolean> = { ...prev };
+      formData?.parts?.forEach((p) => {
+        if (!(p.id in updated)) {
+          updated[p.id] = true; // only open the *new* one
+        }
+      });
+      return updated;
+    });
+  }, [formData.parts]);
+
   const handleAddPart = () => {
     setFormData((prev) => ({
       ...prev,
       parts: [
         ...(prev.parts || []),
-        { title: "Warm-up", content: "", notes: "" },
+        {
+          id: partCounter, // ✅ numeric ID
+          title: "Warm-up",
+          content: "",
+          notes: "",
+          format: undefined,
+          cap: undefined,
+          versions: undefined,
+        },
       ],
     }));
+    setPartCounter((prev) => prev + 1);
   };
 
   const handleUpdatePart = (
@@ -221,146 +281,34 @@ export function CreateWorkoutForm({
               <h3 className="font-semibold text-sm">Workout Parts</h3>
             </div>
 
-            {(formData.parts || []).map((part, i) => (
-              <div
-                key={i}
-                className="p-3 border rounded-md bg-muted/50 space-y-2 relative w-full"
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={(formData.parts || []).map((part) => part.id)}
+                strategy={verticalListSortingStrategy}
               >
-                <button
-                  className="absolute top-2 right-2 text-muted-foreground"
-                  onClick={() => handleRemovePart(i)}
-                >
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                </button>
-
-                {/* Title */}
-                <div>
-                  <label className="text-sm font-medium">Title</label>
-                  <Select
-                    value={part.title}
-                    onValueChange={(val) => handleUpdatePart(i, "title", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Title" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PART_TITLES.map((title) => (
-                        <SelectItem key={title} value={title}>
-                          {title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Format - Only for "Workout" */}
-                {part.title === "Workout" && (
-                  <div>
-                    <label className="text-sm font-medium">Format</label>
-                    <Select
-                      value={part.format}
-                      onValueChange={(val) =>
-                        handleUpdatePart(i, "format", val)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {FORMATS.map((f) => (
-                          <SelectItem key={f} value={f}>
-                            {f}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* CAP - only if FOR TIME or AMRAP */}
-                {["FOR TIME", "AMRAP"].includes(part.format || "") && (
-                  <div>
-                    <label className="text-sm font-medium">Time Cap</label>
-                    <Input
-                      value={part.cap || ""}
-                      onChange={(e) =>
-                        handleUpdatePart(i, "cap", e.target.value)
-                      }
-                      placeholder="e.g. 20 min"
-                    />
-                  </div>
-                )}
-
-                {/* Content */}
-                <div>
-                  <label className="text-sm font-medium">Content</label>
-                  <RichTextEditor
-                    value={part.content}
-                    onChange={(html) => handleUpdatePart(i, "content", html)}
-                  />
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="text-sm font-medium">
-                    Notes (optional)
-                  </label>
-                  <Textarea
-                    value={part.notes}
-                    onChange={(e) =>
-                      handleUpdatePart(i, "notes", e.target.value)
+                {(formData.parts || []).map((part, index) => (
+                  <SortableWorkoutPart
+                    key={part.id}
+                    id={part.id}
+                    part={part}
+                    index={index}
+                    isOpen={openParts[part.id]}
+                    toggleOpen={() =>
+                      setOpenParts((prev) => ({
+                        ...prev,
+                        [part.id]: !prev[part.id],
+                      }))
                     }
-                    rows={2}
+                    onRemove={() => handleRemovePart(index)}
+                    onUpdate={handleUpdatePart}
                   />
-                </div>
-
-                {/* Versions */}
-                {part.title === "Workout" && (
-                  <div className="space-y-2 pt-2">
-                    <h4 className="text-sm font-medium">Versions</h4>
-
-                    <Textarea
-                      placeholder="RX description"
-                      value={part.versions?.rx?.description || ""}
-                      onChange={(e) => {
-                        const versions = {
-                          ...part.versions,
-                          rx: { description: e.target.value },
-                        };
-                        handleUpdatePart(i, "versions", versions);
-                      }}
-                      rows={3}
-                    />
-
-                    <Textarea
-                      placeholder="Scaled description"
-                      value={part.versions?.scaled?.description || ""}
-                      onChange={(e) => {
-                        const versions = {
-                          ...part.versions,
-                          scaled: { description: e.target.value },
-                        };
-                        handleUpdatePart(i, "versions", versions);
-                      }}
-                      rows={3}
-                    />
-
-                    <Textarea
-                      placeholder="Beginner description"
-                      value={part.versions?.beginner?.description || ""}
-                      onChange={(e) => {
-                        const versions = {
-                          ...part.versions,
-                          beginner: { description: e.target.value },
-                        };
-                        handleUpdatePart(i, "versions", versions);
-                      }}
-                      rows={3}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
+                ))}
+              </SortableContext>
+            </DndContext>
             <Button
               className="w-full"
               variant="outline"
@@ -382,5 +330,193 @@ export function CreateWorkoutForm({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function SortableWorkoutPart({
+  id,
+  part,
+  index,
+  onRemove,
+  onUpdate,
+  isOpen,
+  toggleOpen,
+}: {
+  id: number;
+  part: WorkoutPart;
+  index: number;
+  isOpen: boolean;
+  toggleOpen: () => void;
+  onRemove: () => void;
+  onUpdate: (index: number, key: keyof WorkoutPart, value: any) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={toggleOpen}>
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className="p-3 border rounded-md bg-muted/50 space-y-2 relative w-full cursor-move"
+      >
+        <div className="flex items-center justify-between w-full">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-2 font-medium text-sm cursor-pointer focus:outline-none"
+            >
+              <span>{part.title || "Untitled Part"}</span>
+              <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="text-muted-foreground hover:text-red-600 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Form Fields (collapsible content) */}
+        <CollapsibleContent className="pt-2 space-y-3">
+          {/* Title */}
+          <div>
+            <label className="text-sm font-medium">Title</label>
+            <Select
+              value={part.title}
+              onValueChange={(val) => onUpdate(index, "title", val)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Title" />
+              </SelectTrigger>
+              <SelectContent>
+                {PART_TITLES.map((title) => (
+                  <SelectItem key={title} value={title}>
+                    {title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Format */}
+          {part.title === "Workout" && (
+            <div>
+              <label className="text-sm font-medium">Format</label>
+              <Select
+                value={part.format}
+                onValueChange={(val) => onUpdate(index, "format", val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select format" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FORMATS.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Cap */}
+          {["FOR TIME", "AMRAP"].includes(part.format || "") && (
+            <div>
+              <label className="text-sm font-medium">Time Cap</label>
+              <Input
+                value={part.cap || ""}
+                onChange={(e) => onUpdate(index, "cap", e.target.value)}
+                placeholder="e.g. 20 min"
+              />
+            </div>
+          )}
+
+          {/* Content */}
+          <div>
+            <label className="text-sm font-medium">Content</label>
+            <RichTextEditor
+              value={part.content}
+              onChange={(html) => onUpdate(index, "content", html)}
+            />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="text-sm font-medium">Notes (optional)</label>
+            <Textarea
+              value={part.notes}
+              onChange={(e) => onUpdate(index, "notes", e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          {/* Versions */}
+          {part.title === "Workout" && (
+            <div className="space-y-2 pt-2">
+              <h4 className="text-sm font-medium">Versions</h4>
+
+              <Textarea
+                placeholder="RX description"
+                value={part.versions?.rx?.description || ""}
+                onChange={(e) => {
+                  const versions = {
+                    ...part.versions,
+                    rx: { description: e.target.value },
+                  };
+                  onUpdate(index, "versions", versions);
+                }}
+                rows={3}
+              />
+              <Textarea
+                placeholder="Scaled description"
+                value={part.versions?.scaled?.description || ""}
+                onChange={(e) => {
+                  const versions = {
+                    ...part.versions,
+                    scaled: { description: e.target.value },
+                  };
+                  onUpdate(index, "versions", versions);
+                }}
+                rows={3}
+              />
+              <Textarea
+                placeholder="Beginner description"
+                value={part.versions?.beginner?.description || ""}
+                onChange={(e) => {
+                  const versions = {
+                    ...part.versions,
+                    beginner: { description: e.target.value },
+                  };
+                  onUpdate(index, "versions", versions);
+                }}
+                rows={3}
+              />
+            </div>
+          )}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }
