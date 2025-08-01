@@ -138,7 +138,7 @@ export const SettingsView = () => {
   if (userDataLoading) return <div>Loading...</div>;
 
   return (
-    <div className="w-full p-6 space-y-10">
+    <div className="w-full space-y-10">
       {user?.role === "admin" && (
         <section className="space-y-8 px-4 md:px-8">
           <header className="space-y-1 pl-3">

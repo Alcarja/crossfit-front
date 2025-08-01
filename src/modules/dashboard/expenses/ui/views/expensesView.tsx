@@ -176,7 +176,7 @@ const ExpensesView = () => {
   };
 
   return (
-    <div className="w-full h-auto p-12 space-y-8">
+    <div className="w-full h-auto md:p-12 p-6 space-y-8">
       <h2 className="text-4xl font-bold">Expenses Dashboard</h2>
 
       {/* Filters */}
