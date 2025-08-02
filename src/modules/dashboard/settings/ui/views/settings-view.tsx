@@ -140,7 +140,7 @@ export const SettingsView = () => {
   return (
     <div className="w-full space-y-10">
       {user?.role === "admin" && (
-        <section className="space-y-8 px-4 md:px-8">
+        <section className="space-y-8 px-4 py-6 md:px-8">
           <header className="space-y-1 pl-3">
             <h2 className="text-3xl font-bold tracking-tight">User Settings</h2>
             <p className="text-muted-foreground text-sm">
@@ -172,7 +172,7 @@ export const SettingsView = () => {
       )}
 
       {user?.role !== "admin" && (
-        <section className="px-4 md:px-0 py-8">
+        <section className="px-4 md:px-0 py-4">
           <div className="relative w-full max-w-xl mx-auto rounded-xl border bg-background shadow-sm p-8 space-y-6">
             {/* Loading Overlay */}
             {mutation.isPending && (

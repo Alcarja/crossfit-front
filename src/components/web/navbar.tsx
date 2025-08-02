@@ -11,22 +11,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  User,
-  Menu,
-  X,
-  User2Icon,
-  LayoutDashboardIcon,
-  LogOutIcon,
-} from "lucide-react";
+import { User, User2Icon, LayoutDashboardIcon, LogOutIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/authContext";
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  //const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <nav
@@ -34,7 +26,7 @@ export const Navbar = () => {
         "sticky top-0 z-50 w-full border-b-[1.5px] px-4 md:px-8 py-2 md:py-0 bg-white border-secondary"
       )}
     >
-      <div className="grid grid-cols-3 items-center h-16 w-full">
+      <div className="flex md:justify-between justify-end items-center h-16 w-full">
         {/* Left: Logo (only visible on sm+) */}
         <div className="hidden sm:flex items-center gap-2 pl-2">
           <Link href="/">
@@ -135,17 +127,17 @@ export const Navbar = () => {
           )}
 
           {/* Mobile Menu Toggle */}
-          <button
+          {/*  <button
             className="md:hidden ml-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          </button> */}
         </div>
       </div>
 
       {/* Mobile Dropdown Nav */}
-      {mobileMenuOpen && (
+      {/*  {mobileMenuOpen && (
         <div className="md:hidden mt-2 flex flex-col gap-4 border-t py-5">
           <Link href="/posts">
             <button className="w-full text-left text-muted-foreground hover:text-foreground transition">
@@ -163,7 +155,7 @@ export const Navbar = () => {
             </button>
           </Link>
         </div>
-      )}
+      )} */}
     </nav>
   );
 };

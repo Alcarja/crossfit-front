@@ -112,7 +112,7 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
   }
 
   return (
-    <section className="min-h-screen w-full flex items-start justify-center bg-muted px-4 py-16">
+    <section className="min-h-screen w-full flex items-start justify-center bg-muted px-4 py-8">
       <div className="relative w-full max-w-xl rounded-xl border bg-background shadow-sm px-12 space-y-6 pb-12">
         {/* Loader Overlay */}
         {mutation.isPending && (
@@ -127,7 +127,7 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
         )}
 
         {/* Close button */}
-        <div className="flex justify-end pt-8">
+        <div className="flex justify-end pt-8 absolute top-0 right-12">
           <Button
             onClick={() => router.back()}
             className="text-muted-foreground hover:text-destructive h-8 w-8"
@@ -138,7 +138,7 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
         </div>
 
         {/* Header */}
-        <div className="text-center space-y-1">
+        <div className="text-center space-y-1 pt-16 md:pt-12">
           <h2 className="text-3xl font-bold tracking-tight">User Settings</h2>
           <p className="text-sm text-muted-foreground">
             Update your personal info and password.
