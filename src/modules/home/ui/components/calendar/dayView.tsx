@@ -1,7 +1,13 @@
 import { es } from "date-fns/locale";
 import { startOfDay, addHours, format } from "date-fns";
 
-export default function DayView({ date }: { date: Date }) {
+export default function DayView({
+  date,
+  classes,
+}: {
+  date: Date;
+  classes: any;
+}) {
   const start = startOfDay(date);
   const hours = Array.from({ length: 13 }, (_, h) => h + 9); // 9:00–21:00
 

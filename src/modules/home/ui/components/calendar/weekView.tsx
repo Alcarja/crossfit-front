@@ -2,7 +2,13 @@ import { es } from "date-fns/locale";
 import { startOfWeek, endOfWeek, addDays, format } from "date-fns";
 import React from "react";
 
-export default function WeekView({ date }: { date: Date }) {
+export default function WeekView({
+  date,
+  classes,
+}: {
+  date: Date;
+  classes: any;
+}) {
   const start = startOfWeek(date, { weekStartsOn: 1 });
   const end = endOfWeek(date, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   addDays,
   subDays,
@@ -8,6 +8,14 @@ import {
   subWeeks,
   addMonths,
   subMonths,
+  startOfWeek,
+  startOfMonth,
+  endOfWeek,
+  endOfMonth,
+  startOfDay,
+  endOfDay,
+  isWithinInterval,
+  parseISO,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -21,6 +29,19 @@ import MonthView from "./monthView";
 import WeekView from "./weekView";
 import DayView from "./dayView";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { usersQueryOptions } from "@/app/queries/users";
+import { classesQueryOptions } from "@/app/queries/classes";
+
+type Class = {
+  id: string;
+  start: string;
+  end: string;
+  type: string;
+  coach: string;
+  isOpen?: boolean;
+  isClose?: boolean;
+};
 
 export default function Calendar() {
   const [view, setView] = useState<"month" | "week" | "day">("month");
@@ -32,7 +53,6 @@ export default function Calendar() {
     (_, i) => currentYear - 2 + i
   );
 
-  // Navigation handlers
   const handlePrev = () => {
     if (view === "month") setCurrentDate(subMonths(currentDate, 1));
     if (view === "week") setCurrentDate(subWeeks(currentDate, 1));
@@ -52,6 +72,59 @@ export default function Calendar() {
   const handleYearChange = (year: number) => {
     setCurrentDate(new Date(year, currentMonth, 1));
   };
+
+  // Calculate visible range for current view
+  const visibleRange = useMemo(() => {
+    if (view === "month") {
+      return {
+        start: startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 }),
+      };
+    }
+    if (view === "week") {
+      return {
+        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
+        end: endOfWeek(currentDate, { weekStartsOn: 1 }),
+      };
+    }
+    return {
+      start: startOfDay(currentDate),
+      end: endOfDay(currentDate),
+    };
+  }, [view, currentDate]);
+
+  const [calendarClasses, setCalendarClasses] = useState<Class[]>([]);
+  const { data: users } = useQuery(usersQueryOptions());
+
+  const { data: classes } = useQuery(
+    classesQueryOptions(
+      visibleRange.start.toISOString(),
+      visibleRange.end.toISOString()
+    )
+  );
+
+  useEffect(() => {
+    if (!classes) return;
+
+    const formatted: Class[] = classes.results.map((cls: any) => ({
+      id: String(cls.id),
+      start: cls.start,
+      end: cls.end,
+      type: cls.type,
+      coach: cls.coach?.name,
+      isOpen: cls.isOpen,
+      isClose: cls.isClose,
+    }));
+
+    setCalendarClasses(formatted);
+  }, [classes]);
+
+  // Filter classes based on visible range
+  const filteredClasses = useMemo(() => {
+    return calendarClasses.filter((cls) =>
+      isWithinInterval(parseISO(cls.start), visibleRange)
+    );
+  }, [calendarClasses, visibleRange]);
 
   return (
     <div className="space-y-4 my-6">
@@ -79,6 +152,7 @@ export default function Calendar() {
           </Button>
         </div>
 
+        {/* Month/Year filters */}
         {view === "month" && (
           <>
             <Select
@@ -117,7 +191,7 @@ export default function Calendar() {
           </>
         )}
 
-        {/* Arrows */}
+        {/* Navigation Arrows */}
         <div className="ml-auto flex gap-1">
           <Button variant="default" size="icon" onClick={handlePrev}>
             <ChevronLeft className="w-5 h-5" />
@@ -128,10 +202,16 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* View Content */}
-      {view === "month" && <MonthView date={currentDate} />}
-      {view === "week" && <WeekView date={currentDate} />}
-      {view === "day" && <DayView date={currentDate} />}
+      {/* View */}
+      {view === "month" && (
+        <MonthView date={currentDate} classes={filteredClasses} />
+      )}
+      {view === "week" && (
+        <WeekView date={currentDate} classes={filteredClasses} />
+      )}
+      {view === "day" && (
+        <DayView date={currentDate} classes={filteredClasses} />
+      )}
     </div>
   );
 }
