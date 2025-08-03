@@ -1,3 +1,7 @@
-export const HomeView = () => {
-  return <p>Home</p>;
-};
+export default function HomwView() {
+  return (
+    <main className="max-w-6xl mx-auto mt-10 px-4">
+      <p>Home</p>
+    </main>
+  );
+}

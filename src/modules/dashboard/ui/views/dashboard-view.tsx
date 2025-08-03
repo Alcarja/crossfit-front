@@ -1,13 +1,13 @@
 "use client";
 
-import ScheduleCalendar from "@/components/web/scheduleCalendar";
+import Calendar from "../components/calendar/calendar";
 
 const DashboardView = () => {
   return (
     <div className="w-full max-w-[2400px] px-4 sm:px-6 md:px-12 py-8 space-y-16">
       <section className="bg-white border rounded-xl shadow-sm p-6 sm:p-8">
         <h2 className="text-4xl font-bold mb-6">Schedule</h2>
-        <ScheduleCalendar />
+        <Calendar />
       </section>
     </div>
   );
