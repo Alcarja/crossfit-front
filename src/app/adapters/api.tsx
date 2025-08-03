@@ -95,6 +95,10 @@ export const updateClass = async (
   return await stpApi.put(`/api/classes/${id}`, data);
 };
 
+export const deleteClass = async (id: number) => {
+  return await stpApi.delete(`/api/classes/${id}`);
+};
+
 //Categories
 export const getAllCategories = async () => {
   return await stpApi.get("/api/categories", {});

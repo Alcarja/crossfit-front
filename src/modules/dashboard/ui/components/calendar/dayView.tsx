@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { es } from "date-fns/locale";
 import { startOfDay, addHours, format } from "date-fns";
 

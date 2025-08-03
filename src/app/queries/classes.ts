@@ -2,6 +2,7 @@
 import { useMutation } from "@tanstack/react-query";
 import {
   createClass,
+  deleteClass,
   getClasses,
   getClassesByMonthAndYear,
   updateClass,
@@ -45,4 +46,9 @@ export const useUpdateClassQuery = () =>
         isClose?: boolean;
       };
     }) => updateClass(id, data),
+  });
+
+export const useDeleteClassQuery = () =>
+  useMutation({
+    mutationFn: (id: number) => deleteClass(id),
   });
