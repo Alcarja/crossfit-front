@@ -51,6 +51,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/authContext";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import { fromZonedTime } from "date-fns-tz";
+
 type Class = {
   event: {
     id: string;
@@ -192,14 +194,24 @@ export default function Calendar() {
     const coachData = users?.find((u: any) => u.id === Number(coachId));
     const coachName = coachData ? coachData.name : coachId;
 
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     const newClass = {
+      start: fromZonedTime(selectedRange?.start || "", timeZone).toISOString(),
+      end: fromZonedTime(selectedRange?.end || "", timeZone).toISOString(),
+      coach: coachId,
+      type: values.type,
+      isOpen: values.isOpen,
+      isClose: values.isClose,
+    };
+    /* const newClass = {
       start: selectedRange?.start,
       end: selectedRange?.end,
       coach: coachId,
       type: values.type,
       isOpen: values.isOpen,
       isClose: values.isClose,
-    };
+    }; */
 
     if (!user?.id) {
       toast.error("User not authenticated.");
