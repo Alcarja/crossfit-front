@@ -39,7 +39,7 @@ export const RegisterView = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User has been created.");
-      window.location.href = "/register";
+      window.location.href = "/login";
     },
   });
 
