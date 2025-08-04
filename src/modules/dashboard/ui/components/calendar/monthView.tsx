@@ -18,6 +18,7 @@ type Class = {
   end: string;
   type: string;
   coach: string;
+  isHalfHour?: boolean;
 };
 
 const typeColors: Record<string, string> = {
@@ -120,6 +121,7 @@ export default function MonthView({
                         {format(parseISO(cls.start), "HH:mm")}
                       </span>{" "}
                       • {cls.type} ({cls.coach})
+                      {cls.isHalfHour ? " – 30min" : ""}
                     </div>
                   );
                 })}
@@ -151,6 +153,7 @@ export default function MonthView({
                             {format(parseISO(cls.start), "HH:mm")}
                           </span>{" "}
                           • {cls.type} ({cls.coach})
+                          {cls.isHalfHour ? " – 30min" : ""}
                         </div>
                       );
                     })}

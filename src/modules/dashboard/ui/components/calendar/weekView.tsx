@@ -96,13 +96,16 @@ export default function WeekView({
                     <div
                       key={`cell-${h}-${d}`}
                       onClick={() => {
-                        const startStr = `${format(day, "yyyy-MM-dd")}T${String(
-                          h
-                        ).padStart(2, "0")}:00:00`;
-                        const endStr = `${format(day, "yyyy-MM-dd")}T${String(
-                          h + 1
-                        ).padStart(2, "0")}:00:00`;
-                        onTimeSlotClick?.({ startStr, endStr });
+                        const baseHour = h;
+                        const dayStr = format(day, "yyyy-MM-dd");
+
+                        const startStr = `${dayStr}T${String(baseHour).padStart(
+                          2,
+                          "0"
+                        )}:00:00`;
+
+                        // End time will be decided based on `isHalfHour` checkbox in the form
+                        onTimeSlotClick?.({ startStr, endStr: startStr });
                       }}
                       className="relative border-t border-l h-20 px-1 py-0.5 hover:bg-muted transition-colors"
                     >
@@ -120,6 +123,7 @@ export default function WeekView({
                             className={`text-xs px-1 py-0.5 rounded-sm mb-0.5 truncate ${color}`}
                           >
                             {cls.type} ({cls.coach})
+                            {cls.isHalfHour ? " – 30min" : ""}
                           </div>
                         );
                       })}

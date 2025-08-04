@@ -52,6 +52,8 @@ import { useAuth } from "@/context/authContext";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { fromZonedTime } from "date-fns-tz";
+import { Checkbox } from "@/components/ui/checkbox";
+import Combobox from "@/components/web/combobox";
 
 type Class = {
   event: {
@@ -64,6 +66,7 @@ type Class = {
   coach: string;
   isOpen?: boolean;
   isClose?: boolean;
+  isHalfHour?: boolean;
 };
 
 const createFormSchema = z
@@ -72,6 +75,7 @@ const createFormSchema = z
     type: z.string().min(1, "Type is required"),
     isOpen: z.boolean().optional().default(false),
     isClose: z.boolean().optional().default(false),
+    isHalfHour: z.boolean().optional().default(false), // 🆕
   })
   .refine((data) => !(data.isOpen && data.isClose), {
     message: "You can't check both Apertura and Cierre",
@@ -84,6 +88,7 @@ const updateClassFormSchema = z
     type: z.string().min(1, "Type is required"),
     isOpen: z.boolean().optional().default(false),
     isClose: z.boolean().optional().default(false),
+    isHalfHour: z.boolean().optional().default(false),
   })
   .refine((data) => !(data.isOpen && data.isClose), {
     message: "You can't check both Apertura and Cierre",
@@ -158,15 +163,24 @@ export default function Calendar() {
 
   useEffect(() => {
     if (!classes) return;
-    const formatted: Class[] = classes.results.map((cls: any) => ({
-      id: cls.id.toString(),
-      start: cls.start,
-      end: cls.end,
-      type: cls.type,
-      coach: cls.coach?.name || "",
-      isOpen: cls.isOpen,
-      isClose: cls.isClose,
-    }));
+
+    const formatted: Class[] = classes.results.map((cls: any) => {
+      const start = new Date(cls.start);
+      const end = new Date(cls.end);
+      const duration = (end.getTime() - start.getTime()) / (1000 * 60); // in minutes
+
+      return {
+        id: cls.id.toString(),
+        start: cls.start,
+        end: cls.end,
+        type: cls.type,
+        coach: cls.coach?.name || "",
+        isOpen: cls.isOpen,
+        isClose: cls.isClose,
+        isHalfHour: duration === 30,
+      };
+    });
+
     setCalendarClasses(formatted);
   }, [classes]);
 
@@ -183,7 +197,13 @@ export default function Calendar() {
   // This gets triggered by WeekView
   const openCreateDialog = (range: { startStr: string; endStr: string }) => {
     setSelectedRange({ start: range.startStr, end: range.endStr });
-    createForm.reset({ coach: "", type: "WOD" });
+    createForm.reset({
+      coach: "",
+      type: "WOD",
+      isOpen: false,
+      isClose: false,
+      isHalfHour: false,
+    });
     setCreateDialogOpen(true);
   };
 
@@ -196,22 +216,24 @@ export default function Calendar() {
 
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+    const start = fromZonedTime(selectedRange?.start || "", timeZone);
+    const end = new Date(start);
+
+    // ⏱️ Adjust end time for half-hour if checked
+    if (values.isHalfHour) {
+      end.setMinutes(end.getMinutes() + 30);
+    } else {
+      end.setMinutes(end.getMinutes() + 60);
+    }
+
     const newClass = {
-      start: fromZonedTime(selectedRange?.start || "", timeZone).toISOString(),
-      end: fromZonedTime(selectedRange?.end || "", timeZone).toISOString(),
+      start: start.toISOString(),
+      end: end.toISOString(),
       coach: coachId,
       type: values.type,
       isOpen: values.isOpen,
       isClose: values.isClose,
     };
-    /* const newClass = {
-      start: selectedRange?.start,
-      end: selectedRange?.end,
-      coach: coachId,
-      type: values.type,
-      isOpen: values.isOpen,
-      isClose: values.isClose,
-    }; */
 
     if (!user?.id) {
       toast.error("User not authenticated.");
@@ -241,6 +263,18 @@ export default function Calendar() {
       }
     );
   }
+
+  // Close create dialog and clear form
+  const handleCloseCreateDialog = () => {
+    setCreateDialogOpen(false);
+    createForm.reset({
+      coach: "",
+      type: "WOD",
+      isOpen: false,
+      isClose: false,
+      isHalfHour: false,
+    });
+  };
 
   const updateClassForm = useForm({
     resolver: zodResolver(updateClassFormSchema),
@@ -274,6 +308,7 @@ export default function Calendar() {
       type: found.type,
       isOpen: found.isOpen ?? false,
       isClose: found.isClose ?? false,
+      isHalfHour: found.isHalfHour ?? false,
     });
 
     setUpdateClassDialogOpen(true);
@@ -290,14 +325,24 @@ export default function Calendar() {
     const coachData = users?.find((u: any) => u.id === coachId);
     const coachName = coachData?.name ?? String(coachId);
 
+    // ⏱ Recalculate end time based on isHalfHour checkbox
+    const start = new Date(editingEvent.start);
+    const end = new Date(start);
+
+    if (values.isHalfHour) {
+      end.setMinutes(start.getMinutes() + 30);
+    } else {
+      end.setMinutes(start.getMinutes() + 60);
+    }
+
     updateClassMutation.mutate(
       {
         id: Number(classId),
         data: {
           coachId,
           type: values.type,
-          start: editingEvent.start,
-          end: editingEvent.end,
+          start: start.toISOString(),
+          end: end.toISOString(),
           isOpen: values.isOpen ?? false,
           isClose: values.isClose ?? false,
         },
@@ -310,7 +355,14 @@ export default function Calendar() {
           setCalendarClasses((prev) =>
             prev.map((cls) =>
               cls.id === classId
-                ? { ...cls, coach: coachName, type: values.type }
+                ? {
+                    ...cls,
+                    coach: coachName,
+                    type: values.type,
+                    start: start.toISOString(),
+                    end: end.toISOString(),
+                    isHalfHour: values.isHalfHour ?? false, // ✅ update flag locally too
+                  }
                 : cls
             )
           );
@@ -325,6 +377,19 @@ export default function Calendar() {
       }
     );
   }
+
+  // Close update dialog and clear form
+  const handleCloseUpdateDialog = () => {
+    setUpdateClassDialogOpen(false);
+    setEditingEvent(null);
+    updateClassForm.reset({
+      coach: "",
+      type: "WOD",
+      isOpen: false,
+      isClose: false,
+      isHalfHour: false,
+    });
+  };
 
   const deleteClassMutation = useDeleteClassQuery();
 
@@ -451,13 +516,14 @@ export default function Calendar() {
       )}
 
       {/* === CREATE CLASS MODAL === */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog open={createDialogOpen} onOpenChange={handleCloseCreateDialog}>
         <DialogContent>
           <Form {...createForm}>
             <form
               onSubmit={createForm.handleSubmit(onSubmitCreateClass)}
               className="space-y-6"
             >
+              {/* Coach */}
               <FormField
                 control={createForm.control}
                 name="coach"
@@ -465,80 +531,111 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Coach</FormLabel>
                     <FormControl>
-                      <select
-                        {...field}
-                        className="w-full border border-input rounded-md px-3 py-2 text-sm"
-                      >
-                        <option value="">Select coach</option>
-                        {users?.map((user: any) => (
-                          <option key={user.id} value={user.id.toString()}>
-                            {user.name}
-                          </option>
-                        ))}
-                      </select>
+                      <Combobox
+                        options={
+                          users?.map((user: any) => ({
+                            value: user.id.toString(),
+                            label: user.name,
+                          })) ?? []
+                        }
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Select a coach"
+                        size="full"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* Type */}
               <FormField
                 control={createForm.control}
                 name="type"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type</FormLabel>
-                    <select
-                      {...field}
-                      className="w-full border border-input rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="WOD">WOD</option>
-                      <option value="Gymnastics">Gymnastics</option>
-                      <option value="Weightlifting">Weightlifting</option>
-                      <option value="Endurance">Endurance</option>
-                      <option value="Foundations">Foundations</option>
-                      <option value="Kids">Kids</option>
-                    </select>
+                    <FormControl>
+                      <Combobox
+                        options={[
+                          { value: "WOD", label: "WOD" },
+                          { value: "Gymnastics", label: "Gymnastics" },
+                          { value: "Weightlifting", label: "Weightlifting" },
+                          { value: "Endurance", label: "Endurance" },
+                          { value: "Foundations", label: "Foundations" },
+                          { value: "Kids", label: "Kids" },
+                        ]}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Select class type"
+                        size="full"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={createForm.control}
-                name="isOpen"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                        className="mr-2"
-                      />
-                    </FormControl>
-                    <FormLabel className="m-0">Apertura</FormLabel>
-                  </FormItem>
-                )}
-              />
+              {/* Checkboxes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Apertura */}
+                <FormField
+                  control={createForm.control}
+                  name="isOpen"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal pt-1.5">
+                        Apertura
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={createForm.control}
-                name="isClose"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                        className="mr-2"
-                      />
-                    </FormControl>
-                    <FormLabel className="m-0">Cierre</FormLabel>
-                  </FormItem>
-                )}
-              />
+                {/* Cierre */}
+                <FormField
+                  control={createForm.control}
+                  name="isClose"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal pt-1.5">
+                        Cierre
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                {/* Half Hour */}
+                <FormField
+                  control={createForm.control}
+                  name="isHalfHour"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal pt-1.5">
+                        Clase de media hora
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <DialogFooter className="pt-4 gap-2">
                 <Button type="submit">Add</Button>
@@ -551,7 +648,7 @@ export default function Calendar() {
       {/* === UPDATE CLASS MODAL === */}
       <Dialog
         open={updateClassDialogOpen}
-        onOpenChange={setUpdateClassDialogOpen}
+        onOpenChange={handleCloseUpdateDialog}
       >
         <DialogContent>
           <Form {...updateClassForm}>
@@ -566,17 +663,18 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Coach</FormLabel>
                     <FormControl>
-                      <select
-                        {...field}
-                        className="w-full border border-input rounded-md px-3 py-2 text-sm"
-                      >
-                        <option value="">Select coach</option>
-                        {users?.map((user: any) => (
-                          <option key={user.id} value={user.id.toString()}>
-                            {user.name}
-                          </option>
-                        ))}
-                      </select>
+                      <Combobox
+                        options={
+                          users?.map((user: any) => ({
+                            value: user.id.toString(),
+                            label: user.name,
+                          })) ?? []
+                        }
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Select a coach"
+                        size="full"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -590,58 +688,85 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Type</FormLabel>
                     <FormControl>
-                      <select
-                        {...field}
-                        className="w-full border border-input rounded-md px-3 py-2 text-sm"
-                      >
-                        <option value="WOD">WOD</option>
-                        <option value="Gymnastics">Gymnastics</option>
-                        <option value="Weightlifting">Weightlifting</option>
-                        <option value="Endurance">Endurance</option>
-                        <option value="Foundations">Foundations</option>
-                        <option value="Kids">Kids</option>
-                      </select>
+                      <Combobox
+                        options={[
+                          { value: "WOD", label: "WOD" },
+                          { value: "Gymnastics", label: "Gymnastics" },
+                          { value: "Weightlifting", label: "Weightlifting" },
+                          { value: "Endurance", label: "Endurance" },
+                          { value: "Foundations", label: "Foundations" },
+                          { value: "Kids", label: "Kids" },
+                        ]}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Select class type"
+                        size="full"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={updateClassForm.control}
-                name="isOpen"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={!!field.value} // ensures it's boolean
-                        onChange={(e) => field.onChange(e.target.checked)}
-                        className="mr-2"
-                      />
-                    </FormControl>
-                    <FormLabel className="m-0">Apertura</FormLabel>
-                  </FormItem>
-                )}
-              />
+              {/* Checkboxes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Apertura */}
+                <FormField
+                  control={updateClassForm.control}
+                  name="isOpen"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal pt-1.5">
+                        Apertura
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={updateClassForm.control}
-                name="isClose"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={!!field.value}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                        className="mr-2"
-                      />
-                    </FormControl>
-                    <FormLabel className="m-0">Cierre</FormLabel>
-                  </FormItem>
-                )}
-              />
+                {/* Cierre */}
+                <FormField
+                  control={updateClassForm.control}
+                  name="isClose"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal pt-1.5">
+                        Cierre
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                {/* Clase de media hora */}
+                <FormField
+                  control={updateClassForm.control}
+                  name="isHalfHour"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal pt-1.5">
+                        Clase de media hora
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="pt-4 gap-2 w-full flex items-center justify-between">
                 <Button
