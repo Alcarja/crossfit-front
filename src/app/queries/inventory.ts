@@ -3,7 +3,9 @@ import {
   createInventoryItem,
   deleteInventoryItem,
   getAllInventory,
+  getInventoryTransactionsByMonthAndYear,
   updateInventoryItem,
+  updateStock,
 } from "../adapters/api";
 
 export const useAllInventoryQuery = () => ({
@@ -44,3 +46,20 @@ export const useUpdateInventoryItem = () =>
       priceCoach: number;
     }) => updateInventoryItem(data),
   });
+
+export const useUpdateStock = () =>
+  useMutation({
+    mutationFn: (data: { itemId: number; quantity: number; action: string }) =>
+      updateStock(data),
+  });
+
+export const useInventoryTransactionsByMonthAndYear = (
+  month: number,
+  year: number
+) => ({
+  queryKey: ["inventory-transactions", month, year],
+  queryFn: async () => {
+    const response = await getInventoryTransactionsByMonthAndYear(month, year);
+    return response;
+  },
+});
