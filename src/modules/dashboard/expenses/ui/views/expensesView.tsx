@@ -85,6 +85,13 @@ const ExpensesView = () => {
 
   const { data: inventoryData } = useQuery(useAllInventoryQuery());
 
+  //Check if the user selected in the combobox is a coach or a client
+  const selectedCoach = usersData?.find(
+    (user: User) => String(user.id) === String(selectedCoachForAddingExpense)
+  );
+
+  const isClient = selectedCoach?.role === "client";
+
   const userOptions = [
     { value: "", label: "All Coaches" },
     ...(usersData?.map((user: User) => ({
@@ -94,10 +101,14 @@ const ExpensesView = () => {
   ];
 
   const inventoryOptions = [
-    ...(inventoryData?.allInventory?.map((item: any) => ({
-      value: String(item.id),
-      label: `${item.name} (${item.categoryName}) - ${item.priceCoach}€`,
-    })) ?? []),
+    ...(inventoryData?.allInventory?.map((item: any) => {
+      const priceToShow = isClient ? item.priceRegular : item.priceCoach;
+
+      return {
+        value: String(item.id),
+        label: `${item.name} (${item.categoryName}) - ${priceToShow}€`,
+      };
+    }) ?? []),
   ];
 
   const filteredData = (usersData ?? [])

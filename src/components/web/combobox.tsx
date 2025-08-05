@@ -71,13 +71,13 @@ export default function Combobox({
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList>
+          <CommandList className="max-h-60 overflow-y-auto">
             <CommandEmpty>No option found.</CommandEmpty>
             <CommandGroup>
               {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.label} // <-- use label for filtering!
+                  value={option.label}
                   onSelect={() => {
                     onValueChange(option.value);
                     setOpen(false);
