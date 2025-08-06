@@ -107,7 +107,7 @@ export default function WeekView({
                         // End time will be decided based on `isHalfHour` checkbox in the form
                         onTimeSlotClick?.({ startStr, endStr: startStr });
                       }}
-                      className="relative border-t border-l h-20 px-1 py-0.5 hover:bg-muted transition-colors"
+                      className="relative border-t border-l h-auto min-h-20 px-1 pt-0.5 pb-5 hover:bg-muted transition-colors"
                     >
                       {dayHourClasses.map((cls: any) => {
                         const color =

@@ -3,7 +3,6 @@ import {
   createCoachExpense,
   deleteCoachExpense,
   getCoachExpensesByMonthAndYear,
-  updateClass,
 } from "../adapters/api";
 
 export const useCreateCoachExpenseMutation = () =>
@@ -13,6 +12,7 @@ export const useCreateCoachExpenseMutation = () =>
       inventoryId: string;
       quantity: number;
       date: string;
+      customPrice?: number;
     }) => createCoachExpense(data),
   });
 
@@ -26,24 +26,6 @@ export const coachExpensesByMonthAndYearQueryOptions = (
   },
   enabled: !!month && !!year, // Only fetch when both values are present
 });
-
-export const useUpdateClassQuery = () =>
-  useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: number;
-      data: {
-        start?: string;
-        end?: string;
-        coachId?: number;
-        type?: string;
-        isOpen?: boolean;
-        isClose?: boolean;
-      };
-    }) => updateClass(id, data),
-  });
 
 export const useDeleteCoachExpenseMutation = () =>
   useMutation({

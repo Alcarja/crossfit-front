@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import * as XLSX from "xlsx";
+
 import { useMemo, useState } from "react";
 import {
   startOfMonth,
@@ -29,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { EditWorkoutForm } from "./forms/edit-workout-form";
 import { CreateWorkoutForm } from "./forms/create-workout-form";
+import { Button } from "@/components/ui/button";
 
 export const MonthlyWorkoutCalendar = () => {
   const today = new Date();
@@ -88,6 +91,73 @@ export const MonthlyWorkoutCalendar = () => {
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
+  const extractParagraphs = (html: string): string[] => {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+
+    const paragraphs = Array.from(div.querySelectorAll("p")).map(
+      (p) => p.textContent?.trim().replace(/\u00a0/g, "") || ""
+    );
+
+    return paragraphs.filter(Boolean);
+  };
+
+  // Export workouts horizontally, one workout per column (with spacing)
+  const exportHorizontalWorkouts = (workouts: Workout[]) => {
+    const maxWorkoutHeight = 100; // just in case
+    const rowCount = maxWorkoutHeight;
+    const colCount = workouts.length * 2 - 1; // workout + space columns
+
+    // Create empty 2D array
+    const sheetData: string[][] = Array.from({ length: rowCount }, () =>
+      Array(colCount).fill("")
+    );
+
+    workouts.forEach((workout, index) => {
+      const col = index * 2; // skip every other column for spacing
+      let row = 0;
+
+      const date = workout.date.split("T")[0];
+      const type = workout.type;
+
+      sheetData[row++][col] = `${date} - ${type}`;
+
+      if (workout.parts && workout.parts.length > 0) {
+        workout.parts.forEach((part) => {
+          sheetData[row++][col] = part.title;
+
+          if (part.format) {
+            sheetData[row++][col] = part.format;
+          }
+
+          const contentLines = extractParagraphs(part.content);
+          contentLines.forEach((line) => {
+            sheetData[row++][col] = line;
+          });
+
+          if (part.notes) {
+            sheetData[row++][col] = part.notes;
+          }
+
+          row++; // blank line between parts
+        });
+      } else {
+        sheetData[row++][col] = "(No parts provided)";
+      }
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Optional: widen workout columns
+    worksheet["!cols"] = Array.from({ length: colCount }, (_, i) =>
+      i % 2 === 0 ? { wch: 40 } : { wch: 2 }
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Workouts");
+    XLSX.writeFile(workbook, "Workouts_Horizontal.xlsx");
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -124,6 +194,10 @@ export const MonthlyWorkoutCalendar = () => {
           </SelectContent>
         </Select>
       </div>
+
+      <Button onClick={() => exportHorizontalWorkouts(workouts)}>
+        Export Workouts (Formatted)
+      </Button>
 
       {/* Weekday headers */}
       <div className="hidden lg:grid grid-cols-7 gap-2 text-center font-semibold text-sm text-gray-600">

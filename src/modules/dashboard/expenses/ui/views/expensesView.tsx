@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import * as XLSX from "xlsx";
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -68,6 +70,7 @@ const ExpensesView = () => {
 
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [customPrice, setCustomPrice] = useState<number | undefined>();
   const [date, setDate] = useState(currentDate.toISOString().split("T")[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -151,6 +154,7 @@ const ExpensesView = () => {
       inventoryId: selectedInventoryId,
       quantity,
       date,
+      customPrice,
     };
 
     createExpenseMutation.mutate(payload, {
@@ -184,6 +188,60 @@ const ExpensesView = () => {
         toast.error(`Failed to delete expense: ${error.message}`);
       },
     });
+  };
+
+  const exportGroupedExpensesToExcel = (coaches: any) => {
+    const rows = [];
+    let grandTotalAmount = 0;
+
+    coaches.forEach((coach: any) => {
+      let coachTotalAmount = 0;
+
+      coach.expenses.forEach((exp: any, index: any) => {
+        const amount = parseFloat(exp.totalPrice);
+        const isLastExpense = index === coach.expenses.length - 1;
+
+        coachTotalAmount += amount;
+        grandTotalAmount += amount;
+
+        rows.push({
+          "Coach Name": coach.name,
+          Date: exp.date,
+          Item: exp.inventory?.name ?? "Unknown Item",
+          Quantity: exp.quantity,
+          "Total (€)": amount.toFixed(2),
+          "Coach Total (€)": isLastExpense ? coachTotalAmount.toFixed(2) : "",
+        });
+      });
+    });
+
+    // Add grand total row at the end
+    rows.push({
+      "Coach Name": "",
+      Date: "",
+      Item: "",
+      Quantity: "",
+      "Total (€)": "",
+      "Coach Total (€)": grandTotalAmount.toFixed(2),
+    });
+
+    // Ensure headers are in correct order
+    const headers = [
+      "Coach Name",
+      "Date",
+      "Item",
+      "Quantity",
+      "Total (€)",
+      "Coach Total (€)",
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+    XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Expenses");
+
+    XLSX.writeFile(workbook, "All_Coaches_Expenses.xlsx");
   };
 
   return (
@@ -245,13 +303,22 @@ const ExpensesView = () => {
           </Button>
         </div>
       </div>
+      <div>
+        {" "}
+        <Button
+          onClick={() => exportGroupedExpensesToExcel(filteredData)}
+          className="w-auto"
+        >
+          Export All to Excel
+        </Button>
+      </div>
 
       {/* Summary Cards */}
       <div className="space-y-4">
         {filteredData.map((coach: any) => {
           return (
             <Card key={coach.name} className="w-full shadow-sm">
-              <CardHeader>
+              <CardHeader className="flex items-center justify-between">
                 <CardTitle className="text-2xl">{coach.name}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
@@ -378,6 +445,17 @@ const ExpensesView = () => {
                 min={1}
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
+              />
+            </div>
+
+            {/* Custom Price */}
+            <div>
+              <Label>Custom Price (optional)</Label>
+              <Input
+                type="number"
+                min={1}
+                value={customPrice}
+                onChange={(e) => setCustomPrice(Number(e?.target?.value))}
               />
             </div>
 

@@ -175,6 +175,7 @@ export const createCoachExpense = async (data: {
   inventoryId: string;
   quantity: number;
   date: string;
+  customPrice?: number;
 }) => {
   return await stpApi.post(`/api/coach-expenses`, data);
 };

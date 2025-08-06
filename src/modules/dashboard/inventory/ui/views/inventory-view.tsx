@@ -460,9 +460,11 @@ export const InventoryView = () => {
                         <SelectValue placeholder="Choose action" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="in">Add Stock</SelectItem>
-                        <SelectItem value="out">Remove Stock</SelectItem>
-                        <SelectItem value="adjustment">Adjustment</SelectItem>
+                        <SelectItem value="in">Añadir Stock</SelectItem>
+                        <SelectItem value="out">Retirar Stock</SelectItem>
+                        <SelectItem value="adjustment">
+                          Ajustar Stock
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -538,12 +540,10 @@ export const InventoryView = () => {
                   </div>
                 </div>
 
-                <div className="border rounded-md p-4">
-                  <DataTable
-                    columns={transactionColumns}
-                    data={data?.results ?? []}
-                  />
-                </div>
+                <DataTable
+                  columns={transactionColumns}
+                  data={data?.results ?? []}
+                />
               </div>
             </div>
           </div>
