@@ -498,7 +498,7 @@ export const InventoryView = () => {
                       />
                     </div> */}
 
-                    <div className="flex flex-col gap-1 w-[300px]">
+                    <div className="flex flex-col gap-1 w-full max-w-[300px]">
                       <Label>Month</Label>
                       <Select
                         value={selectedMonth}
@@ -519,7 +519,7 @@ export const InventoryView = () => {
                       </Select>
                     </div>
 
-                    <div className="flex flex-col gap-1 w-[300px]">
+                    <div className="flex flex-col gap-1 w-full max-w-[300px]">
                       <Label>Year</Label>
                       <Select
                         value={selectedYear}
