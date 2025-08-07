@@ -186,7 +186,7 @@ const AdminCoachesView = () => {
           />
         </div>
 
-        <div className="flex flex-col gap-1 w-[300px]">
+        <div className="flex flex-col gap-1 w-full md:w-[300px]">
           <Label>Month</Label>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-full">
@@ -202,7 +202,7 @@ const AdminCoachesView = () => {
           </Select>
         </div>
 
-        <div className="flex flex-col gap-1 w-[300px]">
+        <div className="flex flex-col gap-1 w-full md:w-[300px]">
           <Label>Year</Label>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
             <SelectTrigger className="w-full">

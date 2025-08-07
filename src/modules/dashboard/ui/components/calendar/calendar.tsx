@@ -111,10 +111,7 @@ export default function Calendar() {
 
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
-  const availableYears = Array.from(
-    { length: 5 },
-    (_, i) => currentYear - 2 + i
-  );
+  const availableYears = [2025, 2026, 2027, 2028, 2029];
 
   // For dialog
   const [selectedRange, setSelectedRange] = useState<{
