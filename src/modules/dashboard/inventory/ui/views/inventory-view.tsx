@@ -331,7 +331,6 @@ export const InventoryView = () => {
 
   return (
     <div className="w-[93%] mx-auto max-w-[2400px] md:p-6">
-      <h1 className="text-4xl font-bold mb-6">Inventory</h1>
       <Tabs defaultValue="planner" className="w-full">
         <TabsList className="flex flex-wrap items-center justify-center w-full">
           <TabsTrigger value="planner">Registro</TabsTrigger>
