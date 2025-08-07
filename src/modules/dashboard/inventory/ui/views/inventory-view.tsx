@@ -486,7 +486,7 @@ export const InventoryView = () => {
 
                 {/* Filters */}
                 <div className="flex flex-wrap justify-between items-end gap-4">
-                  <div className="flex flex-wrap items-center justify-start gap-4">
+                  <div className="flex flex-wrap items-center justify-start gap-4 w-full">
                     {/* <div className="flex flex-col gap-1">
                       <Label>Coaches</Label>
                       <Combobox
@@ -729,7 +729,7 @@ export const InventoryView = () => {
                   </Select>
                 </div>
 
-                <div className="border rounded-md p-4">
+                <div>
                   <InventoryTable
                     columns={columns}
                     data={filteredItems ?? []}
