@@ -703,6 +703,7 @@ export default function Calendar() {
       {view === "week" && (
         <>
           <Button
+            className="w-auto bg-blue-200"
             onClick={() => {
               exportClassesToExcel(classes?.results || []);
             }}
