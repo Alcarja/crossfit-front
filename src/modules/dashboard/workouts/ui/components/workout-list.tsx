@@ -162,7 +162,7 @@ export const MonthlyWorkoutCalendar = () => {
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-wrap items-center justify-between gap-4 py-2">
-        <div className="flex items-center justify-start gap-4">
+        <div className="flex flex-wrap items-center justify-start gap-4">
           <Select
             value={String(selectedMonth)}
             onValueChange={(val) => setSelectedMonth(parseInt(val))}
