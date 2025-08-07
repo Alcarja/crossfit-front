@@ -61,7 +61,10 @@ export function DataTable<TData, TValue>({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="text-center">
+              <TableCell
+                colSpan={columns.length}
+                className="text-center bg-white"
+              >
                 No items found.
               </TableCell>
             </TableRow>

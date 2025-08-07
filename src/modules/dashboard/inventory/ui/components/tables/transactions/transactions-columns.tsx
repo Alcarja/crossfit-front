@@ -13,6 +13,15 @@ type InventoryTransaction = {
 
 export const transactionColumns: ColumnDef<InventoryTransaction>[] = [
   {
+    accessorKey: "id",
+    header: () => <div className="w-[100px pl-4">Id</div>,
+    cell: (info) => (
+      <div className="truncate w-[100px pl-4" title={info.getValue() as string}>
+        {info.getValue() as string}
+      </div>
+    ),
+  },
+  {
     accessorKey: "createdAt",
     header: () => <div className="w-[80px] pl-4">Date</div>,
     cell: ({ row }) => {

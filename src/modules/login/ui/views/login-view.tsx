@@ -35,11 +35,13 @@ export const LoginView = () => {
     mutationFn: login,
     onSuccess: (data) => {
       setUser(data); //Save user data to the authContext
-      toast.success("Logged in correctly.");
+      toast.success("Log in completado.");
       window.location.href = "/dashboard";
     },
     onError: (err: any) => {
-      console.error("❌ Login failed:", err.message);
+      const backendMessage = "CHIMPANCÉ, usuario o contraseña incorrectos";
+      const fallbackMessage = err?.message || "Error desconocido.";
+      toast.error(backendMessage || fallbackMessage);
     },
   });
 

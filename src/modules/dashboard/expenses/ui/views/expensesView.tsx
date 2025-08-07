@@ -307,9 +307,9 @@ const ExpensesView = () => {
         {" "}
         <Button
           onClick={() => exportGroupedExpensesToExcel(filteredData)}
-          className="w-auto"
+          className="w-auto bg-blue-200"
         >
-          Export All to Excel
+          Export to Excel
         </Button>
       </div>
 

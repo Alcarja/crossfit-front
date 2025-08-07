@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import * as XLSX from "xlsx";
+
 import { useEffect, useState } from "react";
 import {
   addDays,
@@ -104,6 +106,9 @@ export default function Calendar() {
   const [calendarClasses, setCalendarClasses] = useState<Class[]>([]);
   const { data: users } = useQuery(usersQueryOptions());
 
+  const [selectedCoach, setSelectedCoach] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
   const availableYears = Array.from(
@@ -183,6 +188,13 @@ export default function Calendar() {
 
     setCalendarClasses(formatted);
   }, [classes]);
+
+  //Filter classes by coach
+  const filteredClasses = calendarClasses.filter((cls) => {
+    const coachMatch = selectedCoach ? cls.coach === selectedCoach : true;
+    const typeMatch = selectedType ? cls.type === selectedType : true;
+    return coachMatch && typeMatch;
+  });
 
   const createForm = useForm({
     resolver: zodResolver(createFormSchema),
@@ -418,6 +430,159 @@ export default function Calendar() {
     });
   }
 
+  const exportClassesToExcel = (classes: any[]) => {
+    const startHour = 9;
+    const endHour = 22;
+
+    // Get Monday of the week
+    const minDate = new Date(
+      Math.min(...classes.map((c) => new Date(c.start).getTime()))
+    );
+    const monday = new Date(minDate);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // Force Monday
+
+    // Build week days
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      return date;
+    });
+
+    const dayHeaders = days.map((d) => {
+      const weekday = d.toLocaleDateString("es-ES", { weekday: "long" });
+      const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+      const date = d.toLocaleDateString("es-ES");
+      return `${capitalized} - ${date}`;
+    });
+
+    const timeSlots = Array.from({ length: endHour - startHour }, (_, i) => {
+      const hour = startHour + i;
+      return `${hour.toString().padStart(2, "0")}:00`;
+    });
+
+    // Build empty calendar matrix
+    const calendarMatrix: Record<string, Record<string, string[]>> = {};
+    timeSlots.forEach((time) => {
+      calendarMatrix[time] = {};
+      dayHeaders.forEach((day) => {
+        calendarMatrix[time][day] = [];
+      });
+    });
+
+    // Summary tracker
+    const summary: Record<string, Record<string, number>> = {};
+
+    // Fill matrix and build summary
+    classes.forEach((cls) => {
+      const start = new Date(cls.start);
+      const end = new Date(cls.end);
+      const durationHours =
+        (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+      const hour = start.getHours();
+      const timeKey = `${hour.toString().padStart(2, "0")}:00`;
+
+      const weekday = start.toLocaleDateString("es-ES", { weekday: "long" });
+      const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+      const date = start.toLocaleDateString("es-ES");
+      const dayKey = `${capitalized} - ${date}`;
+
+      const coachName = `${cls.coach?.name ?? ""} ${
+        cls.coach?.lastName ?? ""
+      }`.trim();
+      const type = cls.type;
+
+      const label = `${type} (${coachName})${
+        durationHours <= 0.5 ? " (30 min)" : ""
+      }`;
+
+      if (calendarMatrix[timeKey] && calendarMatrix[timeKey][dayKey]) {
+        calendarMatrix[timeKey][dayKey].push(label);
+      }
+
+      // Track summary
+      if (!summary[coachName]) summary[coachName] = {};
+      if (!summary[coachName][type]) summary[coachName][type] = 0;
+      summary[coachName][type] += durationHours;
+    });
+
+    // Convert matrix to rows
+    const rows: string[][] = [["Time", ...dayHeaders]];
+    timeSlots.forEach((time) => {
+      const row = [time];
+      dayHeaders.forEach((day) => {
+        const cellContent = calendarMatrix[time][day].join("\n");
+        row.push(cellContent);
+      });
+      rows.push(row);
+    });
+
+    // Append summary
+    rows.push([], ["Resumen de Horas por Coach y Tipo"]);
+    for (const coach in summary) {
+      rows.push([coach]);
+      for (const type in summary[coach]) {
+        rows.push([`${type}: ${summary[coach][type].toFixed(1)}`]);
+      }
+      rows.push([]);
+    }
+
+    // Sheet & style
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    // 🔹 Set wider columns so content is visible
+    worksheet["!cols"] = [
+      { wch: 10 }, // Time column
+      ...dayHeaders.map(() => ({ wch: 30 })), // Wider day columns
+    ];
+
+    // 🔹 Set taller rows for multiline cells
+    const range = XLSX.utils.decode_range(worksheet["!ref"] || "");
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      if (!worksheet["!rows"]) worksheet["!rows"] = [];
+      worksheet["!rows"][R] = { hpt: 60 }; // 80 points = plenty for multiple lines
+    }
+
+    for (let C = range.s.c + 1; C <= range.e.c; ++C) {
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = worksheet[cellRef];
+        if (cell && typeof cell.v === "string") {
+          if (!cell.s) cell.s = {};
+          cell.s.alignment = {
+            wrapText: true,
+            vertical: "center",
+            horizontal: "center",
+          };
+        }
+      }
+    }
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Calendario Semanal");
+
+    // Dynamic file name
+    const startOfWeek = days[0];
+    const endOfWeek = days[6];
+    const options = { month: "long" } as const;
+    const startMonth = startOfWeek.toLocaleDateString("es-ES", options);
+    const endMonth = endOfWeek.toLocaleDateString("es-ES", options);
+    const startDay = startOfWeek.getDate();
+    const endDay = endOfWeek.getDate();
+    const year = startOfWeek.getFullYear();
+
+    const fileName = `${
+      startMonth.charAt(0).toUpperCase() + startMonth.slice(1)
+    } ${startDay} - ${
+      startMonth !== endMonth
+        ? endMonth.charAt(0).toUpperCase() + endMonth.slice(1) + " "
+        : ""
+    }${endDay} / ${year}.xlsx`;
+
+    // Save
+    XLSX.writeFile(workbook, fileName);
+  };
+
   return (
     <div className="space-y-4 my-6">
       {/* Controls */}
@@ -494,25 +659,71 @@ export default function Calendar() {
         </div>
       </div>
 
+      {/* Coach and class type filters */}
+      <div className="flex flex-wrap items-center justify-start gap-4">
+        <Select
+          value={selectedCoach ?? "all"}
+          onValueChange={(val) => setSelectedCoach(val === "all" ? null : val)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Filtrar por coach" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los coaches</SelectItem>
+            {users?.map((user: any) => (
+              <SelectItem key={user.id} value={user.name}>
+                {user.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={selectedType ?? "all"}
+          onValueChange={(val) => setSelectedType(val === "all" ? null : val)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Filtrar por tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los tipos</SelectItem>
+            <SelectItem value="WOD">WOD</SelectItem>
+            <SelectItem value="Gymnastics">Gymnastics</SelectItem>
+            <SelectItem value="Weightlifting">Weightlifting</SelectItem>
+            <SelectItem value="Endurance">Endurance</SelectItem>
+            <SelectItem value="Foundations">Foundations</SelectItem>
+            <SelectItem value="Kids">Kids</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* View */}
       {view === "month" && (
-        <MonthView date={currentDate} classes={calendarClasses} />
+        <MonthView date={currentDate} classes={filteredClasses} />
       )}
       {view === "week" && (
-        <WeekView
-          date={currentDate}
-          classes={calendarClasses}
-          onClassClick={(cls) => {
-            const fakeEventClickArg = {
-              event: { id: cls.id },
-            } as any; // or cast to your EventClickArg type if needed
-            openEditDialog(fakeEventClickArg);
-          }}
-          onTimeSlotClick={openCreateDialog} // <-- Pass it here
-        />
+        <>
+          <Button
+            onClick={() => {
+              exportClassesToExcel(classes?.results || []);
+            }}
+          >
+            Export Classes
+          </Button>
+          <WeekView
+            date={currentDate}
+            classes={filteredClasses}
+            onClassClick={(cls) => {
+              const fakeEventClickArg = {
+                event: { id: cls.id },
+              } as any; // or cast to your EventClickArg type if needed
+              openEditDialog(fakeEventClickArg);
+            }}
+            onTimeSlotClick={openCreateDialog} // <-- Pass it here
+          />
+        </>
       )}
       {view === "day" && (
-        <DayView date={currentDate} classes={calendarClasses} />
+        <DayView date={currentDate} classes={filteredClasses} />
       )}
 
       {/* === CREATE CLASS MODAL === */}

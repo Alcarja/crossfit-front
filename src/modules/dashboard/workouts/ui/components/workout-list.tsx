@@ -161,43 +161,48 @@ export const MonthlyWorkoutCalendar = () => {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4 py-2">
-        <Select
-          value={String(selectedMonth)}
-          onValueChange={(val) => setSelectedMonth(parseInt(val))}
-        >
-          <SelectTrigger className="w-[300px]">
-            <SelectValue placeholder="Select month" />
-          </SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <SelectItem key={i} value={String(i)}>
-                {new Date(0, i).toLocaleString("default", { month: "long" })}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap items-center justify-between gap-4 py-2">
+        <div className="flex items-center justify-start gap-4">
+          <Select
+            value={String(selectedMonth)}
+            onValueChange={(val) => setSelectedMonth(parseInt(val))}
+          >
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <SelectItem key={i} value={String(i)}>
+                  {new Date(0, i).toLocaleString("default", { month: "long" })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select
-          value={String(selectedYear)}
-          onValueChange={(val) => setSelectedYear(parseInt(val))}
+          <Select
+            value={String(selectedYear)}
+            onValueChange={(val) => setSelectedYear(parseInt(val))}
+          >
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder="Select year" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((year) => (
+                <SelectItem key={year} value={String(year)}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button
+          className="w-auto bg-blue-200"
+          onClick={() => exportHorizontalWorkouts(workouts)}
         >
-          <SelectTrigger className="w-[300px]">
-            <SelectValue placeholder="Select year" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableYears.map((year) => (
-              <SelectItem key={year} value={String(year)}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          Export Workouts
+        </Button>
       </div>
-
-      <Button onClick={() => exportHorizontalWorkouts(workouts)}>
-        Export Workouts (Formatted)
-      </Button>
 
       {/* Weekday headers */}
       <div className="hidden lg:grid grid-cols-7 gap-2 text-center font-semibold text-sm text-gray-600">

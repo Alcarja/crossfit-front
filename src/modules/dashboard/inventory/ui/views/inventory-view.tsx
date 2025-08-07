@@ -504,7 +504,7 @@ export const InventoryView = () => {
                         value={selectedMonth}
                         onValueChange={setSelectedMonth}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full bg-white">
                           <SelectValue placeholder="Month" />
                         </SelectTrigger>
                         <SelectContent>
@@ -525,7 +525,7 @@ export const InventoryView = () => {
                         value={selectedYear}
                         onValueChange={setSelectedYear}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full bg-white">
                           <SelectValue placeholder="Year" />
                         </SelectTrigger>
                         <SelectContent>
