@@ -702,20 +702,20 @@ export const InventoryView = () => {
               </div>
 
               {/* Section 3: View Inventory */}
-              <div className="space-y-4">
+              <div className="space-y-4 bg-gray-50 p-5 shadow-md rounded-lg">
                 <h3 className="text-xl font-semibold">Inventory Items</h3>
-                <div className="flex gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <Input
                     placeholder="Search item"
                     value={searchItem}
                     onChange={(e) => setSearchItem(e.target.value)}
-                    className="w-[200px]"
+                    className="w-full md:w-[300px]"
                   />
                   <Select
                     value={filterCategory}
                     onValueChange={setFilterCategory}
                   >
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-full md:w-[300px]">
                       <SelectValue placeholder="Filter by category" />
                     </SelectTrigger>
                     <SelectContent>
