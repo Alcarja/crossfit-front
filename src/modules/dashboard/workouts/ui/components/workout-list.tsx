@@ -32,6 +32,7 @@ import {
 import { EditWorkoutForm } from "./forms/edit-workout-form";
 import { CreateWorkoutForm } from "./forms/create-workout-form";
 import { Button } from "@/components/ui/button";
+import { TableIcon } from "lucide-react";
 
 export const MonthlyWorkoutCalendar = () => {
   const today = new Date();
@@ -200,6 +201,7 @@ export const MonthlyWorkoutCalendar = () => {
           className="w-auto bg-blue-200"
           onClick={() => exportHorizontalWorkouts(workouts)}
         >
+          <TableIcon />
           Export Workouts
         </Button>
       </div>

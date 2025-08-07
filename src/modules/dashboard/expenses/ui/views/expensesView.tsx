@@ -34,6 +34,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAllInventoryQuery } from "@/app/queries/inventory";
 import { toast } from "sonner";
+import { SearchSelectDropdown } from "@/components/web/searchSelectDropdown";
+import { TableIcon } from "lucide-react";
 
 export interface User {
   id: number;
@@ -309,6 +311,7 @@ const ExpensesView = () => {
           onClick={() => exportGroupedExpensesToExcel(filteredData)}
           className="w-auto bg-blue-200"
         >
+          <TableIcon />
           Export to Excel
         </Button>
       </div>
@@ -416,8 +419,14 @@ const ExpensesView = () => {
             {/* Coach Selector */}
             <div>
               <Label>Coach</Label>
-              <Combobox
+              {/* <Combobox
                 size="full"
+                options={userOptions}
+                value={selectedCoachForAddingExpense}
+                onValueChange={setSelectedCoachForAddingExpense}
+                placeholder="Search and select a coach"
+              /> */}
+              <SearchSelectDropdown
                 options={userOptions}
                 value={selectedCoachForAddingExpense}
                 onValueChange={setSelectedCoachForAddingExpense}
@@ -428,8 +437,8 @@ const ExpensesView = () => {
             {/* Inventory Selector */}
             <div>
               <Label>Inventory Item</Label>
-              <Combobox
-                size="full"
+
+              <SearchSelectDropdown
                 options={inventoryOptions}
                 value={selectedInventoryId}
                 onValueChange={setSelectedInventoryId}

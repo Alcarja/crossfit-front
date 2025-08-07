@@ -18,7 +18,7 @@ import {
   startOfDay,
   endOfDay,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, TableIcon } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -705,6 +705,7 @@ export default function Calendar() {
               exportClassesToExcel(classes?.results || []);
             }}
           >
+            <TableIcon />
             Export Classes
           </Button>
           <WeekView

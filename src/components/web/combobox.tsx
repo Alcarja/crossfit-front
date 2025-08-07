@@ -65,7 +65,7 @@ export default function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[90vw] max-w-sm p-0 sm:w-[400px]"
+        className="w-[90vw] max-w-[90%] p-0 sm:w-[400px]"
         align="start"
       >
         <Command>
