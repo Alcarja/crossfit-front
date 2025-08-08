@@ -437,7 +437,6 @@ const ExpensesView = () => {
             {/* Inventory Selector */}
             <div>
               <Label>Inventory Item</Label>
-
               <SearchSelectDropdown
                 options={inventoryOptions}
                 value={selectedInventoryId}

@@ -55,7 +55,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { fromZonedTime } from "date-fns-tz";
 import { Checkbox } from "@/components/ui/checkbox";
-import Combobox from "@/components/web/combobox";
+import { SearchSelectDropdown } from "@/components/web/searchSelectDropdown";
 
 type Class = {
   event: {
@@ -741,7 +741,7 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Coach</FormLabel>
                     <FormControl>
-                      <Combobox
+                      <SearchSelectDropdown
                         options={
                           users?.map((user: any) => ({
                             value: user.id.toString(),
@@ -750,8 +750,7 @@ export default function Calendar() {
                         }
                         value={field.value}
                         onValueChange={field.onChange}
-                        placeholder="Select a coach"
-                        size="full"
+                        placeholder="Search and select an coach"
                       />
                     </FormControl>
                     <FormMessage />
@@ -767,7 +766,7 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Type</FormLabel>
                     <FormControl>
-                      <Combobox
+                      <SearchSelectDropdown
                         options={[
                           { value: "WOD", label: "WOD" },
                           { value: "Gymnastics", label: "Gymnastics" },
@@ -779,7 +778,6 @@ export default function Calendar() {
                         value={field.value}
                         onValueChange={field.onChange}
                         placeholder="Select class type"
-                        size="full"
                       />
                     </FormControl>
                     <FormMessage />
@@ -873,7 +871,7 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Coach</FormLabel>
                     <FormControl>
-                      <Combobox
+                      <SearchSelectDropdown
                         options={
                           users?.map((user: any) => ({
                             value: user.id.toString(),
@@ -882,8 +880,7 @@ export default function Calendar() {
                         }
                         value={field.value}
                         onValueChange={field.onChange}
-                        placeholder="Select a coach"
-                        size="full"
+                        placeholder="Search and select an coach"
                       />
                     </FormControl>
                     <FormMessage />
@@ -898,7 +895,7 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Type</FormLabel>
                     <FormControl>
-                      <Combobox
+                      <SearchSelectDropdown
                         options={[
                           { value: "WOD", label: "WOD" },
                           { value: "Gymnastics", label: "Gymnastics" },
@@ -910,7 +907,6 @@ export default function Calendar() {
                         value={field.value}
                         onValueChange={field.onChange}
                         placeholder="Select class type"
-                        size="full"
                       />
                     </FormControl>
                     <FormMessage />

@@ -61,13 +61,13 @@ export function SearchSelectDropdown({
 
       {open && (
         <div className="absolute z-50 mt-1 w-full rounded-md border bg-background shadow-md">
-          <div className="flex items-center px-2 border-b">
+          <div className="flex items-center px-2 border-b h-8">
             <Search className="mr-2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full"
             />
           </div>
           <div className="max-h-48 overflow-y-auto">
