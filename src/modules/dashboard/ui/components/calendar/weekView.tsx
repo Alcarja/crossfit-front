@@ -120,7 +120,7 @@ export default function WeekView({
                               e.stopPropagation(); // 👈 prevent triggering the time slot click
                               onClassClick?.(cls); // 👈 call parent function
                             }}
-                            className={`text-xs px-1 py-0.5 rounded-sm mb-0.5 truncate ${color}`}
+                            className={`text-xs px-1 py-[2.5px] rounded-sm mb-0.5 truncate ${color}`}
                           >
                             {cls.type} ({cls.coach})
                             {cls.isHalfHour ? " – 30min" : ""}
