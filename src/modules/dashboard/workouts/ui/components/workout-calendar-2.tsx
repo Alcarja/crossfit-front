@@ -21,6 +21,7 @@ import {
   isSameDay as isSameDayFn,
   format,
 } from "date-fns";
+import { typeColors } from "@/components/types/types";
 
 export const WorkoutsCalendar2 = () => {
   const currentDate = new Date();
@@ -118,7 +119,6 @@ export const WorkoutsCalendar2 = () => {
         </Select>
       </div>
 
-      {/* Calendar grid */}
       {/* Calendar Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
         {/* Weekday headers: show only on large screens */}
@@ -143,10 +143,10 @@ export const WorkoutsCalendar2 = () => {
               <div
                 key={i}
                 className={`border rounded-md p-2 min-h-[100px] text-sm
-            ${isToday ? "border-2 border-blue-400 font-semibold" : ""}
-            ${!isToday && isCurrentMonth ? "bg-white" : ""}
-            ${!isToday && !isCurrentMonth ? "bg-muted text-gray-500" : ""}
-          `}
+                  ${isToday ? "border-2 border-blue-400 font-semibold" : ""}
+                  ${!isToday && isCurrentMonth ? "bg-white" : ""}
+                  ${!isToday && !isCurrentMonth ? "bg-muted text-gray-500" : ""}
+                `}
               >
                 {/* Show day name inside cell on small screens */}
                 <div className="block lg:hidden text-xs font-semibold text-muted-foreground mb-1">
@@ -160,13 +160,19 @@ export const WorkoutsCalendar2 = () => {
 
                 {/* Workouts */}
                 <div className="space-y-1">
-                  {dayWorkouts.map((workout) => (
-                    <WorkoutDialog
-                      key={workout.id}
-                      workout={workout}
-                      isToday={isToday}
-                    />
-                  ))}
+                  {dayWorkouts.map((workout) => {
+                    const typeClass =
+                      typeColors[workout.type] || "bg-gray-200 text-gray-800";
+
+                    return (
+                      <div
+                        key={workout.id}
+                        className={`rounded-md ${typeClass}`}
+                      >
+                        <WorkoutDialog workout={workout} isToday={isToday} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

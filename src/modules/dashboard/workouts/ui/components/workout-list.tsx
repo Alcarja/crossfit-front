@@ -33,6 +33,7 @@ import { EditWorkoutForm } from "./forms/edit-workout-form";
 import { CreateWorkoutForm } from "./forms/create-workout-form";
 import { Button } from "@/components/ui/button";
 import { TableIcon } from "lucide-react";
+import { typeColors } from "@/components/types/types";
 
 export const MonthlyWorkoutCalendar = () => {
   const today = new Date();
@@ -253,38 +254,61 @@ export const MonthlyWorkoutCalendar = () => {
                 </div>
 
                 <div className="space-y-2">
-                  {workoutsForDay.map((workout) => (
-                    <div
-                      key={workout.id}
-                      className="bg-gray-50 rounded p-2 border text-left space-y-1 cursor-pointer hover:bg-gray-100"
-                      onClick={(e) => {
-                        setSelectedWorkout(workout);
-                        setShowEditForm(true);
-                        e.stopPropagation();
-                      }}
-                    >
-                      <div className="text-xs uppercase font-medium text-gray-500">
-                        {workout.type}
-                      </div>
+                  {workoutsForDay.map((workout) => {
+                    const typeClass =
+                      typeColors[workout.type] || "bg-gray-200 text-gray-800";
 
-                      {workout.parts?.map((part, index) => (
-                        <div key={index}>
-                          <div className="text-sm font-medium text-blue-700">
-                            {part.title}
-                          </div>
-                          <div
-                            className="text-xs text-gray-800"
-                            dangerouslySetInnerHTML={{ __html: part.content }}
-                          />
-                          {part.notes && (
-                            <div className="text-xs italic text-gray-500">
-                              {part.notes}
-                            </div>
-                          )}
+                    return (
+                      <div
+                        key={workout.id}
+                        className="bg-gray-50 rounded p-2 border text-left space-y-2 cursor-pointer hover:bg-gray-100"
+                        onClick={(e) => {
+                          setSelectedWorkout(workout);
+                          setShowEditForm(true);
+                          e.stopPropagation();
+                        }}
+                      >
+                        {/* Type badge */}
+                        <div className="flex items-center">
+                          <span
+                            className={`text-[10px] sm:text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${typeClass}`}
+                          >
+                            {workout.type}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  ))}
+
+                        {/* Parts */}
+                        {workout.parts?.map((part, index) => (
+                          <div key={index} className="space-y-1">
+                            <div className="text-sm font-medium text-blue-700">
+                              <span>
+                                {part.title}
+                                {part.title === "Workout" &&
+                                  (part.format || part.cap) && (
+                                    <>
+                                      {part.format && ` - ${part.format}`}
+                                      {part.cap && ` ${part.cap}'`}
+                                    </>
+                                  )}
+                              </span>
+                            </div>
+
+                            <div
+                              className="text-xs text-gray-800"
+                              // Ensure `part.content` is trusted/escaped upstream
+                              dangerouslySetInnerHTML={{ __html: part.content }}
+                            />
+
+                            {part.notes && (
+                              <div className="text-xs italic text-gray-500">
+                                {part.notes}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
