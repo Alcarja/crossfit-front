@@ -30,7 +30,6 @@ import {
   Calendar1,
   CircleUserRound,
   DumbbellIcon,
-  LayoutDashboardIcon,
   NotepadText,
   PanelLeftIcon,
   PanelRightIcon,
@@ -59,11 +58,11 @@ const firstSection = [
 ];
 
 const adminSection = [
-  {
+  /* {
     icon: LayoutDashboardIcon,
     label: "Admin dashboard",
     href: "/dashboard/admin/dashboard",
-  },
+  }, */
   {
     icon: ShoppingBasketIcon,
     label: "Inventory",
