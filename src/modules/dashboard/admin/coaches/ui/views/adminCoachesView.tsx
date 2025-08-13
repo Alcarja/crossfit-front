@@ -25,6 +25,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { coachExpensesByMonthAndYearQueryOptions } from "@/app/queries/coach-expenses";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { typeColors } from "@/components/types/types";
 
 export interface User {
   id: number;
@@ -217,188 +225,233 @@ const AdminCoachesView = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="space-y-4">
+      <Accordion type="multiple" className="w-full">
         {coachStats.map((coach: any) => {
-          const colorMap: Record<string, string> = {
-            WOD: "bg-blue-500",
-            Gymnastics: "bg-yellow-500",
-            Weightlifting: "bg-purple-500",
-            Endurance: "bg-green-500",
-            Kids: "bg-pink-500",
-            Foundations: "bg-orange-500",
-          };
+          const net = parseFloat(coach.netTotal);
 
           return (
-            <Card key={coach.id} className="w-full shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl">{coach.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col lg:flex-row justify-between gap-6">
-                {/* Summary */}
-                <div className="space-y-4 w-full lg:w-1/2">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Hours</p>
-                    <p className="text-2xl font-bold">{coach.totalHours} hrs</p>
+            <AccordionItem key={coach.id} value={String(coach.id)}>
+              <AccordionTrigger className="hover:no-underline">
+                <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-left">
+                  {/* Left: Coach name */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-semibold">{coach.name}</span>
                   </div>
 
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Total Payment
-                    </p>
-                    <p className="text-xl font-semibold">{coach.totalPay}€</p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Total Expenses
-                    </p>
-                    <p className="text-xl font-semibold text-red-600">
+                  {/* Right: Compact KPI chips shown while closed */}
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm">
+                    <Badge variant="blue" className="rounded-full">
+                      {coach.totalHours} h
+                    </Badge>
+                    <Badge variant="gray" className="rounded-full">
+                      {coach.totalPay}€
+                    </Badge>
+                    <Badge variant="red" className="rounded-full">
                       {coach.expenses}€
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-muted-foreground">Net Total</p>
-                    <p className="text-xl font-semibold text-green-700">
+                    </Badge>
+                    <Badge
+                      variant={
+                        net > 0
+                          ? "green" // positive
+                          : net < 0
+                          ? "red" // negative
+                          : "gray" // zero
+                      }
+                      className="rounded-full"
+                    >
                       {coach.netTotal}€
-                    </p>
+                    </Badge>
                   </div>
                 </div>
+              </AccordionTrigger>
 
-                {/* Class Breakdown Table */}
-                <div className="w-full lg:w-1/2">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Class Breakdown
-                  </p>
-                  <table className="w-full text-xs border rounded-md overflow-hidden mb-4">
-                    <thead>
-                      <tr className="bg-muted">
-                        <th className="text-left px-2 py-1">Type</th>
-                        <th className="text-right px-2 py-1">Hours</th>
-                        <th className="text-right px-2 py-1">Pay</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(
-                        coach.classTypeHours as Record<string, number>
-                      ).map(([type, hours]) => {
-                        const rate = hourlyRates[type] || 0;
-                        const total = rate * hours;
-
-                        return (
-                          <tr key={type} className="border-t">
-                            <td className="px-2 py-1 flex items-center gap-2">
-                              <span
-                                className={`w-2 h-2 rounded-full ${
-                                  colorMap[type] || "bg-gray-400"
-                                }`}
-                              />
-                              {type}
-                            </td>
-                            <td className="text-right px-2 py-1">
-                              {hours.toFixed(1)} h
-                            </td>
-                            <td className="text-right px-2 py-1">
-                              {total.toFixed(2)}€
-                            </td>
-                          </tr>
-                        );
-                      })}
-
-                      {/* Opening */}
-                      <tr className="border-t">
-                        <td className="px-2 py-1 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-green-500" />
-                          Opening
-                        </td>
-                        <td className="text-right px-2 py-1">
-                          {coach.openHours.toFixed(1)} h
-                        </td>
-                        <td className="text-right px-2 py-1">
-                          {(hourlyRates["isOpen"] * coach.openHours).toFixed(2)}
-                          €
-                        </td>
-                      </tr>
-
-                      {/* Closing */}
-                      <tr className="border-t">
-                        <td className="px-2 py-1 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-red-500" />
-                          Closing
-                        </td>
-                        <td className="text-right px-2 py-1">
-                          {coach.closeHours.toFixed(1)} h
-                        </td>
-                        <td className="text-right px-2 py-1">
-                          {(hourlyRates["isClose"] * coach.closeHours).toFixed(
-                            2
-                          )}
-                          €
-                        </td>
-                      </tr>
-
-                      {/* Totals */}
-                      <tr className="border-t font-medium bg-gray-50">
-                        <td className="px-2 py-1">Total</td>
-                        <td className="text-right px-2 py-1">
-                          {coach.totalHours} h
-                        </td>
-                        <td className="text-right px-2 py-1">
+              <AccordionContent>
+                <div className="rounded-md border p-3 md:p-4">
+                  <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Summary (optional detailed numbers) */}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Total Hours
+                        </p>
+                        <p className="text-2xl font-bold">
+                          {coach.totalHours} hrs
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Total Payment
+                        </p>
+                        <p className="text-xl font-semibold">
                           {coach.totalPay}€
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Total Expenses
+                        </p>
+                        <p className="text-xl font-semibold text-red-600">
+                          {coach.expenses}€
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Net Total
+                        </p>
+                        <p
+                          className={`text-xl font-semibold ${
+                            net >= 0 ? "text-emerald-700" : "text-red-700"
+                          }`}
+                        >
+                          {coach.netTotal}€
+                        </p>
+                      </div>
+                    </div>
 
-                  {/* Expense Table */}
-                  {coach.expenseItems?.length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-sm font-regular mb-2 text-muted-foreground">
-                        Expenses
-                      </h3>
-                      <table className="w-full text-xs border rounded-md overflow-hidden">
+                    {/* Class Breakdown Table */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Class Breakdown
+                      </p>
+                      <table className="w-full text-xs border rounded-md overflow-hidden mb-4">
                         <thead>
                           <tr className="bg-muted">
-                            <th className="text-left px-2 py-1">Date</th>
-                            <th className="text-left px-2 py-1">Inventory</th>
-                            <th className="text-right px-2 py-1">Qty</th>
-                            <th className="text-right px-2 py-1">Total</th>
+                            <th className="text-left px-2 py-1">Type</th>
+                            <th className="text-right px-2 py-1">Hours</th>
+                            <th className="text-right px-2 py-1">Pay</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {coach.expenseItems.map((item: any) => (
-                            <tr key={item.id} className="border-t">
-                              <td className="px-2 py-1">{item.date}</td>
-                              <td className="px-2 py-1">
-                                {item.inventory?.name}
-                              </td>
-                              <td className="text-right px-2 py-1">
-                                {item.quantity}
-                              </td>
-                              <td className="text-right px-2 py-1">
-                                {parseFloat(item.totalPrice).toFixed(2)}€
-                              </td>
-                            </tr>
-                          ))}
-                          <tr className="border-t font-medium bg-gray-50">
-                            <td colSpan={3} className="px-2 py-1 text-right">
-                              Total Expenses
+                          {Object.entries(
+                            coach.classTypeHours as Record<string, number>
+                          ).map(([type, hours]) => {
+                            const rate = hourlyRates[type] || 0;
+                            const total = rate * hours;
+                            const typeClass =
+                              typeColors[type] || "bg-gray-200 text-gray-900";
+
+                            return (
+                              <tr key={type} className="border-t">
+                                <td className="px-2 py-1 flex items-center gap-2">
+                                  <span
+                                    className={`w-2 h-2 rounded-full ${
+                                      typeClass.split(" ")[0]
+                                    }`}
+                                  />
+                                  {type}
+                                </td>
+                                <td className="text-right px-2 py-1">
+                                  {hours.toFixed(1)} h
+                                </td>
+                                <td className="text-right px-2 py-1">
+                                  {total.toFixed(2)}€
+                                </td>
+                              </tr>
+                            );
+                          })}
+
+                          {/* Opening */}
+                          <tr className="border-t">
+                            <td className="px-2 py-1 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                              Opening
                             </td>
                             <td className="text-right px-2 py-1">
-                              {coach.expenses}€
+                              {coach.openHours.toFixed(1)} h
+                            </td>
+                            <td className="text-right px-2 py-1">
+                              {(
+                                hourlyRates["isOpen"] * coach.openHours
+                              ).toFixed(2)}
+                              €
+                            </td>
+                          </tr>
+
+                          {/* Closing */}
+                          <tr className="border-t">
+                            <td className="px-2 py-1 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-red-500" />
+                              Closing
+                            </td>
+                            <td className="text-right px-2 py-1">
+                              {coach.closeHours.toFixed(1)} h
+                            </td>
+                            <td className="text-right px-2 py-1">
+                              {(
+                                hourlyRates["isClose"] * coach.closeHours
+                              ).toFixed(2)}
+                              €
+                            </td>
+                          </tr>
+
+                          {/* Totals */}
+                          <tr className="border-t font-medium bg-gray-50">
+                            <td className="px-2 py-1">Total</td>
+                            <td className="text-right px-2 py-1">
+                              {coach.totalHours} h
+                            </td>
+                            <td className="text-right px-2 py-1">
+                              {coach.totalPay}€
                             </td>
                           </tr>
                         </tbody>
                       </table>
+
+                      {/* Expenses Table */}
+                      {coach.expenseItems?.length > 0 && (
+                        <div className="mt-6">
+                          <h3 className="text-sm font-regular mb-2 text-muted-foreground">
+                            Expenses
+                          </h3>
+                          <table className="w-full text-xs border rounded-md overflow-hidden">
+                            <thead>
+                              <tr className="bg-muted">
+                                <th className="text-left px-2 py-1">Date</th>
+                                <th className="text-left px-2 py-1">
+                                  Inventory
+                                </th>
+                                <th className="text-right px-2 py-1">Qty</th>
+                                <th className="text-right px-2 py-1">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {coach.expenseItems.map((item: any) => (
+                                <tr key={item.id} className="border-t">
+                                  <td className="px-2 py-1">{item.date}</td>
+                                  <td className="px-2 py-1">
+                                    {item.inventory?.name}
+                                  </td>
+                                  <td className="text-right px-2 py-1">
+                                    {item.quantity}
+                                  </td>
+                                  <td className="text-right px-2 py-1">
+                                    {parseFloat(item.totalPrice).toFixed(2)}€
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="border-t font-medium bg-gray-50">
+                                <td
+                                  colSpan={3}
+                                  className="px-2 py-1 text-right"
+                                >
+                                  Total Expenses
+                                </td>
+                                <td className="text-right px-2 py-1">
+                                  {coach.expenses}€
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </AccordionContent>
+            </AccordionItem>
           );
         })}
-      </div>
+      </Accordion>
 
       <Card>
         <CardHeader>
@@ -418,19 +471,29 @@ const AdminCoachesView = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {coachStats.map((row: any) => (
-                <TableRow key={row.name}>
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell>{row.totalHours}</TableCell>
-                  <TableCell>{row.openHours.toFixed(1)} h</TableCell>
-                  <TableCell>{row.closeHours.toFixed(1)} h</TableCell>
-                  <TableCell>{row.totalPay}€</TableCell>
-                  <TableCell>{row.expenses}€</TableCell>
-                  <TableCell className="font-semibold text-green-700">
-                    {row.netTotal}€
-                  </TableCell>
-                </TableRow>
-              ))}
+              {coachStats.map((row: any) => {
+                const net = parseFloat(row.netTotal);
+                const netColor =
+                  net > 0
+                    ? "text-emerald-700"
+                    : net < 0
+                    ? "text-red-700"
+                    : "text-black";
+
+                return (
+                  <TableRow key={row.name}>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell>{row.totalHours}</TableCell>
+                    <TableCell>{row.openHours.toFixed(1)} h</TableCell>
+                    <TableCell>{row.closeHours.toFixed(1)} h</TableCell>
+                    <TableCell>{row.totalPay}€</TableCell>
+                    <TableCell>{row.expenses}€</TableCell>
+                    <TableCell className={`font-semibold ${netColor}`}>
+                      {row.netTotal}€
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
