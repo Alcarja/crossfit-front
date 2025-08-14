@@ -2,9 +2,43 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import {
+  allCategoriesQueryOptions,
+  useCreateCategory,
+  useDeleteCategory,
+} from "@/app/queries/categories";
+
+import {
+  useAllInventoryQuery,
+  useCreateInventoryItemQuery,
+  useDeleteInventoryItem,
+  useInventoryTransactionsByMonthAndYear,
+  useUpdateInventoryItem,
+  useUpdateStock,
+} from "@/app/queries/inventory";
+
+import {
+  Filter,
+  FolderTree,
+  History,
+  Package,
+  PackageSearch,
+  PlusCircle,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
+
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import Combobox from "@/components/web/combobox";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -12,20 +46,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-import {
-  DataTable,
-  DataTable as InventoryTable,
-} from "../components/tables/inventory-items/data-table";
-import { DataTable as StockTable } from "../components/tables/current-stock/data-table";
-import { getInventoryColumns } from "../components/tables/inventory-items/columns";
-import {
-  allCategoriesQueryOptions,
-  useCreateCategory,
-  useDeleteCategory,
-} from "@/app/queries/categories";
-import { toast } from "sonner";
-
 import {
   Dialog,
   DialogTrigger,
@@ -36,17 +56,43 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  useAllInventoryQuery,
-  useCreateInventoryItemQuery,
-  useDeleteInventoryItem,
-  useInventoryTransactionsByMonthAndYear,
-  useUpdateInventoryItem,
-  useUpdateStock,
-} from "@/app/queries/inventory";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+import {
+  DataTable,
+  DataTable as InventoryTable,
+} from "../components/tables/inventory-items/data-table";
 import { stockColumns } from "../components/tables/current-stock/stock-columns";
-import Combobox from "@/components/web/combobox";
+import { getInventoryColumns } from "../components/tables/inventory-items/columns";
+import { DataTable as StockTable } from "../components/tables/current-stock/data-table";
 import { transactionColumns } from "../components/tables/transactions/transactions-columns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export interface Category {
   id: number;
@@ -75,19 +121,24 @@ export const InventoryView = () => {
   const [searchItem, setSearchItem] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
 
+  //Delete item
   const [deleteInventoryItemDialogOpen, setDeleteInventoryItemDialogOpen] =
     useState(false);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
+  //Edit item
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 
+  //Stock filters
   const [stockSearchTerm, setStockSearchTerm] = useState("");
   const [stockCategoryFilter, setStockCategoryFilter] = useState("all");
 
+  //Set page size for table
   const [page, setPage] = useState(0); // 0-based index
-  const [pageSize] = useState(10); // rows per page
+  const [pageSize] = useState(15); // rows per page
 
+  //Get inventory data
   const { data: categoriesData } = useQuery(allCategoriesQueryOptions());
 
   const { data: inventoryData } = useQuery(useAllInventoryQuery());
@@ -104,6 +155,7 @@ export const InventoryView = () => {
   const [quantity, setQuantity] = useState("");
   const [actionType, setActionType] = useState("");
 
+  //First table filter
   const filteredItems = inventoryData?.allInventory
     ?.filter((item: InventoryItem) => {
       const matchesCategory =
@@ -145,6 +197,7 @@ export const InventoryView = () => {
     setPage(0);
   }, [stockCategoryFilter, stockSearchTerm]);
 
+  //Add categories
   const { mutate: createCategory } = useCreateCategory();
 
   const handleAddCategory = () => {
@@ -163,6 +216,7 @@ export const InventoryView = () => {
     });
   };
 
+  //Delete categories
   const { mutate: deleteCategory } = useDeleteCategory();
 
   const handleDeleteCategory = (id: number) => {
@@ -178,6 +232,7 @@ export const InventoryView = () => {
     });
   };
 
+  //Create inventory item
   const createInventoryItemMutation = useCreateInventoryItemQuery();
 
   const handleAddInventoryItem = () => {
@@ -216,6 +271,7 @@ export const InventoryView = () => {
     );
   };
 
+  //Delete inventory item
   const handleDelete = (id: number) => {
     setItemToDelete(id);
     setDeleteInventoryItemDialogOpen(true);
@@ -239,6 +295,7 @@ export const InventoryView = () => {
     }
   };
 
+  //Update inventory item
   const handleUpdate = (item: InventoryItem) => {
     setEditingItem(item);
     setEditDialogOpen(true);
@@ -282,6 +339,7 @@ export const InventoryView = () => {
 
   const columns = getInventoryColumns(handleUpdate, handleDelete);
 
+  //Update stock
   const updateStockMutation = useUpdateStock();
 
   const handleUpdateStock = () => {
@@ -315,6 +373,7 @@ export const InventoryView = () => {
     });
   };
 
+  //Load inventory transactions
   const currentDate = new Date();
   const currentMonth = String(currentDate.getMonth() + 1); // JS months are 0-based
   const currentYear = String(currentDate.getFullYear());
@@ -329,6 +388,37 @@ export const InventoryView = () => {
     )
   );
 
+  //Table pagination and clear filter button
+
+  const totalItems = filteredStockItems ? filteredStockItems.length : 0;
+  const pageStart = page * (pageSize || 0);
+  const pageEnd = Math.min(pageStart + (pageSize || 0), totalItems);
+  const totalPages = Math.max(
+    1,
+    Math.ceil((totalItems || 1) / (pageSize || 1))
+  );
+  const canPrev = page > 0;
+  const canNext =
+    filteredStockItems && (page + 1) * pageSize < filteredStockItems.length;
+
+  const clearStockFilters = () => {
+    setStockSearchTerm("");
+    setStockCategoryFilter("all");
+    setPage(0);
+  };
+
+  const monthNames = Array.from({ length: 12 }, (_, i) =>
+    new Date(0, i).toLocaleString("default", { month: "long" })
+  );
+
+  const canAddCategory = (newCategory || "").trim().length > 0;
+  const itemCount = filteredItems?.length ?? 0;
+
+  const resetItemFilters = () => {
+    setSearchItem("");
+    setFilterCategory("all");
+  };
+
   return (
     <div className="w-[93%] mx-auto max-w-[2400px] md:p-6">
       <Tabs defaultValue="planner" className="w-full my-5">
@@ -337,194 +427,287 @@ export const InventoryView = () => {
           <TabsTrigger value="items">Inventario</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="planner">
+        <TabsContent value="planner" className="space-y-6">
           <div className="rounded-lg border p-2 md:p-4 shadow-sm space-y-6">
             <div className="w-full md:p-12 p-4 space-y-10">
-              <h2 className="text-4xl font-bold">Inventory Planner</h2>
+              {/* Title */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+                  Inventory Planner
+                </h2>
+              </div>
 
               {/* Section 1: Stock Overview */}
-              <div className="w-full space-y-4 shadow-md bg-gray-50 p-5 rounded-lg">
-                <h3 className="text-xl font-semibold">Current Stock</h3>
-                <div className="flex flex-col md:flex-row gap-4 mb-4">
-                  {/* Text Search */}
-                  <div className="flex-1">
-                    <Label>Search (Name or Category)</Label>
-                    <Input
-                      type="text"
-                      placeholder="e.g., Protein or Drinks"
-                      value={stockSearchTerm}
-                      onChange={(e) => setStockSearchTerm(e.target.value)}
-                      className="bg-white"
+              <Card className="bg-muted/20">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-5 w-5" />
+                      <CardTitle>Current Stock</CardTitle>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {typeof totalItems === "number" && (
+                        <span>
+                          Showing <strong>{pageEnd - pageStart || 0}</strong> of{" "}
+                          <strong>{totalItems}</strong> items
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <CardDescription>
+                    Search and filter inventory, then page through results.
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Toolbar */}
+                  <div className="flex flex-col md:flex-row md:items-end gap-3">
+                    {/* Search */}
+                    <div className="flex-1">
+                      <Label htmlFor="stock-search">
+                        Search (Name or Category)
+                      </Label>
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="stock-search"
+                          type="text"
+                          placeholder="e.g., Protein or Drinks"
+                          value={stockSearchTerm}
+                          onChange={(e) => setStockSearchTerm(e.target.value)}
+                          className="bg-background pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="flex-1">
+                      <Label htmlFor="stock-category">Filter by Category</Label>
+                      <Select
+                        value={stockCategoryFilter}
+                        onValueChange={setStockCategoryFilter}
+                      >
+                        <SelectTrigger
+                          id="stock-category"
+                          className="bg-background w-full"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="All categories" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          {categoriesData?.categories?.map(
+                            (category: {
+                              id: string | number;
+                              name: string;
+                            }) => (
+                              <SelectItem
+                                key={category.id}
+                                value={category.name}
+                              >
+                                {category.name}
+                              </SelectItem>
+                            )
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Clear Filters */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            onClick={clearStockFilters}
+                            className="mt-1 md:mt-6"
+                            size="sm"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" /> Reset
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Clear search, category and reset to page 1
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+
+                  {/* Active filters summary */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {stockSearchTerm ? (
+                      <Badge variant="green">Search: “{stockSearchTerm}”</Badge>
+                    ) : null}
+                    {stockCategoryFilter && stockCategoryFilter !== "all" ? (
+                      <Badge variant="gray">
+                        Category: {stockCategoryFilter}
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  <Separator />
+
+                  {/* Table */}
+                  <div className="min-w-full">
+                    <StockTable
+                      columns={stockColumns}
+                      data={paginatedStockItems ?? []}
                     />
                   </div>
 
-                  {/* Category Filter */}
-                  <div className="flex-1">
-                    <Label>Filter by Category</Label>
-                    <Select
-                      value={stockCategoryFilter}
-                      onValueChange={setStockCategoryFilter}
-                    >
-                      <SelectTrigger className="bg-white w-full">
-                        <SelectValue placeholder="All categories" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        {categoriesData?.categories?.map(
-                          (category: Category) => (
-                            <SelectItem key={category.id} value={category.name}>
-                              {category.name}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between pt-2">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() =>
+                              setPage((p: number) => Math.max(p - 1, 0))
+                            }
+                            className={
+                              canPrev
+                                ? "cursor-pointer"
+                                : "pointer-events-none opacity-50"
+                            }
+                          />
+                        </PaginationItem>
+                        <div className="px-2 text-sm text-muted-foreground">
+                          Page{" "}
+                          <span className="font-medium">{(page || 0) + 1}</span>{" "}
+                          of {totalPages}
+                        </div>
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() =>
+                              setPage((p: number) =>
+                                filteredStockItems &&
+                                (p + 1) * pageSize < filteredStockItems.length
+                                  ? p + 1
+                                  : p
+                              )
+                            }
+                            className={
+                              canNext
+                                ? "cursor-pointer"
+                                : "pointer-events-none opacity-50"
+                            }
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   </div>
-                </div>
-                <div>
-                  <StockTable
-                    columns={stockColumns}
-                    data={paginatedStockItems ?? []}
-                  />
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.max(p - 1, 0))}
-                        disabled={page === 0}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setPage((p) =>
-                            filteredStockItems &&
-                            (p + 1) * pageSize < filteredStockItems.length
-                              ? p + 1
-                              : p
-                          )
-                        }
-                        disabled={
-                          !filteredStockItems ||
-                          (page + 1) * pageSize >= filteredStockItems.length
-                        }
-                      >
-                        Next
-                      </Button>
-                    </div>
-
-                    <div className="text-sm text-gray-600">
-                      Page {page + 1} of{" "}
-                      {filteredStockItems
-                        ? Math.ceil(filteredStockItems.length / pageSize)
-                        : 1}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Section 2: Update Stock */}
-              <div className="w-full space-y-4 shadow-md bg-gray-50 p-5 rounded-lg">
-                <h3 className="text-xl font-semibold">Update Stock</h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <Label>Item</Label>
-                    <Combobox
-                      options={inventoryOptions}
-                      value={selectedInventoryId}
-                      onValueChange={setSelectedInventoryId}
-                      placeholder="Search and select an item"
-                      size="full"
-                    />
+              <Card className="bg-muted/20">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    <CardTitle>Update Stock</CardTitle>
                   </div>
+                  <CardDescription>
+                    Add, remove or adjust quantities for a selected item.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <Label>Item</Label>
+                      <Combobox
+                        options={inventoryOptions}
+                        value={selectedInventoryId}
+                        onValueChange={setSelectedInventoryId}
+                        placeholder="Search and select an item"
+                        size="full"
+                      />
+                    </div>
 
-                  <div>
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      className="bg-white"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                    />
-                  </div>
+                    <div>
+                      <Label>Quantity</Label>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        className="bg-background"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                      />
+                    </div>
 
-                  <div>
-                    <Label>Action</Label>
-                    <Select value={actionType} onValueChange={setActionType}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Choose action" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="in">Añadir Stock</SelectItem>
-                        <SelectItem value="out">Retirar Stock</SelectItem>
-                        <SelectItem value="adjustment">
-                          Ajustar Stock
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div>
+                      <Label>Action</Label>
+                      <Select value={actionType} onValueChange={setActionType}>
+                        <SelectTrigger className="bg-background w-full">
+                          <SelectValue placeholder="Choose action" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="in">Añadir Stock</SelectItem>
+                          <SelectItem value="out">Retirar Stock</SelectItem>
+                          <SelectItem value="adjustment">
+                            Ajustar Stock
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="flex items-end">
-                    <Button
-                      className="w-full"
-                      type="button"
-                      onClick={handleUpdateStock}
-                    >
-                      Update
-                    </Button>
+                    <div className="flex items-end">
+                      <Button
+                        className="w-full"
+                        type="button"
+                        onClick={handleUpdateStock}
+                      >
+                        Update
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Section 3: Transaction History */}
-              <div className="w-full space-y-4 shadow-md bg-gray-50 p-5 rounded-lg">
-                <h3 className="text-xl font-semibold">Transaction History</h3>
-
-                {/* Filters */}
-                <div className="flex flex-wrap justify-between items-end gap-4">
-                  <div className="flex flex-wrap items-center justify-start gap-4 w-full">
-                    {/* <div className="flex flex-col gap-1">
-                      <Label>Coaches</Label>
-                      <Combobox
-                        options={userOptions}
-                        value={selectedCoachId}
-                        onValueChange={setSelectedCoachId}
-                        placeholder="Search and select a coach"
-                      />
-                    </div> */}
-
-                    <div className="flex flex-col gap-1 w-full md:w-[300px]">
+              <Card className="bg-muted/20">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <History className="h-5 w-5" />
+                      <CardTitle>Transaction History</CardTitle>
+                    </div>
+                    <CardDescription>
+                      Filter by month and year to view past movements.
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Filters */}
+                  <div className="flex flex-col md:flex-row md:items-end gap-4">
+                    <div className="w-full md:w-[300px]">
                       <Label>Month</Label>
                       <Select
                         value={selectedMonth}
                         onValueChange={setSelectedMonth}
                       >
-                        <SelectTrigger className="w-full bg-white">
+                        <SelectTrigger className="w-full bg-background">
                           <SelectValue placeholder="Month" />
                         </SelectTrigger>
                         <SelectContent>
                           {Array.from({ length: 12 }, (_, i) => (
                             <SelectItem key={i + 1} value={(i + 1).toString()}>
-                              {new Date(0, i).toLocaleString("default", {
-                                month: "long",
-                              })}
+                              {monthNames[i]}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="flex flex-col gap-1 w-full md:w-[300px]">
+                    <div className="w-full md:w-[300px]">
                       <Label>Year</Label>
                       <Select
                         value={selectedYear}
                         onValueChange={setSelectedYear}
                       >
-                        <SelectTrigger className="w-full bg-white">
+                        <SelectTrigger className="w-full bg-background">
                           <SelectValue placeholder="Year" />
                         </SelectTrigger>
                         <SelectContent>
@@ -536,353 +719,539 @@ export const InventoryView = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                </div>
 
-                <DataTable
-                  columns={transactionColumns}
-                  data={data?.results ?? []}
-                />
-              </div>
+                    <div className="md:ml-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedMonth(currentMonth);
+                          setSelectedYear(currentYear);
+                        }}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" /> Reset
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="w-full">
+                    <DataTable
+                      columns={transactionColumns}
+                      data={data?.results ?? []}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="items">
+        <TabsContent value="items" className="space-y-6">
           <div className="rounded-lg border p-2 md:p-4 shadow-sm space-y-6">
             <div className="w-full md:p-12 p-4 space-y-10">
-              <h2 className="text-4xl font-bold">Inventory Items</h2>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+                Inventory Items
+              </h2>
 
-              {/* Left: Category Manager */}
-              <div className="w-full space-y-4 shadow-md bg-gray-50 p-5 rounded-lg">
-                <h3 className="text-xl font-semibold">Add Category</h3>
-                <div className="flex gap-4 items-end">
-                  <div className="flex flex-col gap-1 flex-1">
-                    <Label>New Category</Label>
-                    <Input
-                      className="bg-white"
-                      placeholder="e.g., Drinks"
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                    />
+              {/* Section 1: Category Manager */}
+              <Card className="bg-muted/20">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between flex-wrap">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FolderTree className="h-5 w-5" />
+                      <CardTitle>Add Category</CardTitle>
+                    </div>
+                    <CardDescription>
+                      Create categories to group your items.
+                    </CardDescription>
                   </div>
-                  <Button onClick={handleAddCategory}>Add</Button>
-                </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Add category row */}
+                  <div className="flex gap-3 items-end flex-col sm:flex-row">
+                    <div className="flex flex-col gap-1 flex-1 w-full">
+                      <Label htmlFor="new-category">New Category</Label>
+                      <Input
+                        id="new-category"
+                        className="bg-background"
+                        placeholder="e.g., Drinks"
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                      />
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleAddCategory}
+                            disabled={!canAddCategory}
+                          >
+                            <PlusCircle className="h-4 w-4 mr-2" /> Add
+                          </Button>
+                        </TooltipTrigger>
+                        {!canAddCategory && (
+                          <TooltipContent>
+                            Type a category name to enable
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
 
-                {categoriesData?.categories?.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-md font-semibold mb-3 border-b pb-1 text-gray-700">
-                      Existing Categories
-                    </h4>
+                  {/* Existing categories */}
+                  {categoriesData?.categories?.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-muted-foreground">
+                          Existing Categories
+                        </h4>
+                        <Badge variant="green">
+                          {categoriesData.categories.length} total
+                        </Badge>
+                      </div>
+                      <ScrollArea className="w-full rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[70%]">
+                                Category
+                              </TableHead>
+                              <TableHead>Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {categoriesData.categories.map(
+                              (c: { id: string | number; name: string }) => (
+                                <TableRow key={c.id}>
+                                  <TableCell>{c.name}</TableCell>
+                                  <TableCell className="py-1">
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="delete"
+                                          size="sm"
+                                          className="w-auto"
+                                        >
+                                          <Trash2 className="h-4 w-4" />{" "}
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent>
+                                        <DialogHeader>
+                                          <DialogTitle>
+                                            Confirm Deletion
+                                          </DialogTitle>
+                                          <DialogDescription>
+                                            Are you sure you want to delete the
+                                            category <strong>{c.name}</strong>?
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter className="mt-2 flex gap-2">
+                                          <Button variant="outline">
+                                            Cancel
+                                          </Button>
+                                          <Button
+                                            variant="delete"
+                                            onClick={() =>
+                                              handleDeleteCategory(Number(c.id))
+                                            }
+                                          >
+                                            Yes, Delete
+                                          </Button>
+                                        </DialogFooter>
+                                      </DialogContent>
+                                    </Dialog>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            )}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                    <div className="bg-white border border-gray-300 rounded-md shadow-inner overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-100 text-gray-600">
-                          <tr>
-                            <th className="text-left px-4 py-2">Category</th>
-                            <th className="text-left px-4 py-2 w-20">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {categoriesData?.categories?.map((c: Category) => (
-                            <tr
-                              key={c.id}
-                              className="border-t hover:bg-gray-50"
-                            >
-                              <td className="px-4 py-2">{c.name}</td>
-                              <td className="px-4 py-2">
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button
-                                      variant="delete"
-                                      className="w-auto h-[30px]"
-                                    >
-                                      Delete
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>
-                                        Confirm Deletion
-                                      </DialogTitle>
-                                    </DialogHeader>
-                                    <p>
-                                      Are you sure you want to delete the
-                                      category <strong>{c.name}</strong>?
-                                    </p>
-                                    <DialogFooter className="mt-4">
-                                      <Button variant="outline">Cancel</Button>
-                                      <Button
-                                        className="w-auto"
-                                        variant="delete"
-                                        onClick={() =>
-                                          handleDeleteCategory(c.id)
-                                        }
-                                      >
-                                        Yes, Delete
-                                      </Button>
-                                    </DialogFooter>
-                                  </DialogContent>
-                                </Dialog>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              {/* Section 2: Add Inventory Item */}
+              <Card className="bg-muted/20">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <PackageSearch className="h-5 w-5" />
+                    <CardTitle>Add Inventory Item</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Define the item details and assign a category.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="item-name">Item Name</Label>
+                      <Input
+                        id="item-name"
+                        className="bg-background"
+                        placeholder="e.g., Jump Rope"
+                        value={itemName}
+                        onChange={(e) => setItemName(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="item-category">Category</Label>
+                      <Select
+                        value={itemCategory}
+                        onValueChange={setItemCategory}
+                      >
+                        <SelectTrigger
+                          id="item-category"
+                          className="w-full bg-background"
+                        >
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categoriesData?.categories?.map(
+                            (c: { id: string | number; name: string }) => (
+                              <SelectItem key={c.id} value={c.name}>
+                                {c.name}
+                              </SelectItem>
+                            )
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="price-regular">Price (Regular)</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          €
+                        </span>
+                        <Input
+                          id="price-regular"
+                          className="bg-background pl-7"
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step="0.01"
+                          value={priceRegular}
+                          onChange={(e) => setPriceRegular(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="price-coach">Price (Coach)</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          €
+                        </span>
+                        <Input
+                          id="price-coach"
+                          className="bg-background pl-7"
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step="0.01"
+                          value={priceCoach}
+                          onChange={(e) => setPriceCoach(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* Right: Inventory Item Manager */}
-              <div className="w-full space-y-4 shadow-md bg-gray-50 p-5 rounded-lg">
-                <h3 className="text-xl font-semibold">Add Inventory Item</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Item Name</Label>
-                    <Input
-                      className="bg-white"
-                      placeholder="e.g., Jump Rope"
-                      value={itemName}
-                      onChange={(e) => setItemName(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Category</Label>
-                    <Select
-                      value={itemCategory}
-                      onValueChange={setItemCategory}
+                  <div className="flex justify-end">
+                    <Button
+                      className="mt-2"
+                      onClick={handleAddInventoryItem}
+                      disabled={createInventoryItemMutation?.isPending}
                     >
-                      <SelectTrigger className="w-full bg-white">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoriesData?.categories?.map((c: Category) => (
-                          <SelectItem key={c.id} value={c.name}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {createInventoryItemMutation?.isPending
+                        ? "Adding..."
+                        : "Add Item"}
+                    </Button>
                   </div>
-
-                  <div>
-                    <Label>Price (Regular)</Label>
-                    <Input
-                      className="bg-white"
-                      type="number"
-                      step="0.01"
-                      value={priceRegular}
-                      onChange={(e) => setPriceRegular(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Price (Coach)</Label>
-                    <Input
-                      className="bg-white"
-                      type="number"
-                      step="0.01"
-                      value={priceCoach}
-                      onChange={(e) => setPriceCoach(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  className="mt-2 bg-white"
-                  onClick={handleAddInventoryItem}
-                  disabled={createInventoryItemMutation.isPending}
-                >
-                  {createInventoryItemMutation.isPending
-                    ? "Adding..."
-                    : "Add Item"}
-                </Button>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Section 3: View Inventory */}
-              <div className="space-y-4 bg-gray-50 p-5 shadow-md rounded-lg">
-                <h3 className="text-xl font-semibold">Inventory Items</h3>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <Input
-                    placeholder="Search item"
-                    value={searchItem}
-                    onChange={(e) => setSearchItem(e.target.value)}
-                    className="w-full md:w-[300px]"
-                  />
-                  <Select
-                    value={filterCategory}
-                    onValueChange={setFilterCategory}
-                  >
-                    <SelectTrigger className="w-full md:w-[300px]">
-                      <SelectValue placeholder="Filter by category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {categoriesData?.categories?.map((c: Category) => (
-                        <SelectItem key={c.id} value={c.name}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Card className="bg-muted/20">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <PackageSearch className="h-5 w-5" />
+                      <CardTitle>Inventory Items</CardTitle>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {itemCount} items
+                    </div>
+                  </div>
+                  <CardDescription>
+                    Search and filter your items, edit or delete as needed.
+                  </CardDescription>
+                </CardHeader>
 
-                <div>
-                  <InventoryTable
-                    columns={columns}
-                    data={filteredItems ?? []}
-                  />
-                </div>
+                <CardContent className="space-y-4">
+                  {/* Toolbar */}
+                  <div className="flex items-end gap-3 flex-col md:flex-row">
+                    <div className="w-full md:w-[300px]">
+                      <Label htmlFor="search-item">Search item</Label>
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="search-item"
+                          placeholder="Type to search"
+                          value={searchItem}
+                          onChange={(e) => setSearchItem(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
 
-                <Dialog
-                  open={deleteInventoryItemDialogOpen}
-                  onOpenChange={(open) => {
-                    if (!open) setItemToDelete(null);
-                    setDeleteInventoryItemDialogOpen(open);
-                  }}
-                >
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Delete Inventory Item</DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to delete this item? This action
-                        cannot be undone.
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="flex justify-end gap-2 pt-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => setDeleteInventoryItemDialogOpen(false)}
+                    <div className="w-full md:w-[300px]">
+                      <Label htmlFor="filter-category">Category</Label>
+                      <Select
+                        value={filterCategory}
+                        onValueChange={setFilterCategory}
                       >
-                        Cancel
-                      </Button>
+                        <SelectTrigger id="filter-category" className="w-full">
+                          <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Filter by category" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          {categoriesData?.categories?.map(
+                            (c: { id: string | number; name: string }) => (
+                              <SelectItem key={c.id} value={c.name}>
+                                {c.name}
+                              </SelectItem>
+                            )
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="md:ml-auto">
                       <Button
-                        variant="delete"
-                        className="w-auto"
-                        onClick={confirmDelete}
-                        disabled={deleteInventoryItemMutation.isPending}
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetItemFilters}
                       >
-                        {deleteInventoryItemMutation.isPending
-                          ? "Deleting..."
-                          : "Delete"}
+                        <RotateCcw className="h-4 w-4 mr-2" /> Reset
                       </Button>
                     </div>
-                  </DialogContent>
-                </Dialog>
+                  </div>
 
-                <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Inventory Item</DialogTitle>
-                      <DialogDescription>
-                        Make changes and save.
-                      </DialogDescription>
-                    </DialogHeader>
+                  {/* Active filters badges */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {searchItem ? (
+                      <Badge variant="green">Search: “{searchItem}”</Badge>
+                    ) : null}
+                    {filterCategory && filterCategory !== "all" ? (
+                      <Badge variant="pink">Category: {filterCategory}</Badge>
+                    ) : null}
+                  </div>
 
-                    {editingItem && (
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          handleEditSubmit();
-                        }}
-                        className="space-y-4 pt-4"
-                      >
-                        {/* Name */}
-                        <div>
-                          <Label>Item Name</Label>
-                          <Input
-                            placeholder="Item name"
-                            value={editingItem.name}
-                            onChange={(e) =>
-                              setEditingItem({
-                                ...editingItem,
-                                name: e.target.value,
-                              })
-                            }
-                            className="bg-white"
-                          />
-                        </div>
+                  <Separator />
 
-                        {/* Category */}
-                        <div>
-                          <Label>Category</Label>
-                          <Select
-                            value={editingItem.categoryName}
-                            onValueChange={(val) =>
-                              setEditingItem({
-                                ...editingItem,
-                                categoryName: val,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="w-full bg-white">
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categoriesData?.categories.map((c: Category) => (
-                                <SelectItem key={c.id} value={c.name}>
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                  {/* Table */}
+                  <div className="w-full">
+                    <InventoryTable
+                      columns={columns}
+                      data={filteredItems ?? []}
+                    />
+                  </div>
 
-                        {/* Prices in the same row */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Delete Dialog (controlled) */}
+                  <Dialog
+                    open={deleteInventoryItemDialogOpen}
+                    onOpenChange={(open) => {
+                      if (!open) setItemToDelete?.(null);
+                      setDeleteInventoryItemDialogOpen(open);
+                    }}
+                  >
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Delete Inventory Item</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to delete this item? This action
+                          cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            setDeleteInventoryItemDialogOpen(false)
+                          }
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="delete"
+                          className="w-auto"
+                          onClick={confirmDelete}
+                          disabled={deleteInventoryItemMutation?.isPending}
+                        >
+                          {deleteInventoryItemMutation?.isPending
+                            ? "Deleting..."
+                            : "Delete"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Edit Dialog (controlled) */}
+                  <Dialog
+                    open={editDialogOpen}
+                    onOpenChange={setEditDialogOpen}
+                  >
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Inventory Item</DialogTitle>
+                        <DialogDescription>
+                          Make changes and save.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      {editingItem && (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleEditSubmit();
+                          }}
+                          className="space-y-4 pt-2"
+                        >
+                          {/* Name */}
                           <div>
-                            <Label>Price (Regular)</Label>
+                            <Label htmlFor="edit-name">Item Name</Label>
                             <Input
-                              type="number"
-                              step="0.01"
-                              value={editingItem.priceRegular}
+                              id="edit-name"
+                              placeholder="Item name"
+                              value={editingItem.name}
                               onChange={(e) =>
                                 setEditingItem({
                                   ...editingItem,
-                                  priceRegular: parseFloat(e.target.value),
+                                  name: e.target.value,
                                 })
                               }
-                              className="bg-white"
+                              className="bg-background"
                             />
                           </div>
+
+                          {/* Category */}
                           <div>
-                            <Label>Price (Coach)</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={editingItem.priceCoach}
-                              onChange={(e) =>
+                            <Label htmlFor="edit-category">Category</Label>
+                            <Select
+                              value={editingItem.categoryName}
+                              onValueChange={(val) =>
                                 setEditingItem({
                                   ...editingItem,
-                                  priceCoach: parseFloat(e.target.value),
+                                  categoryName: val,
                                 })
                               }
-                              className="bg-white"
-                            />
+                            >
+                              <SelectTrigger
+                                id="edit-category"
+                                className="w-full bg-background"
+                              >
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categoriesData?.categories?.map(
+                                  (c: {
+                                    id: string | number;
+                                    name: string;
+                                  }) => (
+                                    <SelectItem key={c.id} value={c.name}>
+                                      {c.name}
+                                    </SelectItem>
+                                  )
+                                )}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        </div>
 
-                        {/* Buttons */}
-                        <div className="flex justify-end gap-2 pt-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setEditDialogOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button type="submit" variant="default">
-                            Save Changes
-                          </Button>
-                        </div>
-                      </form>
-                    )}
-                  </DialogContent>
-                </Dialog>
-              </div>
+                          {/* Prices */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="edit-price-regular">
+                                Price (Regular)
+                              </Label>
+                              <div className="relative">
+                                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                  €
+                                </span>
+                                <Input
+                                  id="edit-price-regular"
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  step="0.01"
+                                  value={editingItem.priceRegular}
+                                  onChange={(e) =>
+                                    setEditingItem({
+                                      ...editingItem,
+                                      priceRegular: parseFloat(
+                                        e.target.value || "0"
+                                      ),
+                                    })
+                                  }
+                                  className="bg-background pl-7"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-price-coach">
+                                Price (Coach)
+                              </Label>
+                              <div className="relative">
+                                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                  €
+                                </span>
+                                <Input
+                                  id="edit-price-coach"
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  step="0.01"
+                                  value={editingItem.priceCoach}
+                                  onChange={(e) =>
+                                    setEditingItem({
+                                      ...editingItem,
+                                      priceCoach: parseFloat(
+                                        e.target.value || "0"
+                                      ),
+                                    })
+                                  }
+                                  className="bg-background pl-7"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Buttons */}
+                          <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setEditDialogOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button type="submit" variant="default">
+                              Save Changes
+                            </Button>
+                          </div>
+                        </form>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </TabsContent>
