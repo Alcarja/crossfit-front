@@ -37,9 +37,10 @@ import {
   ShoppingBasketIcon,
   ArrowDownLeftFromCircleIcon,
   UserPlus2,
+  Calendar1Icon,
 } from "lucide-react";
 
-const firstSection = [
+const coachSection = [
   {
     icon: Calendar1,
     label: "Calendar",
@@ -58,15 +59,28 @@ const firstSection = [
 ];
 
 const adminSection = [
-  /* {
-    icon: LayoutDashboardIcon,
-    label: "Admin dashboard",
-    href: "/dashboard/admin/dashboard",
-  }, */
   {
     icon: ShoppingBasketIcon,
     label: "Inventory",
     href: "/dashboard/inventory",
+  },
+  {
+    icon: UserPlus2,
+    label: "Register Coach",
+    href: "/dashboard/register",
+  },
+  {
+    icon: CircleUserRound,
+    label: "Coaches",
+    href: "/dashboard/admin/coaches",
+  },
+];
+
+const clientSection = [
+  {
+    icon: Calendar1Icon,
+    label: "Reserves",
+    href: "/dashboard/clients",
   },
   {
     icon: UserPlus2,
@@ -134,12 +148,12 @@ export const DashboardSidebar = () => {
         <SidebarGroup>
           {state !== "collapsed" && (
             <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
-              General Section
+              Coach Section
             </h3>
           )}
           <SidebarGroupContent>
             <SidebarMenu>
-              {firstSection.map((item) => (
+              {coachSection.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
@@ -164,7 +178,7 @@ export const DashboardSidebar = () => {
         </SidebarGroup>
 
         <div className="h-full flex flex-col justify-between">
-          <div>
+          <div className="flex h-auto flex-col justify-start">
             {user?.role === "admin" ? (
               <>
                 <div className="px-4 py-2">
@@ -180,6 +194,42 @@ export const DashboardSidebar = () => {
                   <SidebarGroupContent>
                     <SidebarMenu>
                       {adminSection.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                          <SidebarMenuButton
+                            asChild
+                            className={cn(
+                              "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                              pathname === item.href &&
+                                "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                            )}
+                            isActive={pathname === item.href}
+                          >
+                            <Link href={item.href}>
+                              <item.icon className="size-7 mr-2" />
+                              <span className="text-sm font-medium tracking-tight">
+                                {item.label}
+                              </span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <div className="px-4 py-2">
+                  <Separator className=" text-[#5D6B68]" />
+                </div>
+
+                <SidebarGroup>
+                  {state !== "collapsed" && (
+                    <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
+                      Client Section
+                    </h3>
+                  )}
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {clientSection.map((item) => (
                         <SidebarMenuItem key={item.href}>
                           <SidebarMenuButton
                             asChild
@@ -259,7 +309,7 @@ export const DashboardSidebar = () => {
                     General
                   </p>
                   <div className="space-y-1">
-                    {firstSection.map((item) => (
+                    {coachSection.map((item) => (
                       <SheetClose asChild key={item.href}>
                         <Link
                           href={item.href}
