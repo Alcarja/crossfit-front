@@ -38,6 +38,7 @@ import {
   ArrowDownLeftFromCircleIcon,
   UserPlus2,
   Calendar1Icon,
+  SettingsIcon,
 } from "lucide-react";
 
 const coachSection = [
@@ -83,14 +84,9 @@ const clientSection = [
     href: "/dashboard/clients",
   },
   {
-    icon: UserPlus2,
-    label: "Register Coach",
-    href: "/dashboard/register",
-  },
-  {
-    icon: CircleUserRound,
-    label: "Coaches",
-    href: "/dashboard/admin/coaches",
+    icon: SettingsIcon,
+    label: "Class Settings",
+    href: "/dashboard/classes/settings",
   },
 ];
 
