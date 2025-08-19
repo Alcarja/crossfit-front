@@ -238,3 +238,37 @@ export const updateWorkoutById = async (
 export const deleteWorkoutById = async (workoutId: number) => {
   return await stpApi.delete(`/api/workouts/${workoutId}`);
 };
+
+//Schedule
+export const createSchedule = async (data: {
+  settings?: {
+    name?: string;
+    timezone?: string;
+    validFrom?: string; // "YYYY-MM-DD"
+    validTo?: string | null;
+  };
+  templates: {
+    name: string;
+    type:
+      | "WOD"
+      | "Gymnastics"
+      | "Weightlifting"
+      | "Endurance"
+      | "Foundations"
+      | "Kids";
+    dayOfWeek: number; // 0–6 (Sun–Sat)
+    startTime: string; // "HH:mm"
+    endTime: string; // "HH:mm"
+    capacity: number;
+    coachId?: number;
+    zoneName?: string;
+    isActive?: boolean;
+  }[];
+  replaceExisting?: boolean;
+}) => {
+  return await stpApi.post("/api/schedule", data);
+};
+
+export const getSchedule = async () => {
+  return await stpApi.get("/api/schedule");
+};

@@ -44,7 +44,7 @@ export function DayHeader({
   isTodayFlag?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center justify-center mb-2">
       <div
         className={`text-sm font-semibold text-center w-full ${
           isTodayFlag ? "text-blue-700" : "text-gray-700"

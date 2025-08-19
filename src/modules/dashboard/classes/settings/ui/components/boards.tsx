@@ -34,7 +34,13 @@ import {
   EditWeekModal,
 } from "./modals";
 import type { TemplateRow, WeekInstance } from "./types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  scheduleQueryOptions,
+  useCreateSchedule,
+} from "@/app/queries/schedule";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 /* --------- Structure Board (no dates) --------- */
 export function StructureBoard({
@@ -83,6 +89,8 @@ export function StructureBoard({
   openEditTemplate: (id: string) => void;
   saveEditTemplate: (r: TemplateRow) => void;
 }) {
+  const queryClient = useQueryClient();
+
   const [activeItem, setActiveItem] = useState<any | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickSlot, setQuickSlot] = useState<{
@@ -100,6 +108,7 @@ export function StructureBoard({
 
   const handleDragStart = (e: DragStartEvent) =>
     setActiveItem(e.active.data.current || null);
+
   const handleDragCancel = () => setActiveItem(null);
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -150,7 +159,29 @@ export function StructureBoard({
     }
   };
 
-  const logStructure = () => {
+  const { data: scheduleData } = useQuery(scheduleQueryOptions());
+
+  useEffect(() => {
+    if (scheduleData?.templates) {
+      setTemplateRows(
+        scheduleData.templates.map((t: any) => ({
+          id: String(t.id),
+          name: t.name,
+          type: t.type,
+          dayOfWeek: t.dayOfWeek, // 0=Sunday…6=Saturday
+          startTime: t.startTime,
+          endTime: t.endTime,
+          capacity: t.capacity,
+          coach: t.coachId ?? "",
+          zone: t.zoneName ?? "",
+        }))
+      );
+    }
+  }, [scheduleData, setTemplateRows]);
+
+  const createScheduleMutation = useCreateSchedule();
+
+  const saveChanges = () => {
     const rows = templateRows
       .slice()
       .sort((a, b) =>
@@ -159,15 +190,45 @@ export function StructureBoard({
           : a.dayOfWeek - b.dayOfWeek
       )
       .map((r) => ({
-        day: ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"][r.dayOfWeek],
-        time: `${r.startTime}–${r.endTime}`,
         name: r.name,
-        type: r.type,
-        coach: r.coach ?? "",
-        zone: r.zone ?? "",
+        type: r.type as
+          | "WOD"
+          | "Gymnastics"
+          | "Weightlifting"
+          | "Endurance"
+          | "Foundations"
+          | "Kids",
+        dayOfWeek: r.dayOfWeek,
+        startTime: r.startTime,
+        endTime: r.endTime,
         capacity: r.capacity,
+        coachId: undefined, // TODO: map real coach id if you have it
+        zoneName: r.zone || undefined,
+        isActive: true,
       }));
-    console.table(rows);
+
+    // call mutation with onSuccess
+    createScheduleMutation.mutate(
+      {
+        settings: {
+          name: "Main",
+          timezone: "Europe/Madrid",
+          validFrom: new Date().toISOString().slice(0, 10),
+          validTo: null,
+        },
+        templates: rows,
+        replaceExisting: true,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Cambios guardados correctamente!");
+          queryClient.invalidateQueries({ queryKey: ["schedule"] });
+        },
+        onError: () => {
+          toast.error("Ocurrió un error al guardar los cambios");
+        },
+      }
+    );
   };
 
   return (
@@ -181,9 +242,6 @@ export function StructureBoard({
         <div className="flex flex-col bg-white">
           <div className="border-b px-3 py-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm text-muted-foreground font-medium">
-                Plantilla semanal (sin fechas)
-              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <label className="hidden sm:inline text-xs text-gray-600 pt-2">
@@ -230,12 +288,22 @@ export function StructureBoard({
                   </Select>
                 </div>
 
-                <Button className="w-auto" onClick={() => setSeriesOpen(true)}>
-                  Programar series
-                </Button>
-                <Button variant="outline" onClick={logStructure}>
-                  Registrar estructura
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* warning/note */}
+
+                  <Button
+                    className="w-auto"
+                    onClick={() => setSeriesOpen(true)}
+                  >
+                    Programar series
+                  </Button>
+                  <Button variant="outline" onClick={saveChanges}>
+                    Guardar Cambios
+                  </Button>
+                  <div className="text-xs text-amber-600 font-medium">
+                    ⚠️ Recuerda pulsar &quot;Guardar cambios&quot;
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -285,6 +353,7 @@ export function StructureBoard({
                               name: r.name,
                               type: r.type,
                               capacity: r.capacity,
+                              enrolled: 0, // 👈 since structure has no enrolled yet
                             }}
                             fullWidth
                             onOpenEdit={() => {
@@ -617,7 +686,11 @@ export function WeekBoard({
                 {days.map((d) => (
                   <DayHeader
                     key={d.toISOString()}
-                    label={format(d, "EEE", { locale: es })}
+                    label={`${format(d, "EEE", { locale: es })} ${format(
+                      d,
+                      "d",
+                      { locale: es }
+                    )}`}
                     isTodayFlag={isToday(d)}
                   />
                 ))}

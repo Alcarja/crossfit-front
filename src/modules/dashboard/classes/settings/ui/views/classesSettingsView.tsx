@@ -26,6 +26,7 @@ export default function ClassesSettingsView() {
   /* ===== Structure state ===== */
   const [templateRows, setTemplateRows] = useState<TemplateRow[]>([]);
 
+  //Create a single class for the schedule tab
   const createOneTemplate = (p: {
     day: number;
     hour: number;
@@ -36,10 +37,12 @@ export default function ClassesSettingsView() {
     duration: number;
     capacity: number;
   }) => {
-    const start = `${hh(p.hour)}:00`;
-    const end = `${hh(p.hour + Math.max(1, Math.ceil(p.duration / 60)))}:00`;
+    const start = `${hh(p.hour)}:00`; //Formats the time to HH:00
+    const end = `${hh(p.hour + Math.max(1, Math.ceil(p.duration / 60)))}:00`; //Calculates the end hour
+
+    //Builds the class bubble
     const row: TemplateRow = {
-      id: `tpl-${uuidv4()}`,
+      id: `tpl-${uuidv4()}`, //Unique id for the drag and drop
       name: p.name,
       type: p.type,
       dayOfWeek: p.day,
@@ -49,15 +52,17 @@ export default function ClassesSettingsView() {
       coach: p.coach || undefined,
       zone: p.zone || undefined,
     };
-    setTemplateRows((prev) => [...prev, row]);
+    setTemplateRows((prev) => [...prev, row]); //Saves it to the local list of classes
   };
 
+  //Saves changes to an existing class
   const saveEditTemplate = (updated: TemplateRow) => {
     setTemplateRows((prev) =>
       prev.map((r) => (r.id === updated.id ? updated : r))
     );
   };
 
+  //Create multiple classes at once
   const seriesCreateStructure = (payload: {
     type: string;
     name: string;
@@ -87,19 +92,24 @@ export default function ClassesSettingsView() {
         });
       }
     });
-    setTemplateRows((prev) => [...prev, ...rows]);
+    setTemplateRows((prev) => [...prev, ...rows]); //Adds all the classes to the state at once
   };
 
   /* ===== Week (dated) state ===== */
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date()); //Save the current date
   const weekStart = useMemo(
+    //Get the start of the week
     () => startOfWeek(selectedDate, { weekStartsOn: 1 }),
     [selectedDate]
   );
+
+  //Calculate the days of the current week
   const days = useMemo(
     () => Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i)),
     [weekStart]
   );
+
+  //Create a label for current week
   const weekLabel = `${format(weekStart, "d 'de' MMM", {
     locale: es,
   })} – ${format(addDays(weekStart, 6), "d 'de' MMM yyyy", { locale: es })}`;
@@ -110,6 +120,7 @@ export default function ClassesSettingsView() {
   const wkKey = weekKeyFromDate(selectedDate);
   const weekInstances = weeksByKey[wkKey] ?? [];
 
+  //Create a single class for the calendar tab
   const createOneWeekInstance = (p: {
     dateISO: string;
     hour: number;
@@ -149,6 +160,7 @@ export default function ClassesSettingsView() {
     }));
   };
 
+  //Copies the classes from the schedule and adds them to the calendar
   const generateWeekFromStructure = () => {
     const cloned: WeekInstance[] = templateRows.map((t) => ({
       id: `inst-${uuidv4()}`,

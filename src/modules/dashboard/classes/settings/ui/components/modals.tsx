@@ -28,6 +28,16 @@ import { durationFromTimes, hh, parseHour, weekdayShort } from "./utils";
 import { typeColors } from "./constants";
 import { TemplateRow, WeekInstance } from "./types";
 
+const types = [
+  "WOD",
+  "Gymnastics",
+  "Weightlifting",
+  "Endurance",
+  "Open Box",
+  "Foundations",
+  "Kids",
+];
+
 /* ---------- Quick Add (shared) ---------- */
 export function QuickAddModal({
   open,
@@ -73,15 +83,6 @@ export function QuickAddModal({
   const [zone, setZone] = useState("");
   const [duration, setDuration] = useState(60);
   const [capacity, setCapacity] = useState(16);
-
-  const types = [
-    "WOD",
-    "Gymnastics",
-    "Weightlifting",
-    "Endurance",
-    "Foundations",
-    "Kids",
-  ];
 
   const isTemplateSlot = slot && "day" in slot!;
   const whenText = slot
@@ -265,14 +266,6 @@ export function SeriesModal({
     setDays((prev) =>
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
     );
-  const types = [
-    "WOD",
-    "Gymnastics",
-    "Weightlifting",
-    "Endurance",
-    "Foundations",
-    "Kids",
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -464,14 +457,6 @@ export function EditTemplateModal({
   const colorClass =
     typeColors[local.type as keyof typeof typeColors] ?? typeColors.Default;
   const duration = durationFromTimes(local.startTime, local.endTime);
-  const types = [
-    "WOD",
-    "Gymnastics",
-    "Weightlifting",
-    "Endurance",
-    "Foundations",
-    "Kids",
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
