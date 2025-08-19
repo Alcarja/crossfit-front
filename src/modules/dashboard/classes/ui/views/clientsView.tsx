@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addMinutes, format, isSameDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar"; // shadcn calendar (react-day-picker)
 import { Button } from "@/components/ui/button";
@@ -37,14 +38,20 @@ import {
   Ellipsis,
   Users,
 } from "lucide-react";
+import { classesByDayQueryOptions } from "@/app/queries/schedule";
+import { useQuery } from "@tanstack/react-query";
+import { typeColors } from "@/components/types/types";
 
-// ---------------------- MOCK DATA ----------------------
+function typeClassName(t?: string) {
+  return t && typeColors[t] ? typeColors[t] : "bg-gray-200 text-gray-800";
+}
 
 type User = { id: string; name: string };
 
 type ClassItem = {
   id: string;
   name: string;
+  type: string;
   coach: string;
   start: Date;
   durationMin: number;
@@ -53,49 +60,6 @@ type ClassItem = {
   waitlist: User[];
   location?: string;
 };
-
-const MOCK_USERS: User[] = [
-  { id: "u1", name: "Alex" },
-  { id: "u2", name: "Bea" },
-  { id: "u3", name: "Carlos" },
-  { id: "u4", name: "Daria" },
-  { id: "u5", name: "Eli" },
-  { id: "u6", name: "Fran" },
-];
-
-function makeClass(
-  id: string,
-  name: string,
-  start: Date,
-  capacity = 10,
-  attendeesN = 4,
-  waitN = 1
-): ClassItem {
-  const attendees = MOCK_USERS.slice(0, attendeesN);
-  const waitlist = MOCK_USERS.slice(attendeesN, attendeesN + waitN);
-  return {
-    id,
-    name,
-    coach: "Jamie",
-    start,
-    durationMin: 60,
-    capacity,
-    attendees,
-    waitlist,
-    location: "Main Floor",
-  };
-}
-
-function generateMockClasses(baseDay: Date): ClassItem[] {
-  const base = new Date(baseDay);
-  base.setHours(6, 0, 0, 0);
-  return [
-    makeClass("c1", "CrossFit WOD", addMinutes(base, 0), 12, 8, 2),
-    makeClass("c2", "Olympic Lifting", addMinutes(base, 60 * 3), 10, 5, 0),
-    makeClass("c3", "Mobility", addMinutes(base, 60 * 6), 14, 3, 0),
-    makeClass("c4", "Open Gym", addMinutes(base, 60 * 9), 20, 12, 3),
-  ];
-}
 
 // ---------------------- UI HELPERS ----------------------
 
@@ -118,18 +82,57 @@ export const ClientsView = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [query, setQuery] = useState("");
 
+  const { data } = useQuery(classesByDayQueryOptions("2025-08-21"));
+
+  useEffect(() => {
+    console.log("Classes by day", data);
+  }, [data]);
+
+  function toLocalDate(dateISO: string, hhmm: string) {
+    const [h, m] = hhmm.split(":").map(Number);
+    const d = new Date(dateISO + "T00:00:00");
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+
   const classesForDay = useMemo(() => {
-    const all = generateMockClasses(selectedDate);
-    return all
-      .filter((c) => isSameDay(c.start, selectedDate))
-      .filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
-      .sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [selectedDate, query]);
+    const rows = data?.instances ?? [];
+
+    const mapped = rows.map((r: any): ClassItem => {
+      const start = toLocalDate(r.date, r.startTime);
+      const end = r.endTime
+        ? toLocalDate(r.date, r.endTime)
+        : new Date(start.getTime() + 60 * 60000);
+      const durationMin = Math.max(
+        15,
+        Math.round((end.getTime() - start.getTime()) / 60000)
+      );
+
+      return {
+        id: String(r.id),
+        name: r.name ?? r.type,
+        type: r.type,
+        coach: r.coachId ? `Coach #${r.coachId}` : "—",
+        start,
+        durationMin,
+        capacity: r.capacity ?? 0,
+        attendees: [], // fill from API when you have it
+        waitlist: [],
+        location: r.zoneName ?? undefined,
+      };
+    });
+
+    // filter by search + ensure it's the selected day (API already does, but safe)
+    return mapped
+      .filter((c: any) => isSameDay(c.start, selectedDate))
+      .filter((c: any) => c.name.toLowerCase().includes(query.toLowerCase()))
+      .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
+  }, [data, selectedDate, query]);
 
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const selectedClass = useMemo(() => {
     return (
-      classesForDay.find((c) => c.id === selectedClassId) ??
+      classesForDay.find((c: any) => c.id === selectedClassId) ??
       classesForDay[0] ??
       null
     );
@@ -228,7 +231,7 @@ export const ClientsView = () => {
                     No classes this day.
                   </li>
                 )}
-                {classesForDay.map((cls) => {
+                {classesForDay.map((cls: any) => {
                   const left = spotsLeft(cls);
                   const active = selectedClass?.id === cls.id;
                   return (
@@ -242,17 +245,20 @@ export const ClientsView = () => {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium">
-                              {format(cls.start, "p")} · {cls.name}
+                              {format(cls.start, "p")} ·{" "}
+                              <Badge className={typeClassName(cls.type)}>
+                                <p className="text-md">{cls.type}</p>
+                              </Badge>
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Coach {cls.coach} • {cls.durationMin} min
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant={left > 0 ? "default" : "green"}>
+                            <Badge variant={left > 0 ? "gray" : "green"}>
                               {left} spots left
                             </Badge>
-                            <Badge variant="default">
+                            <Badge variant="gray">
                               <Users className="h-3.5 w-3.5 mr-1" />{" "}
                               {cls.attendees.length}/{cls.capacity}
                             </Badge>
@@ -283,10 +289,10 @@ export const ClientsView = () => {
             <CardContent className="flex-1 p-0">
               <div className="p-6 space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="default">
+                  <Badge variant="gray">
                     {format(selectedClass.start, "EEEE, PPP")}
                   </Badge>
-                  <Badge>
+                  <Badge variant="gray">
                     <Clock className="h-3.5 w-3.5 mr-1" />{" "}
                     {format(selectedClass.start, "p")} –{" "}
                     {format(
@@ -297,15 +303,15 @@ export const ClientsView = () => {
                       "p"
                     )}
                   </Badge>
-                  <Badge variant="default">Coach {selectedClass.coach}</Badge>
+                  <Badge variant="gray">Coach {selectedClass.coach}</Badge>
                   {selectedClass.location && (
-                    <Badge variant="default">{selectedClass.location}</Badge>
+                    <Badge variant="gray">{selectedClass.location}</Badge>
                   )}
                 </div>
 
-                <div className="text-2xl font-semibold">
-                  {selectedClass.name}
-                </div>
+                <Badge className={typeClassName(selectedClass.type)}>
+                  <p className="text-xl font-semibold">{selectedClass.type}</p>
+                </Badge>
 
                 <div className="grid grid-cols-3 gap-3">
                   <StatsTile label="Capacity" value={selectedClass.capacity} />

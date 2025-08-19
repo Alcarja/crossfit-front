@@ -279,7 +279,12 @@ export const getWeek = async (startDate: string) => {
   });
 };
 
-// 4. Save/replace a week with whatever is on your calendar
+export const getClassesByDay = async (date: string) => {
+  return await stpApi.get("/api/schedule/classes-by-day", {
+    params: { date }, // ?date=YYYY-MM-DD
+  });
+};
+
 export const saveWeek = async (data: {
   startDate: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -2,6 +2,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createSchedule,
+  getClassesByDay,
   getSchedule,
   getWeek,
   saveWeek,
@@ -30,6 +31,15 @@ export const useGetWeek = (startDate: string) =>
     },
     enabled: !!startDate, // only fetch when startDate is set
   });
+
+export const classesByDayQueryOptions = (date: string) => ({
+  queryKey: ["day", date],
+  queryFn: async () => {
+    const res = await getClassesByDay(date);
+    return res;
+  },
+  enabled: !!date, // only run if date is provided
+});
 
 export const useSaveWeek = () =>
   useMutation({

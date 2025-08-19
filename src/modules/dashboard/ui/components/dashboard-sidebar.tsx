@@ -81,7 +81,7 @@ const clientSection = [
   {
     icon: Calendar1Icon,
     label: "Reserves",
-    href: "/dashboard/clients",
+    href: "/dashboard/classes/dashboard",
   },
   {
     icon: SettingsIcon,
