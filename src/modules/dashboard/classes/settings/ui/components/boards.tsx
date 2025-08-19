@@ -38,6 +38,8 @@ import { useEffect, useState } from "react";
 import {
   scheduleQueryOptions,
   useCreateSchedule,
+  useGetWeek,
+  useSaveWeek,
 } from "@/app/queries/schedule";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -457,6 +459,7 @@ export function WeekBoard({
   seriesCreateWeek,
   createOneWeekInstance,
   saveEditWeek,
+  selectedDate,
   setSelectedDate,
   isoFn = iso,
 }: {
@@ -555,27 +558,84 @@ export function WeekBoard({
     }
   };
 
-  const logWeek = () => {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const rows = weekInstances
-      .slice()
-      .sort((a, b) =>
-        a.date === b.date
-          ? parseHour(a.startTime) - parseHour(b.startTime)
-          : a.date.localeCompare(b.date)
-      )
-      .map((c) => ({
-        date: c.date,
-        time: `${pad(parseHour(c.startTime))}:00`,
-        name: c.name,
-        type: c.type,
-        coach: c.coach ?? "",
-        zone: c.zone ?? "",
-        enrolled: c.enrolled,
-        capacity: c.capacity,
-        id: c.id,
+  const mondayISO = selectedDate.toISOString().slice(0, 10);
+
+  // ---- Load week if it exists ----
+  const { data: weekResp } = useGetWeek(mondayISO);
+  useEffect(() => {
+    // payload can be res or res.data depending on your adapter; support both
+    const payload =
+      (weekResp as any)?.instances ?? (weekResp as any)?.data?.instances;
+    if (!payload) return;
+
+    // Map API -> WeekInstance[] for this wkKey only
+    const mapped: WeekInstance[] = payload.map((c: any) => ({
+      id: String(c.id),
+      date: c.date, // "YYYY-MM-DD"
+      startTime: c.startTime, // "HH:MM"
+      endTime: c.endTime, // "HH:MM"
+      name: c.name,
+      type: c.type,
+      zone: c.zoneName ?? "",
+      coach: c.coachId ?? "",
+      capacity: c.capacity ?? 0,
+      enrolled: c.enrolled ?? 0,
+    }));
+
+    setWeeksByKey((prev) => ({ ...prev, [wkKey]: mapped }));
+  }, [weekResp, setWeeksByKey, wkKey]);
+
+  // ---- Mutations ----
+  const saveWeekMutation = useSaveWeek();
+  const queryClient = useQueryClient();
+
+  const addMinutes = (hhmm: string, mins: number) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    const d = new Date(0, 0, 1, h, m + mins, 0);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes()
+    ).padStart(2, "0")}`;
+  };
+
+  const handleSaveWeek = () => {
+    const mondayISO = selectedDate.toISOString().slice(0, 10);
+    const visibleDates = new Set(days.map((d) => isoFn(d)));
+
+    const classes = weekInstances
+      .filter((it) => visibleDates.has(it.date))
+      .map((it) => ({
+        dateISO: it.date,
+        startTime: it.startTime,
+        endTime:
+          it.endTime ?? addMinutes(it.startTime, (it as any).duration ?? 60),
+        name: it.name,
+        type: it.type,
+        zoneName: it.zone ?? null,
+        coachId: typeof it.coach === "number" ? it.coach : null,
+        capacity: it.capacity,
       }));
-    console.table(rows);
+
+    saveWeekMutation.mutate(
+      { startDate: mondayISO, classes },
+      {
+        onSuccess: () => {
+          toast.success("Semana guardada!");
+          queryClient.invalidateQueries({ queryKey: ["week", mondayISO] });
+        },
+        onError: (e: any) => {
+          // Our StpApi throws { status, data, message }
+          if (e?.status === 409) {
+            toast.error(
+              "No puedes registrar la misma clase dos veces en la misma hora"
+            );
+            return;
+          }
+          toast.error(
+            e?.data?.error ?? e?.message ?? "Error al guardar la semana"
+          );
+        },
+      }
+    );
   };
 
   return (
@@ -671,8 +731,13 @@ export function WeekBoard({
                 <Button variant="outline" onClick={() => setSeriesOpen(true)}>
                   Programar series
                 </Button>
-                <Button variant="outline" onClick={logWeek}>
-                  Registrar clases
+
+                <Button
+                  className="w-auto"
+                  variant="default"
+                  onClick={handleSaveWeek}
+                >
+                  Guardar cambios
                 </Button>
               </div>
             </div>

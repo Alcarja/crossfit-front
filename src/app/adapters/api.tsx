@@ -272,3 +272,18 @@ export const createSchedule = async (data: {
 export const getSchedule = async () => {
   return await stpApi.get("/api/schedule");
 };
+
+export const getWeek = async (startDate: string) => {
+  return await stpApi.get("/api/schedule/week", {
+    params: { startDate }, // ?startDate=YYYY-MM-DD
+  });
+};
+
+// 4. Save/replace a week with whatever is on your calendar
+export const saveWeek = async (data: {
+  startDate: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  classes: any;
+}) => {
+  return await stpApi.put("/api/schedule/week", data);
+};

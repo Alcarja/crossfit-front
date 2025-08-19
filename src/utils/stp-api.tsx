@@ -1,5 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+class HttpError extends Error {
+  status: number;
+  data: any;
+  constructor(status: number, data: any, message?: string) {
+    super(message ?? (data?.error || data?.message || String(status)));
+    this.name = "HttpError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 class StpApi {
   private baseUrl: string;
 
@@ -30,12 +41,40 @@ class StpApi {
 
     const res = await fetch(`${this.baseUrl}${endpoint}`, options);
 
+    // Try to parse JSON; fall back to text if needed
+    let payload: any = null;
+    let isJson = false;
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      try {
+        payload = await res.json();
+        isJson = true;
+      } catch {
+        payload = null;
+      }
+    }
+    if (!isJson && !res.ok) {
+      try {
+        const txt = await res.text();
+        payload = { error: txt };
+      } catch {
+        payload = null;
+      }
+    }
     if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      throw new Error(error?.message || "Request failed");
+      // Backend might send { error: "..."} or { message: "..." }
+      const msg =
+        payload?.error ||
+        payload?.message ||
+        res.statusText ||
+        "Request failed";
+      throw new HttpError(res.status, payload, msg);
     }
 
-    return res.json();
+    // success
+    if (isJson) return payload;
+    // if no json body on success, return empty
+    return null;
   }
 
   get(
@@ -46,10 +85,8 @@ class StpApi {
     } = {}
   ) {
     const { params = {}, headers = {} } = options;
-
     const query = new URLSearchParams(params).toString();
     const urlWithParams = query ? `${endpoint}?${query}` : endpoint;
-
     return this.request("GET", urlWithParams, null, headers);
   }
 
@@ -66,6 +103,6 @@ class StpApi {
   }
 }
 
-// ✅ export an instance, NOT the class
 const stpApi = new StpApi();
 export default stpApi;
+export type { HttpError };

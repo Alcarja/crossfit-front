@@ -1,5 +1,11 @@
-import { useMutation } from "@tanstack/react-query";
-import { createSchedule, getSchedule } from "../adapters/api";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  createSchedule,
+  getSchedule,
+  getWeek,
+  saveWeek,
+} from "../adapters/api";
 
 export function useCreateSchedule() {
   return useMutation({
@@ -14,3 +20,18 @@ export const scheduleQueryOptions = () => ({
     return res;
   },
 });
+
+export const useGetWeek = (startDate: string) =>
+  useQuery({
+    queryKey: ["week", startDate],
+    queryFn: async () => {
+      const res = await getWeek(startDate);
+      return res;
+    },
+    enabled: !!startDate, // only fetch when startDate is set
+  });
+
+export const useSaveWeek = () =>
+  useMutation({
+    mutationFn: (data: { startDate: string; classes: any[] }) => saveWeek(data),
+  });
