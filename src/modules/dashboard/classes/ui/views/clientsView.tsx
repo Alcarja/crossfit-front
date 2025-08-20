@@ -530,7 +530,7 @@ export const ClientsView = () => {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium">
-                              {format(cls.start, "p")} ·{" "}
+                              {format(cls.start, "HH:mm")} ·{" "}
                               <Badge className={typeClassName(cls.type)}>
                                 <p className="text-md">{cls.type}</p>
                               </Badge>
@@ -580,13 +580,13 @@ export const ClientsView = () => {
                   </Badge>
                   <Badge variant="gray">
                     <Clock className="h-3.5 w-3.5 mr-1" />{" "}
-                    {format(selectedClass.start, "p")} –{" "}
+                    {format(selectedClass.start, "HH:mm")} ·{" "}
                     {format(
                       addMinutes(
                         selectedClass.start,
                         selectedClass.durationMin
                       ),
-                      "p"
+                      "HH:mm"
                     )}
                   </Badge>
                   <Badge variant="gray">Coach {selectedClass.coach}</Badge>

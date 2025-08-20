@@ -597,6 +597,7 @@ export function EditWeekModal({
     "Gymnastics",
     "Weightlifting",
     "Endurance",
+    "Open Box",
     "Foundations",
     "Kids",
   ];
