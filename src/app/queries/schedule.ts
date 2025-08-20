@@ -7,6 +7,7 @@ import {
   getClassesByDay,
   getSchedule,
   getWeek,
+  reinstateEnrollment,
   saveWeek,
 } from "../adapters/api";
 
@@ -52,6 +53,12 @@ export const useEnrollInClass = () =>
   useMutation({
     mutationFn: (data: { userId: number; classId: number }) =>
       enrollInClass(data),
+  });
+
+export const useReinstateEnrollment = () =>
+  useMutation({
+    mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
+      reinstateEnrollment(userId, classId),
   });
 
 export const useGetClassEnrollments = (classId: number) => ({

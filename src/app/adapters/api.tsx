@@ -309,6 +309,26 @@ export const cancelEnrollment = async (userId: number, classId: number) => {
   );
 };
 
+export const reinstateEnrollment = async (userId: number, classId: number) => {
+  return await stpApi.put(
+    `/api/schedule/reinstate-enrollment/${classId}/${userId}`,
+    {}
+  );
+};
+
+export const moveToWaitlist = async (userId: number, classId: number) => {
+  return await stpApi.put(
+    `/api/schedule/move-to-waitlist/${classId}/${userId}`,
+    {}
+  );
+};
+
+export const promoteFromWaitlist = (userId: number, classId: number) =>
+  stpApi.put(`/api/schedule/promote-from-waitlist/${classId}/${userId}`, {});
+
+export const waitlistToCancel = (userId: number, classId: number) =>
+  stpApi.put(`/api/schedule/waitlist-to-cancel/${classId}/${userId}`, {});
+
 export const getClassEnrollments = async (classId: number) => {
   return await stpApi.get(`/api/schedule/get-enrollments/${classId}`);
 };

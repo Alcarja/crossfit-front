@@ -22,20 +22,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  ArrowDown,
+  ArrowUp,
   CalendarIcon,
-  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
   Ellipsis,
+  RotateCcw,
+  Trash2,
   Users,
 } from "lucide-react";
 import {
@@ -43,7 +41,7 @@ import {
   useEnrollInClass,
   useGetClassEnrollments,
 } from "@/app/queries/schedule";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { typeColors } from "@/components/types/types";
 import {
   Dialog,
@@ -57,6 +55,19 @@ import { Label } from "@/components/ui/label";
 import { SearchSelectDropdown } from "@/components/web/searchSelectDropdown";
 import { usersQueryOptions } from "@/app/queries/users";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  cancelEnrollment,
+  moveToWaitlist,
+  promoteFromWaitlist,
+  reinstateEnrollment,
+  waitlistToCancel,
+} from "@/app/adapters/api";
 
 function typeClassName(t?: string) {
   return t && typeColors[t] ? typeColors[t] : "bg-gray-200 text-gray-800";
@@ -232,6 +243,149 @@ export const ClientsView = () => {
       name: `${e.user.name} ${e.user.lastName}`,
     }));
 
+  const cancellations = enrollments
+    .filter((e: any) => e.status === "cancelled")
+    .map((e: any) => ({
+      id: e.user.id,
+      name: `${e.user.name} ${e.user.lastName}`,
+    }));
+
+  const useCancelEnrollment = () => {
+    return useMutation({
+      mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
+        cancelEnrollment(userId, classId),
+      onSuccess: (_data, vars) => {
+        queryClient.invalidateQueries({
+          queryKey: ["classEnrollments", vars.classId],
+        });
+      },
+    });
+  };
+
+  const useReinstateEnrollment = () => {
+    return useMutation({
+      mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
+        reinstateEnrollment(userId, classId),
+      onSuccess: (_data, vars) => {
+        queryClient.invalidateQueries({
+          queryKey: ["classEnrollments", vars.classId],
+        });
+      },
+    });
+  };
+
+  const useMoveToWaitlist = () => {
+    const qc = useQueryClient();
+    return useMutation({
+      mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
+        moveToWaitlist(userId, classId),
+      onSuccess: (_d, v) => {
+        qc.invalidateQueries({ queryKey: ["classEnrollments", v.classId] });
+      },
+    });
+  };
+
+  const usePromoteFromWaitlist = () => {
+    const qc = useQueryClient();
+    return useMutation({
+      mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
+        promoteFromWaitlist(userId, classId),
+      onSuccess: (_d, v) => {
+        qc.invalidateQueries({ queryKey: ["classEnrollments", v.classId] });
+      },
+    });
+  };
+
+  const useWaitlistToCancel = () => {
+    const qc = useQueryClient();
+    return useMutation({
+      mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
+        waitlistToCancel(userId, classId),
+      onSuccess: (_d, v) => {
+        qc.invalidateQueries({ queryKey: ["classEnrollments", v.classId] });
+      },
+    });
+  };
+
+  // ── Usage inside your component ─────────────────────────────────────────
+  const { mutateAsync: cancelEnroll } = useCancelEnrollment();
+  const { mutateAsync: reinstate } = useReinstateEnrollment();
+  const { mutateAsync: moveWaitlist } = useMoveToWaitlist();
+  const { mutateAsync: promote } = usePromoteFromWaitlist();
+  const { mutateAsync: removeFromWaitlist } = useWaitlistToCancel();
+
+  async function handleRosterAction(
+    userId: number | string,
+    action:
+      | "checkin"
+      | "cancel"
+      | "move-to-waitlist"
+      | "promote"
+      | "remove-waitlist"
+      | "reinstate-attendee"
+      | "reinstate-waitlist"
+      | "delete-record"
+  ) {
+    if (!selectedClass) return;
+
+    const uid = Number(userId);
+
+    const refreshPanels = () => {
+      queryClient.invalidateQueries({
+        queryKey: ["classEnrollments", selectedClass.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: classesByDayQueryOptions(toISODateString(selectedDate))
+          .queryKey,
+      });
+    };
+
+    try {
+      if (action === "cancel") {
+        await cancelEnroll({ userId: uid, classId: selectedClass.id });
+        refreshPanels();
+        toast.success("Reserva cancelada");
+        return;
+      }
+
+      // Move to waitlist from attendees OR from cancellations
+      if (action === "move-to-waitlist" || action === "reinstate-waitlist") {
+        await moveWaitlist({ userId: uid, classId: selectedClass.id });
+        refreshPanels();
+        toast.success("Pasado a lista de espera");
+        return;
+      }
+
+      // Reinstate (server enrolls if capacity else waitlists)
+      if (action === "reinstate-attendee") {
+        const res = await reinstate({ userId: uid, classId: selectedClass.id });
+        refreshPanels();
+        const status = res?.data?.status ?? "reinstated";
+        toast.success(`Reserva reinstaurada (${status})`);
+        return;
+      }
+
+      // Stubs for other actions (wire later)
+
+      if (action === "promote") {
+        await promote({ userId: uid, classId: selectedClass.id });
+        refreshPanels();
+        toast.success("Promovido a asistente");
+        return;
+      }
+
+      if (action === "remove-waitlist") {
+        await removeFromWaitlist({ userId: uid, classId: selectedClass.id });
+        refreshPanels();
+        toast.success("Eliminado de la lista de espera");
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Operación no completada");
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 w-full min-h-screen">
       {/* LEFT: Main list; calendar appears only on demand */}
@@ -297,8 +451,8 @@ export const ClientsView = () => {
                 </Button>
 
                 <div>
-                  <CardTitle className="text-lg">
-                    Classes on {format(selectedDate, "PPP")}
+                  <CardTitle className="text-2xl">
+                    {format(selectedDate, "PPP")}
                   </CardTitle>
                   <CardDescription>Tap a class to see details</CardDescription>
                 </div>
@@ -458,31 +612,6 @@ export const ClientsView = () => {
 
                 <Separator className="my-2" />
 
-                {/* <Tabs defaultValue="attendees">
-                  <TabsList>
-                    <TabsTrigger value="attendees">
-                      Attendees ({selectedClass?.attendees?.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="waitlist">
-                      Waitlist ({selectedClass?.waitlist?.length})
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="attendees" className="mt-4">
-                    <RosterList users={attendees} kind="attendee" />
-                  </TabsContent>
-
-                  <TabsContent value="waitlist" className="mt-4">
-                    {waitlist.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No one on the waitlist.
-                      </p>
-                    ) : (
-                      <RosterList users={waitlist} kind="waitlist" />
-                    )}
-                  </TabsContent>
-                </Tabs> */}
-
                 <div className="flex items-center gap-2">
                   <Button
                     className="w-auto"
@@ -491,21 +620,49 @@ export const ClientsView = () => {
                   >
                     Create Reservation
                   </Button>
-                  <Button className="w-auto">Add to Waitlist</Button>
                 </div>
 
-                <Tabs defaultValue="attendees">
-                  <TabsList>
-                    <TabsTrigger value="attendees">
-                      Attendees ({attendees.length})
+                <Tabs defaultValue="attendees" className="w-full">
+                  <TabsList className="grid grid-cols-3 w-full">
+                    <TabsTrigger
+                      value="attendees"
+                      className="flex items-center justify-center gap-2"
+                    >
+                      <span className="truncate">Attendees</span>
+                      <Badge variant="gray">{attendees.length}</Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="waitlist">
-                      Waitlist ({waitlist.length})
+
+                    <TabsTrigger
+                      value="waitlist"
+                      className="flex items-center justify-center gap-2"
+                      disabled={waitlist.length === 0}
+                    >
+                      <span className="truncate">Waitlist</span>
+                      <Badge variant="gray">{waitlist.length}</Badge>
+                    </TabsTrigger>
+
+                    <TabsTrigger
+                      value="cancellations"
+                      className="flex items-center justify-center gap-2"
+                      disabled={cancellations.length === 0}
+                    >
+                      <span className="truncate">Cancellations</span>
+                      <Badge variant="gray">{cancellations.length}</Badge>
                     </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="attendees" className="mt-4">
-                    <RosterList users={attendees} kind="attendee" />
+                    {attendees.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No attendees yet.
+                      </p>
+                    ) : (
+                      <RosterList
+                        users={attendees}
+                        kind="attendee"
+                        onAction={handleRosterAction}
+                      />
+                    )}
                   </TabsContent>
 
                   <TabsContent value="waitlist" className="mt-4">
@@ -514,7 +671,25 @@ export const ClientsView = () => {
                         No one on the waitlist.
                       </p>
                     ) : (
-                      <RosterList users={waitlist} kind="waitlist" />
+                      <RosterList
+                        users={waitlist}
+                        kind="waitlist"
+                        onAction={handleRosterAction}
+                      />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="cancellations" className="mt-4">
+                    {cancellations.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No cancellations.
+                      </p>
+                    ) : (
+                      <RosterList
+                        users={cancellations}
+                        kind="cancelled"
+                        onAction={handleRosterAction}
+                      />
                     )}
                   </TabsContent>
                 </Tabs>
@@ -534,10 +709,30 @@ export const ClientsView = () => {
 function RosterList({
   users,
   kind,
+  onAction,
 }: {
-  users: User[];
-  kind: "attendee" | "waitlist";
+  users: { id: number | string; name: string }[];
+  kind: "attendee" | "waitlist" | "cancelled";
+  onAction?: (
+    userId: number | string,
+    action:
+      | "checkin"
+      | "cancel"
+      | "move-to-waitlist"
+      | "promote"
+      | "remove-waitlist"
+      | "reinstate-attendee"
+      | "reinstate-waitlist"
+      | "delete-record"
+  ) => void;
 }) {
+  const statusText =
+    kind === "attendee"
+      ? "Confirmed"
+      : kind === "waitlist"
+      ? "Waitlisted"
+      : "Cancelled";
+
   return (
     <div className="rounded-xl border">
       <ScrollArea className="h-auto">
@@ -547,40 +742,90 @@ function RosterList({
               <Avatar className="h-8 w-8">
                 <AvatarFallback>{initials(u.name)}</AvatarFallback>
               </Avatar>
+
               <div className="flex-1">
                 <div className="text-sm font-medium leading-none">{u.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {kind === "attendee" ? "Confirmed" : "Waitlisted"}
+                  {statusText}
                 </div>
               </div>
 
-              {/* Popup actions for each reservation */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <Ellipsis className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {kind === "attendee" ? (
+                <DropdownMenuContent align="end" className="w-56">
+                  {kind === "attendee" && (
                     <>
-                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        <Check className="h-4 w-4 mr-2" /> Check-in
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction?.(u.id, "cancel");
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Cancel reservation
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        Cancel reservation
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        Move to waitlist
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction?.(u.id, "move-to-waitlist");
+                        }}
+                      >
+                        <ArrowDown className="h-4 w-4 mr-2" /> Move to waitlist
                       </DropdownMenuItem>
                     </>
-                  ) : (
+                  )}
+
+                  {kind === "waitlist" && (
                     <>
-                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        Promote to attendee
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction?.(u.id, "promote");
+                        }}
+                      >
+                        <ArrowUp className="h-4 w-4 mr-2" /> Promote to attendee
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        Remove from waitlist
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction?.(u.id, "remove-waitlist");
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Remove from waitlist
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {kind === "cancelled" && (
+                    <>
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction?.(u.id, "reinstate-attendee");
+                        }}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" /> Reinstate as
+                        attendee
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction?.(u.id, "reinstate-waitlist");
+                        }}
+                      >
+                        <ArrowDown className="h-4 w-4 mr-2" /> Reinstate to
+                        waitlist
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction?.(u.id, "delete-record");
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Delete record
                       </DropdownMenuItem>
                     </>
                   )}
