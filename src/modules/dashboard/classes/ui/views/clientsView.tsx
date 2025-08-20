@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { addMinutes, format, isSameDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar"; // shadcn calendar (react-day-picker)
 import { Button } from "@/components/ui/button";
@@ -38,31 +38,48 @@ import {
   Ellipsis,
   Users,
 } from "lucide-react";
-import { classesByDayQueryOptions } from "@/app/queries/schedule";
-import { useQuery } from "@tanstack/react-query";
+import {
+  classesByDayQueryOptions,
+  useEnrollInClass,
+  useGetClassEnrollments,
+} from "@/app/queries/schedule";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { typeColors } from "@/components/types/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { SearchSelectDropdown } from "@/components/web/searchSelectDropdown";
+import { usersQueryOptions } from "@/app/queries/users";
+import { toast } from "sonner";
 
 function typeClassName(t?: string) {
   return t && typeColors[t] ? typeColors[t] : "bg-gray-200 text-gray-800";
 }
 
-type User = { id: string; name: string };
+type User = { id: string; name: string; lastName: string };
 
 type ClassItem = {
-  id: string;
+  id: number;
   name: string;
   type: string;
   coach: string;
   start: Date;
   durationMin: number;
   capacity: number;
-  attendees: User[]; // confirmed
-  waitlist: User[];
   location?: string;
+  enrolledCount?: number;
+  waitlistCount?: number;
 };
 
 // ---------------------- UI HELPERS ----------------------
 
+//Gets the initials of the user
 function initials(name: string) {
   return name
     .split(" ")
@@ -72,31 +89,34 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-function spotsLeft(cls: ClassItem) {
-  return Math.max(0, cls.capacity - cls.attendees.length);
+//Format date to the format used by the backend: 2025-08-20
+function toISODateString(date: Date) {
+  return format(date, "yyyy-MM-dd");
+}
+
+function toLocalDate(dateISO: string, hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date(dateISO + "T00:00:00");
+  d.setHours(h, m, 0, 0);
+  return d;
 }
 
 // ---------------------- MAIN COMPONENT ----------------------
 
 export const ClientsView = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [query, setQuery] = useState("");
+  const queryClient = useQueryClient();
 
-  const { data } = useQuery(classesByDayQueryOptions("2025-08-21"));
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); //To select the date in the calendar
+  const [query, setQuery] = useState(""); //State for the search input
 
-  useEffect(() => {
-    console.log("Classes by day", data);
-  }, [data]);
+  //Get the classes by day
+  const { data: classesByDayData } = useQuery(
+    classesByDayQueryOptions(toISODateString(selectedDate))
+  );
 
-  function toLocalDate(dateISO: string, hhmm: string) {
-    const [h, m] = hhmm.split(":").map(Number);
-    const d = new Date(dateISO + "T00:00:00");
-    d.setHours(h, m, 0, 0);
-    return d;
-  }
-
+  //This brings the classes for the day to use in the LEFT SIDE
   const classesForDay = useMemo(() => {
-    const rows = data?.instances ?? [];
+    const rows = classesByDayData?.instances ?? []; //This is how the classesByDay are recieved
 
     const mapped = rows.map((r: any): ClassItem => {
       const start = toLocalDate(r.date, r.startTime);
@@ -109,16 +129,15 @@ export const ClientsView = () => {
       );
 
       return {
-        id: String(r.id),
+        id: Number(r.id), // ✅ normalize to number here
         name: r.name ?? r.type,
         type: r.type,
         coach: r.coachId ? `Coach #${r.coachId}` : "—",
         start,
         durationMin,
         capacity: r.capacity ?? 0,
-        attendees: [], // fill from API when you have it
-        waitlist: [],
         location: r.zoneName ?? undefined,
+        enrolledCount: r.enrolledCount ?? 0,
       };
     });
 
@@ -127,9 +146,10 @@ export const ClientsView = () => {
       .filter((c: any) => isSameDay(c.start, selectedDate))
       .filter((c: any) => c.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
-  }, [data, selectedDate, query]);
+  }, [classesByDayData, selectedDate, query]);
 
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  //Gets the selected class
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const selectedClass = useMemo(() => {
     return (
       classesForDay.find((c: any) => c.id === selectedClassId) ??
@@ -138,10 +158,122 @@ export const ClientsView = () => {
     );
   }, [classesForDay, selectedClassId]);
 
+  const [reserveOpen, setReserveOpen] = useState(false); //Opens the modal for the reservation
+  const [userIdInput, setUserIdInput] = useState(""); //Gets the id of the user to register the class
+
+  //Calculate the spots left in a class
+  function spotsLeft(cls: any) {
+    return Math.max(0, cls.capacity - (cls.enrolledCount ?? 0));
+  }
+
+  const hasSpots = selectedClass ? spotsLeft(selectedClass) > 0 : false;
+
+  const { data: usersData } = useQuery(usersQueryOptions()); //Gets the user info for the select in the modal for reservation
+
+  const userOptions = [
+    { value: "", label: "All Coaches" },
+    ...(usersData?.map((user: User) => ({
+      value: String(user.id),
+      label: `${user.name} ${user.lastName}`,
+    })) ?? []),
+  ];
+
+  //Function to register the reservation
+  const { mutateAsync: enroll } = useEnrollInClass();
+
+  async function handleCreateReservation() {
+    if (!selectedClass) return;
+
+    const userId = Number(userIdInput);
+    if (!userId || Number.isNaN(userId)) {
+      console.error("Invalid user id");
+      return;
+    }
+
+    console.log("UserId", userId);
+    console.log("Class id", selectedClass.id);
+
+    try {
+      await enroll({ userId, classId: selectedClass.id });
+      queryClient.invalidateQueries({
+        queryKey: classesByDayQueryOptions(toISODateString(selectedDate))
+          .queryKey,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["classEnrollments", selectedClass.id], // <-- CHANGE THIS LINE
+      });
+      toast.success("Reserva confirmada");
+      setReserveOpen(false);
+    } catch (err) {
+      console.error("Enrollment failed:", err);
+      toast.error("Reserva fallida");
+    }
+  }
+
+  //Gets the reservations for the specific class that was selected
+  const { data: userReservationData } = useQuery({
+    ...useGetClassEnrollments(selectedClass?.id), //Only run the query if a class is selected
+    enabled: !!selectedClass?.id,
+  });
+
+  const enrollments = userReservationData?.enrollments ?? [];
+
+  const attendees = enrollments
+    .filter((e: any) => e.status === "enrolled")
+    .map((e: any) => ({
+      id: e.user.id,
+      name: `${e.user.name} ${e.user.lastName}`,
+    }));
+
+  const waitlist = enrollments
+    .filter((e: any) => e.status === "waitlist")
+    .map((e: any) => ({
+      id: e.user.id,
+      name: `${e.user.name} ${e.user.lastName}`,
+    }));
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 w-full min-h-screen">
       {/* LEFT: Main list; calendar appears only on demand */}
       <div className="space-y-4">
+        <Dialog open={reserveOpen} onOpenChange={setReserveOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="pb-2">Create a reservation</DialogTitle>
+              <Label className="mb-1 block">User</Label>
+              <SearchSelectDropdown
+                options={userOptions}
+                value={userIdInput}
+                onValueChange={setUserIdInput}
+                placeholder="Search and select a user"
+              />
+              <DialogDescription>
+                {selectedClass
+                  ? `For ${selectedClass.type} on ${format(
+                      selectedClass.start,
+                      "PPP p"
+                    )}. ${
+                      hasSpots
+                        ? `${spotsLeft(selectedClass)} spots left.`
+                        : "Class is full; you’ll be waitlisted."
+                    }`
+                  : "Pick a class first."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setReserveOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateReservation}
+                disabled={!selectedClass}
+              >
+                {hasSpots ? "Reserve spot" : "Join waitlist"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Card className="h-auto flex flex-col">
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
@@ -214,7 +346,6 @@ export const ClientsView = () => {
                       mode="single"
                       selected={selectedDate}
                       onSelect={(d) => d && setSelectedDate(d)}
-                      initialFocus
                       className="rounded-md"
                     />
                   </PopoverContent>
@@ -260,7 +391,7 @@ export const ClientsView = () => {
                             </Badge>
                             <Badge variant="gray">
                               <Users className="h-3.5 w-3.5 mr-1" />{" "}
-                              {cls.attendees.length}/{cls.capacity}
+                              {cls.enrolledCount}/{cls.capacity}
                             </Badge>
                           </div>
                         </div>
@@ -275,7 +406,7 @@ export const ClientsView = () => {
       </div>
 
       {/* RIGHT: Class Detail Panel */}
-      <div className="space-y-4">
+      <div>
         <Card className="h-auto flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle>Class details</CardTitle>
@@ -283,6 +414,7 @@ export const ClientsView = () => {
               Review attendees, spots, and actions
             </CardDescription>
           </CardHeader>
+
           <Separator />
 
           {selectedClass ? (
@@ -309,57 +441,80 @@ export const ClientsView = () => {
                   )}
                 </div>
 
-                <Badge className={typeClassName(selectedClass.type)}>
-                  <p className="text-xl font-semibold">{selectedClass.type}</p>
-                </Badge>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <StatsTile label="Capacity" value={selectedClass.capacity} />
-                  <StatsTile
-                    label="Registered"
-                    value={selectedClass.attendees.length}
-                  />
-                  <StatsTile
-                    label="Available"
-                    value={spotsLeft(selectedClass)}
-                    highlight
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button className="w-auto">Create Reservation</Button>
-                  <Button className="w-auto">Add to Waitlist</Button>
+                <div className="flex flex-wrap items-center justify-start gap-3">
+                  <Badge className={typeClassName(selectedClass.type)}>
+                    <p className="text-xl font-semibold">
+                      {selectedClass.type}
+                    </p>
+                  </Badge>
+                  <div>
+                    <Badge variant="gray">
+                      <p className="text-xl font-semibold">
+                        {attendees?.length} / {selectedClass?.capacity}
+                      </p>
+                    </Badge>
+                  </div>
                 </div>
 
                 <Separator className="my-2" />
 
-                <Tabs defaultValue="attendees">
+                {/* <Tabs defaultValue="attendees">
                   <TabsList>
                     <TabsTrigger value="attendees">
-                      Attendees ({selectedClass.attendees.length})
+                      Attendees ({selectedClass?.attendees?.length})
                     </TabsTrigger>
                     <TabsTrigger value="waitlist">
-                      Waitlist ({selectedClass.waitlist.length})
+                      Waitlist ({selectedClass?.waitlist?.length})
                     </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="attendees" className="mt-4">
-                    <RosterList
-                      users={selectedClass.attendees}
-                      kind="attendee"
-                    />
+                    <RosterList users={attendees} kind="attendee" />
                   </TabsContent>
 
                   <TabsContent value="waitlist" className="mt-4">
-                    {selectedClass.waitlist.length === 0 ? (
+                    {waitlist.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         No one on the waitlist.
                       </p>
                     ) : (
-                      <RosterList
-                        users={selectedClass.waitlist}
-                        kind="waitlist"
-                      />
+                      <RosterList users={waitlist} kind="waitlist" />
+                    )}
+                  </TabsContent>
+                </Tabs> */}
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    className="w-auto"
+                    onClick={() => setReserveOpen(true)}
+                    disabled={!selectedClass}
+                  >
+                    Create Reservation
+                  </Button>
+                  <Button className="w-auto">Add to Waitlist</Button>
+                </div>
+
+                <Tabs defaultValue="attendees">
+                  <TabsList>
+                    <TabsTrigger value="attendees">
+                      Attendees ({attendees.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="waitlist">
+                      Waitlist ({waitlist.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="attendees" className="mt-4">
+                    <RosterList users={attendees} kind="attendee" />
+                  </TabsContent>
+
+                  <TabsContent value="waitlist" className="mt-4">
+                    {waitlist.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No one on the waitlist.
+                      </p>
+                    ) : (
+                      <RosterList users={waitlist} kind="waitlist" />
                     )}
                   </TabsContent>
                 </Tabs>
@@ -375,26 +530,6 @@ export const ClientsView = () => {
     </div>
   );
 };
-
-// ---- Small components ----
-function StatsTile({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: number | string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-2xl border p-4 ${highlight ? "bg-primary/5" : ""}`}
-    >
-      <div className="text-xs uppercase text-muted-foreground">{label}</div>
-      <div className="text-xl font-semibold">{value}</div>
-    </div>
-  );
-}
 
 function RosterList({
   users,

@@ -292,3 +292,23 @@ export const saveWeek = async (data: {
 }) => {
   return await stpApi.put("/api/schedule/week", data);
 };
+
+export const enrollInClass = async (data: {
+  userId: number;
+  classId: number;
+}) => {
+  return await stpApi.post(
+    `/api/schedule/enroll-in-class/${data.classId}`,
+    data
+  );
+};
+
+export const cancelEnrollment = async (userId: number, classId: number) => {
+  return await stpApi.delete(
+    `/api/schedule/delete-enrollment/${classId}/${userId}`
+  );
+};
+
+export const getClassEnrollments = async (classId: number) => {
+  return await stpApi.get(`/api/schedule/get-enrollments/${classId}`);
+};
