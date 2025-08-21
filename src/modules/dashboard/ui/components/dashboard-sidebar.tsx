@@ -39,6 +39,7 @@ import {
   UserPlus2,
   Calendar1Icon,
   SettingsIcon,
+  DollarSignIcon,
 } from "lucide-react";
 
 const coachSection = [
@@ -87,6 +88,11 @@ const clientSection = [
     icon: SettingsIcon,
     label: "Class Settings",
     href: "/dashboard/classes/settings",
+  },
+  {
+    icon: DollarSignIcon,
+    label: "Tariffs",
+    href: "/dashboard/classes/tariffs",
   },
 ];
 

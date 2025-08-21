@@ -332,3 +332,29 @@ export const waitlistToCancel = (userId: number, classId: number) =>
 export const getClassEnrollments = async (classId: number) => {
   return await stpApi.get(`/api/schedule/get-enrollments/${classId}`);
 };
+
+//Tariffs
+export const createMonthlyTariff = async (data: {
+  name: string;
+  price: number;
+  isActive: boolean;
+  creditQty: number | null;
+  maxPerDay: number | null;
+}) => {
+  return await stpApi.post(`/api/tariffs/create-monthly-tariff`, data);
+};
+
+export const getAllMonthlyTariffs = async () => {
+  return await stpApi.get(`/api/tariffs/get-all-monthly-tariffs`);
+};
+
+export const updateMonthlyTariff = (
+  id: number,
+  data: {
+    name?: string;
+    price?: number;
+    isActive?: boolean;
+    creditQty?: number | null;
+    maxPerDay?: number | null;
+  }
+) => stpApi.put(`/api/tariffs/update-monthly-tariff/${id}`, data);
