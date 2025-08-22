@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  assignMonthlyTariff,
   createBonoTariff,
   createMonthlyTariff,
   getAllBonoTariffs,
@@ -72,4 +73,16 @@ export const useUpdateBonoTariff = () =>
         creditQty?: number | null;
       };
     }) => updatebonoTariff(id, data),
+  });
+
+export const useAssignMonthlyTariff = () =>
+  useMutation({
+    mutationFn: (data: {
+      userId: number;
+      planId: number;
+      customExpiresOn?: string;
+      startsOn?: string;
+      remainingCredits?: number;
+      note?: string;
+    }) => assignMonthlyTariff(data),
   });

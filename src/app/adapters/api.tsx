@@ -378,3 +378,14 @@ export const updatebonoTariff = (
     creditQty?: number | null;
   }
 ) => stpApi.put(`/api/tariffs/update-bono-tariff/${id}`, data);
+
+export const assignMonthlyTariff = async (data: {
+  userId: number;
+  planId: number;
+  customExpiresOn?: string;
+  startsOn?: string;
+  remainingCredits?: number;
+  note?: string;
+}) => {
+  return await stpApi.post(`/api/tariffs/assign-monthly-tariff`, data);
+};
