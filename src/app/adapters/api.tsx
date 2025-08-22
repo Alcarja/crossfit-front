@@ -1,4 +1,5 @@
 import stpApi from "@/utils/stp-api";
+import { SaveWeekPayload } from "../queries/schedule";
 
 // 🧑‍💻 Auth
 export const register = async (userData: {
@@ -285,11 +286,7 @@ export const getClassesByDay = async (date: string) => {
   });
 };
 
-export const saveWeek = async (data: {
-  startDate: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  classes: any;
-}) => {
+export const saveWeek = async (data: SaveWeekPayload) => {
   return await stpApi.put("/api/schedule/week", data);
 };
 
@@ -358,3 +355,26 @@ export const updateMonthlyTariff = (
     maxPerDay?: number | null;
   }
 ) => stpApi.put(`/api/tariffs/update-monthly-tariff/${id}`, data);
+
+export const getAllBonoTariffs = async () => {
+  return await stpApi.get(`/api/tariffs/get-all-bono-tariffs`);
+};
+
+export const createBonoTariff = async (data: {
+  name: string;
+  price: number;
+  isActive: boolean;
+  creditQty: number;
+}) => {
+  return await stpApi.post(`/api/tariffs/create-bono-tariff`, data);
+};
+
+export const updatebonoTariff = (
+  id: number,
+  data: {
+    name?: string;
+    price?: number;
+    isActive?: boolean;
+    creditQty?: number | null;
+  }
+) => stpApi.put(`/api/tariffs/update-bono-tariff/${id}`, data);

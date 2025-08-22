@@ -63,8 +63,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  useAllBonoTariffs,
   useAllMonthlyTariffs,
+  useCreateBonoTariff,
   useCreateMonthlyTariff,
+  useUpdateBonoTariff,
   useUpdateMonthlyTariff,
 } from "@/app/queries/tariffs";
 import { toast } from "sonner";
@@ -79,20 +82,15 @@ export const createTariffFormSchema = z.object({
   isActive: z.boolean(),
 });
 
+export const createBonoFormSchema = z.object({
+  name: z.string().min(2, "El nombre es obligatorio").max(50),
+  price: z.number().min(0, "Debe ser mayor o igual a 0"),
+  creditQty: z.number().int().positive().nullable(),
+  isActive: z.boolean(),
+});
+
 export type CreateTariffFormValues = z.infer<typeof createTariffFormSchema>;
-
-// Mock data
-
-const MOCK_BONOS = [
-  {
-    id: 11,
-    name: "Bono 10",
-    tipo: "bono",
-    price: 90,
-    creditQty: 10,
-    active: true,
-  },
-];
+export type CreateBonoFormValues = z.infer<typeof createBonoFormSchema>;
 
 type Tariff = {
   id: number;
@@ -100,6 +98,14 @@ type Tariff = {
   price: string;
   creditQty: number | null;
   maxPerDay: number | null;
+  isActive: boolean;
+};
+
+type Bono = {
+  id: number;
+  name: string;
+  price: string;
+  creditQty: number | null;
   isActive: boolean;
 };
 
@@ -139,17 +145,53 @@ const TariffRowActions: React.FC<TariffRowActionsProps> = ({
   </DropdownMenu>
 );
 
+type BonoRowActionsProps = {
+  bono: Bono;
+  onOpen?: (bono: Bono) => void;
+  onEdit?: (bono: Bono) => void;
+  onDelete?: (bono: Bono) => void;
+};
+
+const BonoRowActions: React.FC<BonoRowActionsProps> = ({
+  bono,
+  onOpen,
+  onEdit,
+  onDelete,
+}) => (
+  <DropdownMenu onOpenChange={(open) => open && onOpen?.(bono)}>
+    <DropdownMenuTrigger asChild>
+      <Button variant="ghost" size="icon" className="w-auto">
+        <MoreVertical className="h-4 w-4" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className="gap-2" onClick={() => onEdit?.(bono)}>
+        <Edit className="h-4 w-4" /> Editar
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="gap-2 text-red-600 focus:text-red-600"
+        onClick={() => onDelete?.(bono)}
+      >
+        <Trash2 className="h-4 w-4" /> Eliminar
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
+
 const PlansTab = () => {
   const queryClient = useQueryClient();
 
   const [selectedTariff, setSelectedTariff] = useState<Tariff | null>(null);
+  const [selectedBono, setSelectedBono] = useState<Bono | null>(null);
 
   const [openCreateNewTariff, setOpenCreateNewTariff] = useState(false);
   const [openEditTariff, setOpenEditTariff] = useState(false);
 
-  useEffect(() => {
-    console.log("selected tariff id", selectedTariff);
-  }, [selectedTariff]);
+  const [openCreateNewBono, setOpenCreateNewBono] = useState(false);
+  const [openEditBono, setOpenEditBono] = useState(false);
 
   const form = useForm<CreateTariffFormValues>({
     resolver: zodResolver(createTariffFormSchema),
@@ -175,6 +217,26 @@ const PlansTab = () => {
     },
   });
 
+  const bonoForm = useForm<CreateBonoFormValues>({
+    resolver: zodResolver(createBonoFormSchema),
+    defaultValues: {
+      name: "",
+      price: 0,
+      creditQty: 0, // ✅ match schema
+      isActive: true,
+    },
+  });
+
+  const editBonoForm = useForm<CreateBonoFormValues>({
+    resolver: zodResolver(createBonoFormSchema),
+    defaultValues: {
+      name: "",
+      price: 0,
+      creditQty: 0,
+      isActive: true,
+    },
+  });
+
   useEffect(() => {
     if (!selectedTariff) return;
 
@@ -191,6 +253,16 @@ const PlansTab = () => {
       isActive: selectedTariff.isActive,
     });
   }, [selectedTariff, editForm]);
+
+  useEffect(() => {
+    if (!selectedBono) return;
+    editBonoForm.reset({
+      name: selectedBono.name,
+      price: Number(selectedBono.price),
+      creditQty: selectedBono.creditQty,
+      isActive: selectedBono.isActive,
+    });
+  }, [selectedBono, editBonoForm]);
 
   const { mutate } = useCreateMonthlyTariff();
 
@@ -282,7 +354,62 @@ const PlansTab = () => {
     }
   }, [limitType]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const { mutate: mutateBono } = useCreateBonoTariff();
+
+  function onSubmiCreateBono(values: CreateBonoFormValues) {
+    mutateBono(
+      {
+        name: values.name,
+        price: values.price,
+        isActive: values.isActive,
+        creditQty: values.creditQty || 0,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["allBonoTariffs"] });
+          toast.success("New bono saved!");
+          form.reset();
+          setOpenCreateNewBono(false);
+        },
+        onError: () => {
+          console.error("Error creating new bono");
+          toast.error("Error creating new bono");
+        },
+      }
+    );
+  }
+
+  const { mutate: mutateUpdateBonoTariff } = useUpdateBonoTariff();
+
+  function onSubmitEditBonoForm(values: CreateBonoFormValues) {
+    if (!selectedBono) return; // ensure you have one selected
+
+    const data = {
+      name: values.name,
+      price: values.price,
+      isActive: values.isActive,
+      creditQty: values.creditQty,
+    };
+
+    mutateUpdateBonoTariff(
+      { id: selectedBono.id, data },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["allBonoTariffs"] });
+          toast.success("Bono actualizado");
+          editForm.reset(); // ✅ reset the EDIT form
+          setOpenEditBono(false); // ✅ close the EDIT dialog
+        },
+        onError: () => {
+          toast.error("Error actualizando bono");
+        },
+      }
+    );
+  }
+
   const { data: allMonthlyTariffs } = useAllMonthlyTariffs();
+
+  const { data: allBonoTariffs } = useAllBonoTariffs();
 
   return (
     <div className="grid gap-6">
@@ -741,7 +868,9 @@ const PlansTab = () => {
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit">Guardar cambios</Button>
+                  <Button className="w-auto" type="submit">
+                    Guardar cambios
+                  </Button>
                 </div>
               </form>
             </Form>
@@ -769,9 +898,128 @@ const PlansTab = () => {
 
           {/* Botones */}
           <div className="flex items-center gap-2">
-            <Button onClick={() => {}} className="gap-2 w-auto">
-              <Plus className="h-4 w-4" /> Añadir Bono
-            </Button>
+            <Dialog
+              open={openCreateNewBono}
+              onOpenChange={setOpenCreateNewBono}
+            >
+              <DialogTrigger asChild>
+                <Button className="gap-2 w-auto">
+                  <Plus className="h-4 w-4" /> Añadir Bono
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Crear nuevo bono</DialogTitle>
+                  <DialogDescription>
+                    Define nombre, precio y créditos mensuales.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...bonoForm}>
+                  <form
+                    onSubmit={bonoForm.handleSubmit(onSubmiCreateBono)}
+                    className="space-y-4"
+                  >
+                    {/* Nombre */}
+                    <FormField
+                      control={bonoForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <FormLabel>Nombre</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Bono 13 clases" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Precio */}
+                    <FormField
+                      control={bonoForm.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <FormLabel>Precio (€)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              value={
+                                Number.isNaN(field.value as any)
+                                  ? 0
+                                  : field.value
+                              }
+                              onChange={(e) =>
+                                field.onChange(Number(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={bonoForm.control}
+                      name="creditQty"
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <FormLabel>Créditos mensuales</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={field.value === null ? "" : field.value}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value === ""
+                                    ? null
+                                    : Number(e.target.value)
+                                )
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Activa */}
+                    <FormField
+                      control={bonoForm.control}
+                      name="isActive"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Activa</FormLabel>
+                            <div className="text-xs text-muted-foreground">
+                              Si está desactivada, no aparecerá para asignar a
+                              atletas.
+                            </div>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              aria-label="Activar tarifa"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Submit */}
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button type="submit">Crear bono</Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+
             <Button variant="outline" size="icon" title="Refrescar">
               <RefreshCcw className="h-4 w-4" />
             </Button>
@@ -789,27 +1037,164 @@ const PlansTab = () => {
                 <TableHead className="w-1/5 text-center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {MOCK_BONOS.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell className="w-1/5">{b.name}</TableCell>
+              {allBonoTariffs?.tariffs?.map((t: any) => (
+                <TableRow key={t.id}>
+                  <TableCell className="w-1/5">{t.name}</TableCell>
+
                   <TableCell className="w-1/5 text-center tabular-nums">
-                    {b.creditQty}
+                    {t.maxPerDay !== null && t.maxPerDay !== undefined
+                      ? `${t.maxPerDay} / día`
+                      : t.creditQty ?? "—"}
                   </TableCell>
                   <TableCell className="w-1/5 text-right tabular-nums">
-                    {b.price} €
+                    {t.price} €
                   </TableCell>
                   <TableCell className="w-1/5 text-center">
-                    <Badge>{b.active ? "Activo" : "Inactivo"}</Badge>
+                    <Badge variant={t.isActive ? "green" : "gray"}>
+                      {t.isActive ? "Activa" : "Inactiva"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="w-1/5 text-center">
-                    {/* <TariffRowActions /> */}
+                    <BonoRowActions
+                      bono={t}
+                      onOpen={(bono) => setSelectedBono(bono)}
+                      onEdit={(bono) => {
+                        setSelectedBono(bono);
+                        setOpenEditBono(true); // ✅ open bono edit
+                      }}
+                      onDelete={(bono) => {
+                        setSelectedBono(bono);
+                        // open delete confirm…
+                      }}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </ScrollArea>
+        <Dialog open={openEditBono} onOpenChange={setOpenEditBono}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar bono</DialogTitle>
+              <DialogDescription>
+                Actualiza nombre, precio y límites del bono seleccionado.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...editBonoForm}>
+              <form
+                onSubmit={editBonoForm.handleSubmit(onSubmitEditBonoForm)}
+                className="space-y-4"
+              >
+                {/* Nombre */}
+                <FormField
+                  control={editBonoForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel>Nombre</FormLabel>
+                      <FormControl>
+                        <Input placeholder="8 clases" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Precio */}
+                <FormField
+                  control={editBonoForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel>Precio (€)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={
+                            Number.isNaN(field.value as any) ? 0 : field.value
+                          }
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editBonoForm.control}
+                  name="creditQty"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel>Créditos mensuales</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={field.value === null ? "" : field.value}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value)
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Activa */}
+                <FormField
+                  control={editBonoForm.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Activa</FormLabel>
+                        <div className="text-xs text-muted-foreground">
+                          Si está desactivado, no aparecerá para asignar a
+                          atletas.
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          aria-label="Activar bono"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpenEditBono(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button className="w-auto" type="submit">
+                    Guardar cambios
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </Section>
     </div>
   );

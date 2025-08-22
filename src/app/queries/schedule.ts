@@ -44,9 +44,26 @@ export const classesByDayQueryOptions = (date: string) => ({
   enabled: !!date, // only run if date is provided
 });
 
+export type SaveWeekPayload = {
+  startDate: string;
+  classes: {
+    id?: string; // server id when editing
+    dateISO: string;
+    startTime: string;
+    endTime: string;
+    name: string;
+    type: string;
+    zoneName?: string | null;
+    coachId?: number | null;
+    capacity: number;
+  }[];
+  affectedDates?: string[];
+  deletedIds?: string[];
+};
+
 export const useSaveWeek = () =>
   useMutation({
-    mutationFn: (data: { startDate: string; classes: any[] }) => saveWeek(data),
+    mutationFn: (data: SaveWeekPayload) => saveWeek(data),
   });
 
 export const useEnrollInClass = () =>

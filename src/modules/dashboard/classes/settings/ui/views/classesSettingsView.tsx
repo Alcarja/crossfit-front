@@ -160,21 +160,49 @@ export default function ClassesSettingsView() {
     }));
   };
 
+  const isoLocal = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   //Copies the classes from the schedule and adds them to the calendar
   const generateWeekFromStructure = () => {
-    const cloned: WeekInstance[] = templateRows.map((t) => ({
-      id: `inst-${uuidv4()}`,
-      date: iso(addDays(weekStart, t.dayOfWeek - 1)),
-      name: t.name,
-      type: t.type,
-      startTime: t.startTime,
-      endTime: t.endTime,
-      capacity: t.capacity,
-      enrolled: 0,
-      coach: t.coach,
-      zone: t.zone,
-    }));
-    setWeeksByKey((prev) => ({ ...prev, [wkKey]: cloned }));
+    const todayISO = isoLocal(new Date());
+
+    const clones: WeekInstance[] = templateRows
+      .map((t) => {
+        // Your TemplateRow.dayOfWeek is 1..7 (Mon..Sun)
+        const dateISO = isoLocal(addDays(weekStart, (t.dayOfWeek ?? 1) - 1));
+        return { t, dateISO };
+      })
+      .filter(({ dateISO }) => dateISO > todayISO) // strictly FUTURE (exclude today)
+      .map(({ t, dateISO }) => ({
+        id: `inst-${uuidv4()}`,
+        date: dateISO,
+        name: t.name,
+        type: t.type,
+        startTime: t.startTime,
+        endTime: t.endTime,
+        capacity: t.capacity,
+        enrolled: 0,
+        coach: t.coach,
+        zone: t.zone,
+      }));
+
+    // Merge into current week; skip duplicates by (date|startTime|type)
+    setWeeksByKey((prev) => {
+      const existing = prev[wkKey] ?? [];
+      const keyOf = (x: WeekInstance) => `${x.date}|${x.startTime}|${x.type}`;
+      const existingKeys = new Set(existing.map(keyOf));
+      return {
+        ...prev,
+        [wkKey]: [
+          ...existing,
+          ...clones.filter((c) => !existingKeys.has(keyOf(c))),
+        ],
+      };
+    });
   };
 
   return (

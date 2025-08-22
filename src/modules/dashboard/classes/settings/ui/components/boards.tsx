@@ -20,7 +20,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { classPalette } from "./constants";
-import { hh, iso, parseHour } from "./utils";
+import { hh, parseHour } from "./utils";
 import {
   DraggableClass,
   PaletteItemStatic,
@@ -442,6 +442,14 @@ export function StructureBoard({
   );
 }
 
+const iso = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+import { useRef } from "react";
 /* --------- Week Board (dated) --------- */
 export function WeekBoard({
   isSmall,
@@ -504,6 +512,8 @@ export function WeekBoard({
   setSelectedDate: (fn: (d: Date) => Date) => void;
   isoFn?: (d: Date) => string;
 }) {
+  const initialIdsRef = useRef<Record<string, string[]>>({});
+
   const [activeItem, setActiveItem] = useState<any | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickSlot, setQuickSlot] = useState<{
@@ -558,22 +568,37 @@ export function WeekBoard({
     }
   };
 
-  const mondayISO = selectedDate.toISOString().slice(0, 10);
+  //const mondayISO = selectedDate.toISOString().slice(0, 10);
+  const mondayISO = isoFn(selectedDate);
 
   // ---- Load week if it exists ----
   const { data: weekResp } = useGetWeek(mondayISO);
+
   useEffect(() => {
-    // payload can be res or res.data depending on your adapter; support both
+    console.log("Week resp", weekResp);
+  }, [weekResp]);
+
+  useEffect(() => {
     const payload =
       (weekResp as any)?.instances ?? (weekResp as any)?.data?.instances;
     if (!payload) return;
 
-    // Map API -> WeekInstance[] for this wkKey only
+    // baseline ids per date (only persisted rows have id)
+    initialIdsRef.current = payload.reduce(
+      (acc: Record<string, string[]>, c: any) => {
+        const d = c.date; // "YYYY-MM-DD"
+        (acc[d] ||= []).push(String(c.id));
+        return acc;
+      },
+      {}
+    );
+
+    // your existing mapping:
     const mapped: WeekInstance[] = payload.map((c: any) => ({
-      id: String(c.id),
-      date: c.date, // "YYYY-MM-DD"
-      startTime: c.startTime, // "HH:MM"
-      endTime: c.endTime, // "HH:MM"
+      id: String(c.id), // keep server id
+      date: c.date,
+      startTime: c.startTime,
+      endTime: c.endTime,
       name: c.name,
       type: c.type,
       zone: c.zoneName ?? "",
@@ -597,17 +622,35 @@ export function WeekBoard({
     ).padStart(2, "0")}`;
   };
 
-  const handleSaveWeek = () => {
-    const mondayISO = selectedDate.toISOString().slice(0, 10);
-    const visibleDates = new Set(days.map((d) => isoFn(d)));
+  const isoLocal = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
+  const isServerId = (id: string) => !!id && !id.startsWith("inst-");
+
+  const handleSaveWeek = () => {
+    const mondayISO = isoFn(selectedDate); // Monday of selected week (YYYY-MM-DD)
+    const weekDates = days.map((d) => isoFn(d)); // all 7 dates in the grid
+    const todayISO = isoLocal(new Date());
+
+    // Keep this: backend's fallback diff (if used) only deletes today+
+    const affectedDates = weekDates.filter((d) => d >= todayISO);
+
+    const toHHMMSS = (s: string) => (s.length === 5 ? `${s}:00` : s);
+
+    // Include DB id as string when present; omit for new (inst-xxx) rows
     const classes = weekInstances
-      .filter((it) => visibleDates.has(it.date))
+      .filter((it) => weekDates.includes(it.date))
       .map((it) => ({
+        id: isServerId(it.id) ? it.id : undefined,
         dateISO: it.date,
-        startTime: it.startTime,
-        endTime:
-          it.endTime ?? addMinutes(it.startTime, (it as any).duration ?? 60),
+        startTime: toHHMMSS(it.startTime),
+        endTime: toHHMMSS(
+          it.endTime ?? addMinutes(it.startTime, (it as any).duration ?? 60)
+        ),
         name: it.name,
         type: it.type,
         zoneName: it.zone ?? null,
@@ -615,16 +658,48 @@ export function WeekBoard({
         capacity: it.capacity,
       }));
 
+    // Build current ids per date (ONLY server rows with real ids)
+    const currentIdsByDate = weekInstances.reduce(
+      (acc: Record<string, Set<string>>, it) => {
+        if (!weekDates.includes(it.date)) return acc;
+        if (isServerId(it.id)) {
+          (acc[it.date] ||= new Set()).add(it.id); // keep as string
+        }
+        return acc;
+      },
+      {}
+    );
+
+    // ✅ EXPLICIT deletions must consider ALL week days (past + today + future)
+    const deletionDates = weekDates;
+
+    // deletedIds = baseline ids - current ids, over ALL week dates
+    const deletedIds: string[] = [];
+    for (const date of deletionDates) {
+      const before = new Set(initialIdsRef.current[date] ?? []); // baseline strings
+      const now = currentIdsByDate[date] ?? new Set<string>();
+      for (const id of before) {
+        if (!now.has(id)) deletedIds.push(id);
+      }
+    }
+
     saveWeekMutation.mutate(
-      { startDate: mondayISO, classes },
+      { startDate: mondayISO, affectedDates, classes, deletedIds },
       {
         onSuccess: () => {
           toast.success("Semana guardada!");
           queryClient.invalidateQueries({ queryKey: ["week", mondayISO] });
+
+          // refresh baseline after success to the new current set
+          initialIdsRef.current = Object.fromEntries(
+            weekDates.map((d) => [
+              d,
+              Array.from(currentIdsByDate[d] ?? new Set()),
+            ])
+          );
         },
         onError: (e: any) => {
-          // Our StpApi throws { status, data, message }
-          if (e?.status === 409) {
+          if (e?.status === 409 || e?.code === "DUPLICATE_CLASS_SAME_HOUR") {
             toast.error(
               "No puedes registrar la misma clase dos veces en la misma hora"
             );
