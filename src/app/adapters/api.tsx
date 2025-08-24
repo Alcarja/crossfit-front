@@ -337,6 +337,18 @@ export const createMonthlyTariff = async (data: {
   isActive: boolean;
   creditQty: number | null;
   maxPerDay: number | null;
+  weeklyRules?: {
+    classType:
+      | "WOD"
+      | "Gymnastics"
+      | "Weightlifting"
+      | "Endurance"
+      | "Open Box"
+      | "Foundations"
+      | "Kids";
+    isAllowed: boolean;
+    maxPerWeek: number | null;
+  }[];
 }) => {
   return await stpApi.post(`/api/tariffs/create-monthly-tariff`, data);
 };

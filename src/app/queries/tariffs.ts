@@ -8,6 +8,7 @@ import {
   updatebonoTariff,
   updateMonthlyTariff,
 } from "../adapters/api";
+import { ClassType } from "@/modules/dashboard/classes/tariffs/ui/components/plansTab";
 
 export const useCreateMonthlyTariff = () =>
   useMutation({
@@ -17,6 +18,18 @@ export const useCreateMonthlyTariff = () =>
       isActive: boolean;
       creditQty: number | null;
       maxPerDay: number | null;
+      weeklyRules?: {
+        classType:
+          | "WOD"
+          | "Gymnastics"
+          | "Weightlifting"
+          | "Endurance"
+          | "Open Box"
+          | "Foundations"
+          | "Kids";
+        isAllowed: boolean;
+        maxPerWeek: number | null;
+      }[];
     }) => createMonthlyTariff(data),
   });
 
@@ -39,6 +52,11 @@ export const useUpdateMonthlyTariff = () =>
         isActive?: boolean;
         creditQty?: number | null;
         maxPerDay?: number | null;
+        weeklyRules?: {
+          classType: ClassType;
+          isAllowed: boolean;
+          maxPerWeek: number | null;
+        }[]; // authoritative list
       };
     }) => updateMonthlyTariff(id, data),
   });
