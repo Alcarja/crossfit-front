@@ -5,7 +5,6 @@ import {
   Filter,
   MoreVertical,
   Plus,
-  RefreshCcw,
   Search,
   Tag,
   TicketPercent,
@@ -104,7 +103,7 @@ export type HasWeeklyRules = { weeklyRules: WeeklyRule[] };
 const WeeklyRuleSchema = z.object({
   classType: z.enum(CLASS_TYPES),
   allowed: z.boolean(),
-  maxPerWeek: z.number().int().positive().nullable().optional(),
+  maxPerWeek: z.number().int().positive().nullable(),
 });
 
 export const createTariffFormSchema = z.object({
@@ -284,7 +283,7 @@ function WeeklyRulesBlock({ form }: { form: UseFormReturn<HasWeeklyRules> }) {
                         )
                       }
                       aria-label="Límite semanal"
-                      className="h-8 w-24 text-[13px]"
+                      className="h-8 w-[110px] text-[13px]"
                     />
                   ) : (
                     <div className="h-8 w-24" aria-hidden />
@@ -498,6 +497,36 @@ const PlansTab = () => {
     defaultValues: { name: "", price: 0, creditQty: 0, isActive: true },
   });
 
+  const DEFAULT_MONTHLY_VALUES: CreateTariffFormValues = {
+    name: "",
+    price: 0,
+    limitType: "unlimited",
+    creditQty: null,
+    maxPerDay: null,
+    isActive: true,
+    weeklyRules: buildDefaultWeeklyRules(),
+  };
+
+  function resetCreateMonthlyUI() {
+    // fresh weeklyRules array each time
+    const fresh = {
+      ...DEFAULT_MONTHLY_VALUES,
+      weeklyRules: buildDefaultWeeklyRules(),
+    };
+    form.reset(fresh, { keepDirty: false, keepErrors: false });
+    setShowLimits(false);
+  }
+
+  function resetEditMonthlyUI() {
+    const fresh = {
+      ...DEFAULT_MONTHLY_VALUES,
+      weeklyRules: buildDefaultWeeklyRules(),
+    };
+    editForm.reset(fresh, { keepDirty: false, keepErrors: false });
+    setShowLimitsEdit(false);
+    setSelectedTariff(null); // avoids stale selection on next open
+  }
+
   /* ── Effects: hydrate edit forms ─────────────────────────────────────── */
 
   useEffect(() => {
@@ -710,7 +739,10 @@ const PlansTab = () => {
           <div className="flex items-center gap-2">
             <Dialog
               open={openCreateNewTariff}
-              onOpenChange={setOpenCreateNewTariff}
+              onOpenChange={(open) => {
+                setOpenCreateNewTariff(open);
+                if (!open) resetCreateMonthlyUI(); // <- close -> reset + hide limits
+              }}
             >
               <DialogTrigger asChild>
                 <Button className="gap-2 w-auto">
@@ -826,9 +858,9 @@ const PlansTab = () => {
               </DialogContent>
             </Dialog>
 
-            <Button variant="outline" size="icon" title="Refrescar">
+            {/*  <Button variant="outline" size="icon" title="Refrescar">
               <RefreshCcw className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -948,7 +980,14 @@ const PlansTab = () => {
         </ScrollArea>
 
         {/* Edit Monthly Dialog */}
-        <Dialog open={openEditTariff} onOpenChange={setOpenEditTariff}>
+        <Dialog
+          open={openEditTariff}
+          onOpenChange={(open) => {
+            setOpenEditTariff(open);
+            if (!open) resetEditMonthlyUI(); // <- close -> reset + hide limits
+          }}
+        >
+          {" "}
           <DialogContent className="h-auto max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Editar tarifa</DialogTitle>
@@ -1205,9 +1244,9 @@ const PlansTab = () => {
               </DialogContent>
             </Dialog>
 
-            <Button variant="outline" size="icon" title="Refrescar">
+            {/*  <Button variant="outline" size="icon" title="Refrescar">
               <RefreshCcw className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </div>
         </div>
 
