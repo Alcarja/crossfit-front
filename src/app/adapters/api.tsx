@@ -401,3 +401,15 @@ export const assignMonthlyTariff = async (data: {
 }) => {
   return await stpApi.post(`/api/tariffs/assign-monthly-tariff`, data);
 };
+
+export const getAllActiveMonthlyUserTariffs = async () => {
+  return await stpApi.get(`/api/tariffs/get-all-active-monthly-user-tariffs`);
+};
+
+export const getUserTariffHistory = async (userId: number) => {
+  return await stpApi.get(`/api/tariffs/get-user-tariff-history/${userId}`);
+};
+
+export const getUserFutureTariffs = async (userId: number) => {
+  return await stpApi.get(`/api/tariffs/get-user-future-tariffs/${userId}`);
+};

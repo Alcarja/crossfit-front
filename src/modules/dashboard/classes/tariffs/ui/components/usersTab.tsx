@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import Section from "./section";
 
-import TariffsTab from "./usersTabs/tariffsTab";
+import TariffsTab from "./usersTabs/usersTariffsTab";
 
 const MOCK_USERS_BONOS = [
   {

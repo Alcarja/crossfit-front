@@ -3,8 +3,11 @@ import {
   assignMonthlyTariff,
   createBonoTariff,
   createMonthlyTariff,
+  getAllActiveMonthlyUserTariffs,
   getAllBonoTariffs,
   getAllMonthlyTariffs,
+  getUserFutureTariffs,
+  getUserTariffHistory,
   updatebonoTariff,
   updateMonthlyTariff,
 } from "../adapters/api";
@@ -103,4 +106,24 @@ export const useAssignMonthlyTariff = () =>
       remainingCredits?: number;
       note?: string;
     }) => assignMonthlyTariff(data),
+  });
+
+export const useAllActiveMonthlyUserTariffs = () =>
+  useQuery({
+    queryKey: ["allActiveMonthlyUserTariffs"],
+    queryFn: getAllActiveMonthlyUserTariffs,
+  });
+
+export const useUserTariffHistory = (userId: number) =>
+  useQuery({
+    queryKey: ["userTariffHistory", userId],
+    queryFn: () => getUserTariffHistory(userId),
+    enabled: !!userId, // only run if userId is defined
+  });
+
+export const useUserFutureTariffs = (userId: number) =>
+  useQuery({
+    enabled: !!userId,
+    queryKey: ["userFutureTariffs", userId],
+    queryFn: () => getUserFutureTariffs(userId),
   });
