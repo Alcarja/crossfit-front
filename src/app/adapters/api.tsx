@@ -413,3 +413,28 @@ export const getUserTariffHistory = async (userId: number) => {
 export const getUserFutureTariffs = async (userId: number) => {
   return await stpApi.get(`/api/tariffs/get-user-future-tariffs/${userId}`);
 };
+
+export const updateUserMonthlyTariff = (
+  tariffId: number,
+  data: {
+    userId: number;
+    planId?: number;
+    startsOn?: string; // "YYYY-MM-DD"
+    customExpiresOn?: string | null; // "YYYY-MM-DD" | null
+    note?: string | null;
+    remainingCredits?: number | null;
+  }
+) => stpApi.put(`/api/tariffs/update-user-monthly-tariff/${tariffId}`, data);
+
+export const upgradeUserTariff = (
+  tariffId: number,
+  data: {
+    userId: number;
+    toPlanId: number;
+    commissionPct?: number;
+    commissionCents?: number;
+    creditMode?: "keep" | "resetToNewCap" | "addPlanDiff";
+    prorate?: boolean;
+    note?: string | null;
+  }
+) => stpApi.post(`/api/tariffs/upgrade-tariff/${tariffId}`, data);

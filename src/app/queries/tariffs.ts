@@ -10,6 +10,8 @@ import {
   getUserTariffHistory,
   updatebonoTariff,
   updateMonthlyTariff,
+  updateUserMonthlyTariff,
+  upgradeUserTariff,
 } from "../adapters/api";
 import { ClassType } from "@/modules/dashboard/classes/tariffs/ui/components/plansTab";
 
@@ -126,4 +128,31 @@ export const useUserFutureTariffs = (userId: number) =>
     enabled: !!userId,
     queryKey: ["userFutureTariffs", userId],
     queryFn: () => getUserFutureTariffs(userId),
+  });
+
+export const useUpdateUserMonthlyTariff = () =>
+  useMutation({
+    mutationFn: (v: {
+      tariffId: number; // 👈 explicit
+      userId: number;
+      planId?: number;
+      startsOn?: string;
+      customExpiresOn?: string | null;
+      note?: string | null;
+      remainingCredits?: number | null;
+    }) => updateUserMonthlyTariff(v.tariffId, v),
+  });
+
+export const useUpgradeUserMonthlyTariff = () =>
+  useMutation({
+    mutationFn: (v: {
+      tariffId: number; // 👈 explicit
+      userId: number;
+      toPlanId: number;
+      commissionPct?: number;
+      commissionCents?: number;
+      creditMode?: "keep" | "resetToNewCap" | "addPlanDiff";
+      prorate?: boolean;
+      note?: string | null;
+    }) => upgradeUserTariff(v.tariffId, v),
   });

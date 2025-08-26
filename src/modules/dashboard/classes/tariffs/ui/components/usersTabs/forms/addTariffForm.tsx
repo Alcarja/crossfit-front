@@ -1,4 +1,4 @@
-import { Clock4, Ticket, CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { format, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { z } from "zod";
@@ -22,25 +22,39 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+
+const dateRangeSchema = z
+  .object({
+    from: z.date().optional(),
+    to: z.date().optional(),
+  })
+  .refine((r) => r.from && r.to, {
+    message: "Selecciona un periodo válido",
+    path: ["from"], // attach the error to something inside the object
+  })
+  .transform((r) => ({ from: r.from as Date, to: r.to as Date }));
 
 const addTariffFormSchema = z.object({
-  userId: z.string().min(1, "Selecciona un usuario"),
   planId: z.string().min(1, "Selecciona un plan"),
-  dateRange: z.object({
-    from: z.date(),
-    to: z.date(),
-  }),
+  dateRange: dateRangeSchema,
+  remainingCredits: z
+    .string()
+    .optional()
+    .refine((v) => v === undefined || v === "" || !Number.isNaN(Number(v)), {
+      message: "Debe ser un número",
+    }),
+  note: z.string().max(100).optional(),
 });
 
-type FormData = z.infer<typeof addTariffFormSchema>;
+type FormInput = z.input<typeof addTariffFormSchema>; // from?: Date; to?: Date
+type FormData = z.output<typeof addTariffFormSchema>;
 
 export function AddTariffForm({
-  userOptions,
   tariffOptions,
   bookedRanges,
   onSubmit,
 }: {
-  userOptions: { value: string; label: string }[];
   tariffOptions: {
     value: string;
     label: string;
@@ -50,15 +64,11 @@ export function AddTariffForm({
   bookedRanges: { from: Date; to: Date }[];
   onSubmit: (data: FormData) => void;
 }) {
-  const form = useForm<FormData>({
+  const form = useForm<FormInput>({
     resolver: zodResolver(addTariffFormSchema),
     defaultValues: {
-      userId: "",
       planId: "",
-      dateRange: {
-        from: undefined,
-        to: undefined,
-      },
+      dateRange: { from: undefined, to: undefined },
     },
   });
 
@@ -84,32 +94,17 @@ export function AddTariffForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-sm">
-      <div>
-        <Label>Usuario</Label>
-        <Select onValueChange={(val) => setValue("userId", val)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecciona un atleta" />
-          </SelectTrigger>
-          <SelectContent>
-            {userOptions.map((u) => (
-              <SelectItem key={u.value} value={u.value}>
-                {u.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.userId && (
-          <p className="text-xs text-destructive mt-1">
-            {errors.userId.message}
-          </p>
-        )}
-      </div>
-
+    <form
+      onSubmit={handleSubmit((values) => {
+        onSubmit(values as FormData);
+      })}
+      className="space-y-4 text-sm"
+    >
+      {" "}
       <div>
         <Label>Plan</Label>
         <Select onValueChange={(val) => setValue("planId", val)}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Selecciona un plan" />
           </SelectTrigger>
           <SelectContent>
@@ -126,9 +121,8 @@ export function AddTariffForm({
           </p>
         )}
       </div>
-
       <div>
-        <Label>Período</Label>
+        <Label>Periodo</Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -157,40 +151,63 @@ export function AddTariffForm({
             <Calendar
               locale={es}
               mode="range"
-              selected={dateRange}
-              onSelect={(range) => setValue("dateRange", range!)}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              selected={dateRange as any}
+              onSelect={(range) =>
+                setValue("dateRange", range as FormInput["dateRange"], {
+                  shouldValidate: true,
+                })
+              }
               disabled={(date) => isDateInRanges(date, bookedRanges)}
               numberOfMonths={2}
             />
           </PopoverContent>
         </Popover>
         {errors.dateRange && (
-          <p className="text-xs text-destructive mt-1">Período inválido</p>
+          <p className="text-xs text-destructive mt-1">Periodo inválido</p>
         )}
       </div>
-
-      {/* Optional Tariff Info */}
       {selectedPlan && selectedPlan.creditQty !== null && (
-        <Card className="border-muted/40 bg-muted/10">
-          <CardContent className="py-3 px-4 text-xs text-muted-foreground">
-            <p>
-              <Ticket className="inline w-3 h-3 mr-1 text-primary" />
-              <strong>Créditos:</strong> {selectedPlan.creditQty}
+        <div>
+          <Label>Reservas restantes</Label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            placeholder="0"
+            value={watch("remainingCredits") ?? ""}
+            onChange={(e) =>
+              setValue("remainingCredits", e.target.value, {
+                shouldValidate: true,
+              })
+            }
+            className="mt-1"
+          />
+          {errors.remainingCredits && (
+            <p className="text-xs text-destructive mt-1">
+              {errors.remainingCredits.message as string}
             </p>
-            {selectedPlan.maxPerDay && (
-              <p>
-                <Clock4 className="inline w-3 h-3 mr-1 text-primary" />
-                <strong>Máx por día:</strong> {selectedPlan.maxPerDay}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
-
+      {/* Notas */}
+      <div>
+        <Label>Notas</Label>
+        <Input
+          placeholder="Ej. Pagado en efectivo"
+          value={watch("note") ?? ""}
+          onChange={(e) => setValue("note", e.target.value)}
+          className="mt-1"
+        />
+        {errors.note && (
+          <p className="text-xs text-destructive mt-1">
+            {errors.note.message as string}
+          </p>
+        )}
+      </div>
       {bookedRanges?.length > 0 && (
         <Card className="bg-muted/30 border-muted/50">
           <CardContent className="text-xs py-3 text-muted-foreground space-y-1">
-            <p className="font-medium">Períodos ya ocupados:</p>
+            <p className="font-medium">Periodos ya ocupados:</p>
             <ul className="list-disc list-inside">
               {bookedRanges.map((r, i) => (
                 <li key={i}>
@@ -202,7 +219,6 @@ export function AddTariffForm({
           </CardContent>
         </Card>
       )}
-
       <Button type="submit" className="w-full">
         Asignar tarifa
       </Button>

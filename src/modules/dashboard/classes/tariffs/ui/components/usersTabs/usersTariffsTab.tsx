@@ -4,9 +4,14 @@
 import z from "zod";
 
 import {
+  ArrowUpRight,
   CalendarDays,
   CalendarIcon,
+  CircleDollarSign,
   Clock4,
+  GaugeCircle,
+  Hash,
+  Pencil,
   Plus,
   Search,
   StickyNote,
@@ -16,13 +21,14 @@ import {
 import Section from "../section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersQueryOptions } from "@/app/queries/users";
 import {
   useAllActiveMonthlyUserTariffs,
   useAllMonthlyTariffs,
   useAssignMonthlyTariff,
+  useUpdateUserMonthlyTariff,
   useUserFutureTariffs,
   useUserTariffHistory,
 } from "@/app/queries/tariffs";
@@ -86,6 +92,13 @@ import { Badge } from "@/components/ui/badge";
 import { getUserFutureTariffs, getUserTariffHistory } from "@/app/adapters/api";
 import { AddTariffForm } from "./forms/addTariffForm";
 import { EditTariffForm } from "./forms/editTariffForm";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { UpgradeTariffForm } from "./forms/upgradeTariffForm";
 
 const addTariffFormSchema = z.object({
   userId: z.number(),
@@ -199,10 +212,19 @@ const TariffsTab = () => {
     };
 
     assignTariff(payload, {
-      onSuccess: async () => {
+      onSuccess: async (_data, variables) => {
+        const uid = variables.userId; // comes from payload
+
         await queryClient.invalidateQueries({
           queryKey: ["allActiveMonthlyUserTariffs"],
         });
+        await queryClient.invalidateQueries({
+          queryKey: ["userTariffHistory", uid],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["userFutureTariffs", uid],
+        });
+
         toast.success("Tariff assigned to user!");
         setIsAddTariffDialogOpen(false);
         addTariffForm.reset();
@@ -268,23 +290,129 @@ const TariffsTab = () => {
     }));
   }
 
-  useEffect(() => {
-    console.log("Current Tariff", currentTariff);
-    console.log("Future Tariff", userFutureTariffs);
-  }, [userFutureTariffs, currentTariff]);
-
   const bookedRanges = calculateBookedRangesForUser(selectedUserId);
 
+  const { mutate: updateTariff } = useUpdateUserMonthlyTariff();
+
+  const toDateOnly = (d: Date | null | undefined) =>
+    d ? format(d, "yyyy-MM-dd") : null;
+
   const onSubmitEditTariffForm = (values: {
-    id: number;
     planId: number;
     startsOn: Date;
     customExpiresOn: Date | null;
     note?: string | null;
     remainingCredits?: number | null;
   }) => {
-    console.log("✅ EditTariffForm submitted values:", values);
+    const tariffId = Number(editingTariff.userTariff.id);
+    const userId = Number(editingTariff.userTariff.userId);
+
+    const payload = {
+      tariffId,
+      userId,
+      planId: values.planId,
+      startsOn: toDateOnly(values.startsOn)!, // ← now "2025-08-26"
+      customExpiresOn: toDateOnly(values.customExpiresOn), // ← now "2025-08-30"
+      note: values.note ?? null,
+      remainingCredits: values.remainingCredits ?? null,
+    };
+
+    updateTariff(payload, {
+      onSuccess: (_data, variables) => {
+        // Invalidate related queries
+        queryClient.invalidateQueries({
+          queryKey: ["userTariffHistory", variables.userId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["userFutureTariffs", variables.userId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["allActiveMonthlyUserTariffs"],
+        });
+      },
+      onError: (err) => console.error("❌ Error updating tariff:", err),
+    });
   };
+
+  const onSubmitAddTariffFromRightPane = (values: {
+    planId: string;
+    dateRange: { from: Date; to: Date };
+    remainingCredits?: string;
+    note?: string;
+  }) => {
+    const userId = Number(selectedUserId ?? currentTariff?.user?.id);
+    if (!userId) {
+      toast.error("Selecciona un atleta antes de asignar la tarifa");
+      return;
+    }
+
+    onSubmitAddTariffForm({
+      userId,
+      planId: Number(values.planId),
+      startsOn: values.dateRange.from,
+      customExpiresOn: values.dateRange.to,
+      remainingCredits: values.remainingCredits, // string -> Number() inside your handler
+      note: values.note,
+    } as any);
+  };
+
+  // --- Upgrade dialog state ---
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [upgradeFor, setUpgradeFor] = useState<any | null>(null);
+
+  // open from current tariff card (or any row)
+  function openUpgrade(tariff: any) {
+    setUpgradeFor(tariff); // { user, plan, userTariff }
+    setIsUpgradeOpen(true);
+  }
+
+  function submitUpgrade(values: {
+    toPlanId: string;
+    commissionPct?: number | null;
+    commissionAmount?: string | null;
+    note?: string | null;
+    paymentMethod: "card" | "cash";
+    pricing: {
+      currency: "eur";
+      baseDiffCents: number;
+      commissionCents: number;
+      totalCents: number;
+    };
+    meta: {
+      fromPlanId: number;
+      toPlanId: number;
+      userId: number;
+      userTariffId: number;
+    };
+  }) {
+    if (!upgradeFor) return;
+
+    const { commissionPct, commissionAmount, note, pricing, meta } = values;
+
+    const payload = {
+      tariffId: meta.userTariffId,
+      userId: meta.userId,
+      toPlanId: meta.toPlanId,
+      commissionPct:
+        commissionPct == null || commissionPct === 0
+          ? undefined
+          : Number(commissionPct),
+      commissionCents:
+        commissionAmount && commissionAmount.trim() !== ""
+          ? Math.round(Number(commissionAmount) * 100)
+          : undefined,
+      baseDiffCents: pricing.baseDiffCents,
+      totalCents: pricing.totalCents,
+      currency: pricing.currency,
+      note: note || undefined,
+      fromPlanId: meta.fromPlanId,
+      paymentMethod: values.paymentMethod,
+    };
+
+    console.log("Payload", payload);
+
+    // continue with upgradeTariff(payload)...
+  }
 
   return (
     <>
@@ -622,7 +750,7 @@ const TariffsTab = () => {
               Cancelar
             </Button>
             <Button type="submit" form="add-tariff-form">
-              Guardar
+              Asignar tarifa
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -675,6 +803,7 @@ const TariffsTab = () => {
                   <CurrentTariffCard
                     tariff={currentTariff}
                     onEdit={startEdit}
+                    onUpgrade={openUpgrade}
                   />
                 </section>
 
@@ -755,10 +884,9 @@ const TariffsTab = () => {
                   />
                 ) : (
                   <AddTariffForm
-                    userOptions={userOptions}
                     tariffOptions={tariffOptions}
                     bookedRanges={bookedRanges}
-                    onSubmit={() => {}}
+                    onSubmit={onSubmitAddTariffFromRightPane}
                   />
                 )}
               </div>
@@ -766,87 +894,174 @@ const TariffsTab = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Upgrade Tariff Dialog */}
+      <UpgradeTariffForm
+        open={isUpgradeOpen}
+        onOpenChange={(v) => {
+          setIsUpgradeOpen(v);
+          if (!v) setUpgradeFor(null);
+        }}
+        current={upgradeFor} // { user, plan, userTariff }
+        allPlans={allMonthlyTariffs?.tariffs ?? []} // from your query
+        onSubmit={submitUpgrade}
+      />
     </>
   );
 };
 
 export default TariffsTab;
 
-export const CurrentTariffCard = ({
-  tariff,
-  onEdit,
-}: {
-  tariff: any | null | undefined;
-  onEdit?: (tariff: any) => void;
-}) => {
+export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
   if (!tariff)
     return (
-      <Card className="text-sm text-muted-foreground">
-        <CardContent className="py-4 px-4">Sin tarifa activa.</CardContent>
+      <Card className="border bg-muted/10">
+        <CardContent className="p-3 text-xs text-muted-foreground">
+          Sin tarifa activa.
+        </CardContent>
       </Card>
     );
 
   const { plan, userTariff } = tariff;
 
+  console.log("Plan from current tariff card", plan);
+
+  const start = new Date(userTariff?.startsOn);
+  const end = new Date(userTariff?.expiresOn);
+  const sameMonth =
+    start.getMonth() === end.getMonth() &&
+    start.getFullYear() === end.getFullYear();
+  const rangeText = sameMonth
+    ? `${format(start, "d", { locale: es })}–${format(end, "d MMM", {
+        locale: es,
+      })}`
+    : `${format(start, "d MMM", { locale: es })} – ${format(end, "d MMM", {
+        locale: es,
+      })}`;
+  const credits =
+    userTariff?.remainingCredits != null
+      ? `${userTariff.remainingCredits}`
+      : "∞";
+
+  // Optional fields you might have on your plan object:
+  const maxPerDay = plan?.maxPerDay as number | undefined; // e.g. 1, 2, 3
+  const price = plan?.price as number | undefined; // e.g. 49.9
+  const tariffId = userTariff?.id as number | undefined;
+
   return (
-    <Card className="border bg-muted/10 px-5 py-6 text-xs text-muted-foreground">
-      <button
-        className="text-xs underline text-muted-foreground"
-        onClick={() => onEdit?.(tariff)} // ✅ use the prop; pass the current tariff
-      >
-        Editar
-      </button>
-      <CardContent className="p-0 space-y-2">
-        {/* Header Info */}
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-medium text-foreground">
-            {plan.name}
-          </span>
-          <Badge variant="green" className="text-[12px] px-2 py-0.5 capitalize">
-            {plan.type}
-          </Badge>
-        </div>
+    <TooltipProvider>
+      <Card className="border bg-card">
+        <CardContent className="py-2 px-6">
+          <div className="flex items-center gap-2">
+            {/* LEFT: title + metas */}
+            <div className="min-w-0 flex-1">
+              {/* Title line */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium text-foreground truncate">
+                  {plan.name}
+                </span>
+                <Badge
+                  variant="green"
+                  className="h-5 px-1.5 text-[10px] capitalize"
+                >
+                  {plan.type}
+                </Badge>
+                {userTariff?.note && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <StickyNote
+                        className="w-3.5 h-3.5 text-primary/90 shrink-0 cursor-help"
+                        aria-label="Ver nota"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      {userTariff.note}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
 
-        {/* Details Row */}
-        <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center md:gap-4">
-          <span className="flex items-center gap-1">
-            <CalendarDays className="w-3 h-3 text-primary" />
-            <span className="text-[15px]">
-              <strong>Inicio:</strong>{" "}
-              {format(new Date(userTariff?.startsOn), "dd MMM", { locale: es })}
-            </span>
-          </span>
+              {/* Meta row 1: date range · credits */}
+              <div className="mt-0.5 text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="inline-flex items-center gap-1.25">
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  {rangeText}
+                </span>
+                <span className="inline-flex items-center gap-1.25">
+                  <Ticket className="w-3.5 h-3.5" />
+                  {credits} créditos
+                </span>
+              </div>
 
-          <span className="flex items-center gap-1">
-            <Clock4 className="w-3 h-3 text-primary" />
-            <span className="text-[15px]">
-              <strong>Expira:</strong>{" "}
-              {format(new Date(userTariff?.expiresOn), "dd MMM", {
-                locale: es,
-              })}
-            </span>
-          </span>
+              {/* Meta row 2: max/day · price · tariff id (all conditional) */}
+              <div className="mt-0.5 text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+                {typeof maxPerDay === "number" && (
+                  <span className="inline-flex items-center gap-1.25">
+                    <GaugeCircle className="w-3.5 h-3.5" />
+                    Máx/día: {maxPerDay}
+                  </span>
+                )}
+                {typeof price === "number" && (
+                  <span className="inline-flex items-center gap-1.25">
+                    <CircleDollarSign className="w-3.5 h-3.5" />
+                    Base: {price.toFixed(2)}€
+                  </span>
+                )}
+                {typeof tariffId === "number" && (
+                  <span className="inline-flex items-center gap-1.25">
+                    <Hash className="w-3.5 h-3.5" />
+                    ID: {tariffId}
+                  </span>
+                )}
+              </div>
+            </div>
 
-          <span className="flex items-center gap-1">
-            <Ticket className="w-3 h-3 text-primary" />
-            <span className="text-[15px]">
-              <strong>Créditos:</strong>{" "}
-              {userTariff?.remainingCredits ?? "Ilimitados"}
-            </span>
-          </span>
-        </div>
+            {/* RIGHT: actions (icon + tooltips) */}
+            <div className="flex items-center gap-1.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="h-8 px-2.5 text-[12px] w-auto"
+                    onClick={() => onUpgrade?.(tariff)}
+                  >
+                    <ArrowUpRight className="w-4 h-4 mr-1.5" />
+                    Mejorar / Recargar
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  Cambia a un plan superior o añade créditos.
+                  <br />
+                  <strong>Las fechas no cambian</strong>; solo límites (créditos
+                  / máx por día).
+                  <br />
+                  Se cobra la diferencia + comisión.
+                </TooltipContent>
+              </Tooltip>
 
-        {/* Optional note */}
-        {userTariff?.note && (
-          <div className="flex items-center gap-1 mt-1">
-            <StickyNote className="w-3 h-3 text-primary" />
-            <span>
-              <strong>Nota:</strong> {userTariff?.note}
-            </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground"
+                    onClick={() => onEdit?.(tariff)}
+                    aria-label="Editar detalles de la tarifa"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  Edita detalles administrativos (nota, corrección de fechas,
+                  etc.).
+                  <br />
+                  Para más clases o cambiar de plan, usa “Mejorar / Recargar”.
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 };
 
@@ -987,15 +1202,6 @@ export function FutureTariffsList({
                   >
                     {t.plan.type}
                   </Badge>
-                  <div
-                    className="text-xs underline text-muted-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit?.(t);
-                    }} // pass the item
-                  >
-                    Editar
-                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -1025,6 +1231,28 @@ export function FutureTariffsList({
                     </span>
                   )}
                 </div>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit?.(t);
+                      }}
+                      aria-label="Editar detalles de la tarifa"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    Edita detalles administrativos (nota, corrección de fechas,
+                    etc.).
+                    <br />
+                    Para más clases o cambiar de plan, usa “Mejorar / Recargar”.
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </AccordionTrigger>
 
