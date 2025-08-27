@@ -107,6 +107,7 @@ const addTariffFormSchema = z.object({
   customExpiresOn: z.date().optional(),
   remainingCredits: z.string().min(1).max(15).optional(),
   note: z.string().max(100).optional(),
+  paymentMethod: z.string(),
 });
 
 const TariffsTab = () => {
@@ -124,6 +125,36 @@ const TariffsTab = () => {
   const { data: allMonthlyTariffs } = useAllMonthlyTariffs();
   const { data: allActiveMonthlyUserTariffs } =
     useAllActiveMonthlyUserTariffs();
+
+  const selectedUserId = selectedUserTariffInfo?.user?.id;
+
+  // Tariff history for the selected user
+  const {
+    data: userTariffHistory,
+    isLoading: isHistoryLoading,
+    error: historyError,
+  } = useUserTariffHistory(selectedUserId);
+
+  //Future tariffs for the selected user
+  const {
+    data: userFutureTariffs,
+    isLoading: isFutureLoading,
+    error: futureError,
+  } = useUserFutureTariffs(selectedUserId);
+
+  //Current tariffs for the selected user
+  const userTariffs =
+    allActiveMonthlyUserTariffs?.results?.filter(
+      (t: any) => t.user.id === selectedUserId
+    ) ?? [];
+
+  const today = new Date();
+
+  const currentTariff = userTariffs.find((t: any) => {
+    const start = new Date(t.userTariff.startsOn);
+    const end = new Date(t.userTariff.expiresOn);
+    return start <= today && end >= today;
+  });
 
   const rows =
     allActiveMonthlyUserTariffs?.results?.map((r: any) => ({
@@ -196,6 +227,8 @@ const TariffsTab = () => {
   const { mutate: assignTariff } = useAssignMonthlyTariff();
 
   function onSubmitAddTariffForm(values: z.infer<typeof addTariffFormSchema>) {
+    const paymentMethod = values.paymentMethod;
+
     const payload = {
       userId: values.userId,
       planId: values.planId,
@@ -209,60 +242,68 @@ const TariffsTab = () => {
           ? undefined
           : Number(values.remainingCredits),
       note: values.note || undefined,
+      paymentMethod: values.paymentMethod,
     };
 
-    assignTariff(payload, {
-      onSuccess: async (_data, variables) => {
-        const uid = variables.userId; // comes from payload
+    console.log("payload", payload);
 
-        await queryClient.invalidateQueries({
-          queryKey: ["allActiveMonthlyUserTariffs"],
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ["userTariffHistory", uid],
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ["userFutureTariffs", uid],
-        });
+    if (paymentMethod === "cash") {
+      assignTariff(payload, {
+        onSuccess: async (_data, variables) => {
+          const uid = variables.userId; // comes from payload
 
-        toast.success("Tariff assigned to user!");
-        setIsAddTariffDialogOpen(false);
-        addTariffForm.reset();
-      },
-      onError: (err) => {
-        console.error("assignMonthlyTariff failed:", err);
-        toast.error("Error assigning tariff to user");
-      },
-    });
+          await queryClient.invalidateQueries({
+            queryKey: ["allActiveMonthlyUserTariffs"],
+          });
+          await queryClient.invalidateQueries({
+            queryKey: ["userTariffHistory", uid],
+          });
+          await queryClient.invalidateQueries({
+            queryKey: ["userFutureTariffs", uid],
+          });
+
+          toast.success("Tariff assigned to user!");
+          setIsAddTariffDialogOpen(false);
+          addTariffForm.reset();
+        },
+        onError: (err) => {
+          console.error("assignMonthlyTariff failed:", err);
+          toast.error("Error assigning tariff to user");
+        },
+      });
+
+      //Generate invoice
+    }
+
+    if (paymentMethod === "card") {
+      console.log("start stripe process");
+    }
   }
 
-  const selectedUserId = selectedUserTariffInfo?.user?.id;
+  //Uses the same create function form above
+  const onSubmitAddTariffFromRightPane = (values: {
+    planId: string;
+    dateRange: { from: Date; to: Date };
+    remainingCredits?: string;
+    note?: string;
+    paymentMethod: string;
+  }) => {
+    const userId = Number(selectedUserId ?? currentTariff?.user?.id);
+    if (!userId) {
+      toast.error("Selecciona un atleta antes de asignar la tarifa");
+      return;
+    }
 
-  // History for the selected user (server)
-  const {
-    data: userTariffHistory,
-    isLoading: isHistoryLoading,
-    error: historyError,
-  } = useUserTariffHistory(selectedUserId);
-
-  const {
-    data: userFutureTariffs,
-    isLoading: isFutureLoading,
-    error: futureError,
-  } = useUserFutureTariffs(selectedUserId);
-
-  const userTariffs =
-    allActiveMonthlyUserTariffs?.results?.filter(
-      (t: any) => t.user.id === selectedUserId
-    ) ?? [];
-
-  const today = new Date();
-
-  const currentTariff = userTariffs.find((t: any) => {
-    const start = new Date(t.userTariff.startsOn);
-    const end = new Date(t.userTariff.expiresOn);
-    return start <= today && end >= today;
-  });
+    onSubmitAddTariffForm({
+      userId,
+      planId: Number(values.planId),
+      startsOn: values.dateRange.from,
+      customExpiresOn: values.dateRange.to,
+      remainingCredits: values.remainingCredits,
+      paymentMethod: values.paymentMethod,
+      note: values.note,
+    } as any);
+  };
 
   const [rightPaneMode, setRightPaneMode] = useState<"add" | "edit">("add");
   const [editingTariff, setEditingTariff] = useState<any | null>(null);
@@ -297,6 +338,7 @@ const TariffsTab = () => {
   const toDateOnly = (d: Date | null | undefined) =>
     d ? format(d, "yyyy-MM-dd") : null;
 
+  //Update user tariff from admin, without payment
   const onSubmitEditTariffForm = (values: {
     planId: number;
     startsOn: Date;
@@ -334,28 +376,6 @@ const TariffsTab = () => {
     });
   };
 
-  const onSubmitAddTariffFromRightPane = (values: {
-    planId: string;
-    dateRange: { from: Date; to: Date };
-    remainingCredits?: string;
-    note?: string;
-  }) => {
-    const userId = Number(selectedUserId ?? currentTariff?.user?.id);
-    if (!userId) {
-      toast.error("Selecciona un atleta antes de asignar la tarifa");
-      return;
-    }
-
-    onSubmitAddTariffForm({
-      userId,
-      planId: Number(values.planId),
-      startsOn: values.dateRange.from,
-      customExpiresOn: values.dateRange.to,
-      remainingCredits: values.remainingCredits, // string -> Number() inside your handler
-      note: values.note,
-    } as any);
-  };
-
   // --- Upgrade dialog state ---
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [upgradeFor, setUpgradeFor] = useState<any | null>(null);
@@ -366,6 +386,7 @@ const TariffsTab = () => {
     setIsUpgradeOpen(true);
   }
 
+  //Upgrade user tariff with payment
   function submitUpgrade(values: {
     toPlanId: string;
     commissionPct?: number | null;
@@ -387,7 +408,14 @@ const TariffsTab = () => {
   }) {
     if (!upgradeFor) return;
 
-    const { commissionPct, commissionAmount, note, pricing, meta } = values;
+    const {
+      commissionPct,
+      commissionAmount,
+      note,
+      pricing,
+      meta,
+      paymentMethod,
+    } = values;
 
     const payload = {
       tariffId: meta.userTariffId,
@@ -406,12 +434,19 @@ const TariffsTab = () => {
       currency: pricing.currency,
       note: note || undefined,
       fromPlanId: meta.fromPlanId,
-      paymentMethod: values.paymentMethod,
+      paymentMethod,
     };
 
     console.log("Payload", payload);
 
-    // continue with upgradeTariff(payload)...
+    if (paymentMethod === "cash") {
+      console.log("make changes to tariff");
+      console.log("generate invoice");
+    }
+
+    if (paymentMethod === "card") {
+      console.log("start stripe process");
+    }
   }
 
   return (

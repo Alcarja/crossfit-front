@@ -19,10 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
 
 const dateRangeSchema = z
   .object({
@@ -44,6 +51,7 @@ const addTariffFormSchema = z.object({
     .refine((v) => v === undefined || v === "" || !Number.isNaN(Number(v)), {
       message: "Debe ser un número",
     }),
+  paymentMethod: z.string(),
   note: z.string().max(100).optional(),
 });
 
@@ -69,6 +77,7 @@ export function AddTariffForm({
     defaultValues: {
       planId: "",
       dateRange: { from: undefined, to: undefined },
+      paymentMethod: "cash",
     },
   });
 
@@ -94,134 +103,155 @@ export function AddTariffForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit((values) => {
-        onSubmit(values as FormData);
-      })}
-      className="space-y-4 text-sm"
-    >
-      {" "}
-      <div>
-        <Label>Plan</Label>
-        <Select onValueChange={(val) => setValue("planId", val)}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selecciona un plan" />
-          </SelectTrigger>
-          <SelectContent>
-            {tariffOptions.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.planId && (
-          <p className="text-xs text-destructive mt-1">
-            {errors.planId.message}
-          </p>
-        )}
-      </div>
-      <div>
-        <Label>Periodo</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full justify-start text-left font-normal mt-1",
-                !dateRange?.from && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange?.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "dd MMM yyyy", { locale: es })} –{" "}
-                    {format(dateRange.to, "dd MMM yyyy", { locale: es })}
-                  </>
-                ) : (
-                  format(dateRange.from, "dd MMM yyyy", { locale: es })
-                )
-              ) : (
-                <span>Selecciona una fecha</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              locale={es}
-              mode="range"
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              selected={dateRange as any}
-              onSelect={(range) =>
-                setValue("dateRange", range as FormInput["dateRange"], {
-                  shouldValidate: true,
-                })
-              }
-              disabled={(date) => isDateInRanges(date, bookedRanges)}
-              numberOfMonths={2}
-            />
-          </PopoverContent>
-        </Popover>
-        {errors.dateRange && (
-          <p className="text-xs text-destructive mt-1">Periodo inválido</p>
-        )}
-      </div>
-      {selectedPlan && selectedPlan.creditQty !== null && (
+    <Form {...form}>
+      <form
+        onSubmit={handleSubmit((values) => {
+          onSubmit(values as FormData);
+        })}
+        className="space-y-4 text-sm"
+      >
+        {" "}
         <div>
-          <Label>Reservas restantes</Label>
-          <Input
-            type="number"
-            inputMode="numeric"
-            placeholder="0"
-            value={watch("remainingCredits") ?? ""}
-            onChange={(e) =>
-              setValue("remainingCredits", e.target.value, {
-                shouldValidate: true,
-              })
-            }
-            className="mt-1"
-          />
-          {errors.remainingCredits && (
+          <Label>Plan</Label>
+          <Select onValueChange={(val) => setValue("planId", val)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecciona un plan" />
+            </SelectTrigger>
+            <SelectContent>
+              {tariffOptions.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.planId && (
             <p className="text-xs text-destructive mt-1">
-              {errors.remainingCredits.message as string}
+              {errors.planId.message}
             </p>
           )}
         </div>
-      )}
-      {/* Notas */}
-      <div>
-        <Label>Notas</Label>
-        <Input
-          placeholder="Ej. Pagado en efectivo"
-          value={watch("note") ?? ""}
-          onChange={(e) => setValue("note", e.target.value)}
-          className="mt-1"
-        />
-        {errors.note && (
-          <p className="text-xs text-destructive mt-1">
-            {errors.note.message as string}
-          </p>
+        <div>
+          <Label>Periodo</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal mt-1",
+                  !dateRange?.from && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "dd MMM yyyy", { locale: es })} –{" "}
+                      {format(dateRange.to, "dd MMM yyyy", { locale: es })}
+                    </>
+                  ) : (
+                    format(dateRange.from, "dd MMM yyyy", { locale: es })
+                  )
+                ) : (
+                  <span>Selecciona una fecha</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                locale={es}
+                mode="range"
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                selected={dateRange as any}
+                onSelect={(range) =>
+                  setValue("dateRange", range as FormInput["dateRange"], {
+                    shouldValidate: true,
+                  })
+                }
+                disabled={(date) => isDateInRanges(date, bookedRanges)}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+          {errors.dateRange && (
+            <p className="text-xs text-destructive mt-1">Periodo inválido</p>
+          )}
+        </div>
+        {selectedPlan && selectedPlan.creditQty !== null && (
+          <div>
+            <Label>Reservas restantes</Label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              placeholder="0"
+              value={watch("remainingCredits") ?? ""}
+              onChange={(e) =>
+                setValue("remainingCredits", e.target.value, {
+                  shouldValidate: true,
+                })
+              }
+              className="mt-1"
+            />
+            {errors.remainingCredits && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.remainingCredits.message as string}
+              </p>
+            )}
+          </div>
         )}
-      </div>
-      {bookedRanges?.length > 0 && (
-        <Card className="bg-muted/30 border-muted/50">
-          <CardContent className="text-xs py-3 text-muted-foreground space-y-1">
-            <p className="font-medium">Periodos ya ocupados:</p>
-            <ul className="list-disc list-inside">
-              {bookedRanges.map((r, i) => (
-                <li key={i}>
-                  {format(r.from, "dd MMM", { locale: es })} –{" "}
-                  {format(r.to, "dd MMM yyyy", { locale: es })}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-      <Button type="submit" className="w-full">
-        Asignar tarifa
-      </Button>
-    </form>
+        <FormField
+          control={form.control}
+          name="paymentMethod"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Método de pago</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecciona un método de pago" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="card">Tarjeta</SelectItem>
+                  <SelectItem value="cash">Efectivo</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* Notas */}
+        <div>
+          <Label>Notas</Label>
+          <Input
+            placeholder="Ej. Pagado en efectivo"
+            value={watch("note") ?? ""}
+            onChange={(e) => setValue("note", e.target.value)}
+            className="mt-1"
+          />
+          {errors.note && (
+            <p className="text-xs text-destructive mt-1">
+              {errors.note.message as string}
+            </p>
+          )}
+        </div>
+        {bookedRanges?.length > 0 && (
+          <Card className="bg-muted/30 border-muted/50">
+            <CardContent className="text-xs py-3 text-muted-foreground space-y-1">
+              <p className="font-medium">Periodos ya ocupados:</p>
+              <ul className="list-disc list-inside">
+                {bookedRanges.map((r, i) => (
+                  <li key={i}>
+                    {format(r.from, "dd MMM", { locale: es })} –{" "}
+                    {format(r.to, "dd MMM yyyy", { locale: es })}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+        <Button type="submit" className="w-full">
+          Asignar tarifa
+        </Button>
+      </form>
+    </Form>
   );
 }

@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import { z } from "zod";
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { Resolver, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -188,7 +188,6 @@ export function UpgradeTariffForm({
     return found ?? current?.plan ?? {};
   }, [allPlans, current?.plan]);
 
-  //GOT IT HERE
   const curPriceCents = getPriceCents(curPlanFull);
 
   const curCap: number | null = curPlanFull?.creditQty ?? null;
@@ -286,11 +285,6 @@ export function UpgradeTariffForm({
     ]
   );
 
-  useEffect(() => {
-    console.log("Current price cents", curPriceCents);
-    console.log("Target price cents", toPriceCents);
-  }, [curPriceCents, toPriceCents]);
-
   const disableSubmit = !hasCurrent || isAtMax || !toPlan || baseDiffCents <= 0;
 
   const maxMsg =
@@ -343,7 +337,7 @@ export function UpgradeTariffForm({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5" />
-            Mejorar / Recargar tarifa
+            Ampliar / Recargar tarifa
           </DialogTitle>
           <DialogDescription>
             Las fechas permanecen iguales. Se cobra la diferencia + comisión.
