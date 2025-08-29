@@ -107,6 +107,9 @@ export const useAssignMonthlyTariff = () =>
       startsOn?: string;
       remainingCredits?: number;
       note?: string;
+      paymentMethod: string; // "cash" | "card"
+      collectWhen: "now" | "later"; // when to collect payment
+      graceDays?: number;
     }) => assignMonthlyTariff(data),
   });
 

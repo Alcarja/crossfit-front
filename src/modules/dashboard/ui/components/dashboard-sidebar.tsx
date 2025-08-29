@@ -41,67 +41,88 @@ import {
   SettingsIcon,
   DollarSignIcon,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const coachSection = [
-  {
-    icon: Calendar1,
-    label: "Calendar",
-    href: "/dashboard",
-  },
+  { icon: Calendar1, label: "Calendar", href: "/dashboard" },
   {
     icon: NotepadText,
     label: "Expenses",
     href: "/dashboard/expenses",
   },
-  {
-    icon: DumbbellIcon,
-    label: "Workouts",
-    href: "/dashboard/workouts",
-  },
+  { icon: DumbbellIcon, label: "Workouts", href: "/dashboard/workouts" },
 ];
 
-const adminSection = [
-  {
-    icon: ShoppingBasketIcon,
-    label: "Inventory",
-    href: "/dashboard/inventory",
-  },
-  {
-    icon: UserPlus2,
-    label: "Register Coach",
-    href: "/dashboard/register",
-  },
-  {
-    icon: CircleUserRound,
-    label: "Coaches",
-    href: "/dashboard/admin/coaches",
-  },
-];
+const adminSections = {
+  Transactions: [
+    {
+      icon: DollarSignIcon,
+      label: "Transactions",
+      href: "/dashboard/admin/transactions",
+    },
+    {
+      icon: ShoppingBasketIcon,
+      label: "Inventory",
+      href: "/dashboard/admin/inventory",
+    },
+  ],
+  Classes: [
+    {
+      icon: Calendar1Icon,
+      label: "Classes",
+      href: "/dashboard/classes/dashboard",
+    },
+    {
+      icon: SettingsIcon,
+      label: "Class Settings",
+      href: "/dashboard/classes/settings",
+    },
+    {
+      icon: DollarSignIcon,
+      label: "Tariff Plans",
+      href: "/dashboard/classes/tariffs",
+    },
+  ],
+  Coaches: [
+    {
+      icon: CircleUserRound,
+      label: "Coaches",
+      href: "/dashboard/admin/coaches",
+    },
+    {
+      icon: UserPlus2,
+      label: "Register Coach",
+      href: "/dashboard/register",
+    },
+  ],
+};
 
+// CLIENT: personal info only
 const clientSection = [
   {
     icon: Calendar1Icon,
-    label: "Reserves",
+    label: "My Classes",
     href: "/dashboard/classes/dashboard",
   },
   {
-    icon: SettingsIcon,
-    label: "Class Settings",
-    href: "/dashboard/classes/settings",
+    icon: DollarSignIcon,
+    label: "My Purchases",
+    href: "/dashboard/transactions",
   },
   {
-    icon: DollarSignIcon,
-    label: "Tariffs",
-    href: "/dashboard/classes/tariffs",
+    icon: SettingsIcon,
+    label: "My Membership",
+    href: "/dashboard/me/membership",
   },
 ];
 
 const footerSection = [
-  {
-    icon: Settings2Icon,
-    label: "Settings",
-    href: "/dashboard/settings",
-  },
+  { icon: Settings2Icon, label: "Settings", href: "/dashboard/settings" },
 ];
 
 export const DashboardSidebar = () => {
@@ -149,7 +170,7 @@ export const DashboardSidebar = () => {
       <SidebarContent>
         <SidebarGroup>
           {state !== "collapsed" && (
-            <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
+            <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-1 pl-2">
               Coach Section
             </h3>
           )}
@@ -157,22 +178,36 @@ export const DashboardSidebar = () => {
             <SidebarMenu>
               {coachSection.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    className={cn(
-                      "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
-                      pathname === item.href &&
-                        "bg-linear-to-r/oklch border-[#5D6B68]/10"
-                    )}
-                    isActive={pathname === item.href}
-                  >
-                    <Link href={item.href}>
-                      <item.icon className="size-7 mr-2" />
-                      <span className="text-sm font-medium tracking-tight">
-                        {item.label}
-                      </span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton
+                          asChild
+                          className={cn(
+                            "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                            pathname === item.href &&
+                              "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                          )}
+                          isActive={pathname === item.href}
+                        >
+                          <Link href={item.href}>
+                            <item.icon className="size-7 mr-2" />
+                            {state !== "collapsed" && (
+                              <span className="text-sm font-medium tracking-tight">
+                                {item.label}
+                              </span>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="right"
+                        className={cn(state !== "collapsed" && "hidden")}
+                      >
+                        <span>{item.label}</span>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -183,49 +218,87 @@ export const DashboardSidebar = () => {
           <div className="flex h-auto flex-col justify-start">
             {user?.role === "admin" ? (
               <>
-                <div className="px-4 py-2">
+                <div className="px-4 py-1">
                   <Separator className=" text-[#5D6B68]" />
                 </div>
 
                 <SidebarGroup>
-                  {state !== "collapsed" && (
-                    <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
+                  {/*  {state !== "collapsed" && (
+                    <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-1 pl-2">
                       Admin Section
                     </h3>
-                  )}
+                  )} */}
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {adminSection.map((item) => (
-                        <SidebarMenuItem key={item.href}>
-                          <SidebarMenuButton
-                            asChild
+                      {Object.entries(adminSections).map(
+                        ([subsectionTitle, items]) => (
+                          <div
+                            key={subsectionTitle}
                             className={cn(
-                              "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
-                              pathname === item.href &&
-                                "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                              "mb-2 rounded-md",
+                              state !== "collapsed" && "bg-muted/40 px-2 py-1"
                             )}
-                            isActive={pathname === item.href}
                           >
-                            <Link href={item.href}>
-                              <item.icon className="size-7 mr-2" />
-                              <span className="text-sm font-medium tracking-tight">
-                                {item.label}
-                              </span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
+                            {state !== "collapsed" && (
+                              <p className="text-[0.7rem] font-semibold uppercase text-muted-foreground mb-1 tracking-wide px-1">
+                                {subsectionTitle}
+                              </p>
+                            )}
+
+                            {items.map((item) => (
+                              <SidebarMenuItem key={item.href}>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <SidebarMenuButton
+                                        asChild
+                                        className={cn(
+                                          "h-10 flex items-center gap-2 border border-transparent hover:bg-linear-to-r/oklch hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                                          pathname === item.href &&
+                                            "bg-linear-to-r/oklch border-[#5D6B68]/10",
+                                          state !== "collapsed" && "pl-6"
+                                        )}
+                                        isActive={pathname === item.href}
+                                      >
+                                        <Link
+                                          href={item.href}
+                                          className="flex items-center gap-1 w-full h-full"
+                                        >
+                                          <item.icon className="size-6 shrink-0" />
+                                          {state !== "collapsed" && (
+                                            <span className="text-sm font-medium tracking-tight">
+                                              {item.label}
+                                            </span>
+                                          )}
+                                        </Link>
+                                      </SidebarMenuButton>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="right"
+                                      className={cn(
+                                        state !== "collapsed" && "hidden"
+                                      )}
+                                    >
+                                      <span>{item.label}</span>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </SidebarMenuItem>
+                            ))}
+                          </div>
+                        )
+                      )}
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
 
-                <div className="px-4 py-2">
+                <div className="px-4 py-1">
                   <Separator className=" text-[#5D6B68]" />
                 </div>
 
                 <SidebarGroup>
                   {state !== "collapsed" && (
-                    <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-4 pl-2">
+                    <h3 className="text-xs text-red font-semibold text-muted-foreground uppercase tracking-wide mb-2 pl-2">
                       Client Section
                     </h3>
                   )}
@@ -233,22 +306,38 @@ export const DashboardSidebar = () => {
                     <SidebarMenu>
                       {clientSection.map((item) => (
                         <SidebarMenuItem key={item.href}>
-                          <SidebarMenuButton
-                            asChild
-                            className={cn(
-                              "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
-                              pathname === item.href &&
-                                "bg-linear-to-r/oklch border-[#5D6B68]/10"
-                            )}
-                            isActive={pathname === item.href}
-                          >
-                            <Link href={item.href}>
-                              <item.icon className="size-7 mr-2" />
-                              <span className="text-sm font-medium tracking-tight">
-                                {item.label}
-                              </span>
-                            </Link>
-                          </SidebarMenuButton>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <SidebarMenuButton
+                                  asChild
+                                  className={cn(
+                                    "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                                    pathname === item.href &&
+                                      "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                                  )}
+                                  isActive={pathname === item.href}
+                                >
+                                  <Link href={item.href}>
+                                    <item.icon className="size-7 mr-2" />
+                                    {state !== "collapsed" && (
+                                      <span className="text-sm font-medium tracking-tight">
+                                        {item.label}
+                                      </span>
+                                    )}
+                                  </Link>
+                                </SidebarMenuButton>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="right"
+                                className={cn(
+                                  state !== "collapsed" && "hidden"
+                                )}
+                              >
+                                <span>{item.label}</span>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </SidebarMenuItem>
                       ))}
                     </SidebarMenu>
@@ -300,12 +389,13 @@ export const DashboardSidebar = () => {
                 <ArrowDownLeftFromCircleIcon />
               </Button>
             </SheetTrigger>
+
             <SheetContent side="left" className="p-4 w-[250px] overflow-y-auto">
               <div className="space-y-6 mt-8">
                 {/* App title */}
                 <h2 className="text-xl font-bold">Dashboard</h2>
 
-                {/* General section */}
+                {/* Coach section */}
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
                     General
@@ -328,28 +418,39 @@ export const DashboardSidebar = () => {
                   </div>
                 </div>
 
-                {/* Admin section */}
+                {/* Admin section with nested groups */}
                 {user?.role === "admin" && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
                       Admin
                     </p>
-                    <div className="space-y-1">
-                      {adminSection.map((item) => (
-                        <SheetClose asChild key={item.href}>
-                          <Link
-                            href={item.href}
-                            className={cn(
-                              "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
-                              pathname === item.href && "bg-muted font-semibold"
-                            )}
-                          >
-                            <item.icon className="size-5" />
-                            {item.label}
-                          </Link>
-                        </SheetClose>
-                      ))}
-                    </div>
+
+                    {Object.entries(adminSections).map(
+                      ([sectionName, links]) => (
+                        <div key={sectionName} className="mb-2">
+                          <p className="text-xs text-muted-foreground font-semibold uppercase mb-2 pl-1">
+                            {sectionName}
+                          </p>
+                          <div className="space-y-1">
+                            {links.map((item) => (
+                              <SheetClose asChild key={item.href}>
+                                <Link
+                                  href={item.href}
+                                  className={cn(
+                                    "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
+                                    pathname === item.href &&
+                                      "bg-muted font-semibold"
+                                  )}
+                                >
+                                  <item.icon className="size-5" />
+                                  {item.label}
+                                </Link>
+                              </SheetClose>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    )}
                   </div>
                 )}
 

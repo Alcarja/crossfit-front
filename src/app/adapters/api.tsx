@@ -398,6 +398,9 @@ export const assignMonthlyTariff = async (data: {
   startsOn?: string;
   remainingCredits?: number;
   note?: string;
+  paymentMethod: string;
+  collectWhen: "now" | "later";
+  graceDays?: number;
 }) => {
   return await stpApi.post(`/api/tariffs/assign-monthly-tariff`, data);
 };
@@ -438,3 +441,19 @@ export const upgradeUserTariff = (
     note?: string | null;
   }
 ) => stpApi.post(`/api/tariffs/upgrade-tariff/${tariffId}`, data);
+
+//ORDERS
+export const getOrdersByMonth = async (start: string, end: string) => {
+  return await stpApi.get(`/api/transactions/get-orders-by-month`, {
+    params: { start, end },
+  });
+};
+
+export const getOrderById = async (orderId: number) => {
+  return await stpApi.get(`/api/transactions/get-order-by-id/${orderId}`);
+};
+
+//PAYMENTS (STRIPE)
+export const createStripePaymentIntent = async (orderId: number) => {
+  return await stpApi.post(`/api/payments/create-intent`, { orderId });
+};

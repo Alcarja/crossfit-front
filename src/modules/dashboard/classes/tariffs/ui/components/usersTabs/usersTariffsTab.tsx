@@ -3,12 +3,16 @@
 
 import z from "zod";
 
+import { QRCodeSVG } from "qrcode.react";
+
 import {
   ArrowUpRight,
   CalendarDays,
   CalendarIcon,
   CircleDollarSign,
   Clock4,
+  Copy,
+  ExternalLink,
   GaugeCircle,
   Hash,
   Pencil,
@@ -89,7 +93,11 @@ import {
 } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getUserFutureTariffs, getUserTariffHistory } from "@/app/adapters/api";
+import {
+  createStripePaymentIntent,
+  getUserFutureTariffs,
+  getUserTariffHistory,
+} from "@/app/adapters/api";
 import { AddTariffForm } from "./forms/addTariffForm";
 import { EditTariffForm } from "./forms/editTariffForm";
 import {
@@ -99,6 +107,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UpgradeTariffForm } from "./forms/upgradeTariffForm";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const addTariffFormSchema = z.object({
   userId: z.number(),
@@ -108,10 +123,16 @@ const addTariffFormSchema = z.object({
   remainingCredits: z.string().min(1).max(15).optional(),
   note: z.string().max(100).optional(),
   paymentMethod: z.string(),
+  collectWhen: z.enum(["now", "later"]),
+  graceDays: z.number().min(0).max(14),
 });
 
 const TariffsTab = () => {
   const queryClient = useQueryClient();
+  const [qrData, setQrData] = useState<{
+    checkoutUrl: string;
+    orderId: number;
+  } | null>(null);
 
   const [filter, setFilter] = useState("");
   const [isAddTariffDialogOpen, setIsAddTariffDialogOpen] = useState(false);
@@ -206,6 +227,11 @@ const TariffsTab = () => {
   /* ADD TARIFFS FORM */
   const addTariffForm = useForm<z.infer<typeof addTariffFormSchema>>({
     resolver: zodResolver(addTariffFormSchema),
+    defaultValues: {
+      paymentMethod: "cash",
+      collectWhen: "now",
+      graceDays: 0,
+    },
   });
 
   const planId = addTariffForm.watch("planId"); //Watches the form field
@@ -224,7 +250,8 @@ const TariffsTab = () => {
     return `${y}-${m}-${day}`;
   };
 
-  const { mutate: assignTariff } = useAssignMonthlyTariff();
+  const { mutate: assignTariff, mutateAsync: assignTariffAsync } =
+    useAssignMonthlyTariff();
 
   function onSubmitAddTariffForm(values: z.infer<typeof addTariffFormSchema>) {
     const paymentMethod = values.paymentMethod;
@@ -236,21 +263,21 @@ const TariffsTab = () => {
       customExpiresOn: values.customExpiresOn
         ? toYMD(values.customExpiresOn as Date)
         : undefined,
-      // Avoid sending NaN
       remainingCredits:
         values.remainingCredits == null
           ? undefined
           : Number(values.remainingCredits),
       note: values.note || undefined,
       paymentMethod: values.paymentMethod,
+      collectWhen: values.collectWhen,
+      graceDays: values.graceDays,
     };
 
-    console.log("payload", payload);
-
+    // --- CASH flow: use mutate with callbacks (no await) ---
     if (paymentMethod === "cash") {
       assignTariff(payload, {
         onSuccess: async (_data, variables) => {
-          const uid = variables.userId; // comes from payload
+          const uid = variables.userId;
 
           await queryClient.invalidateQueries({
             queryKey: ["allActiveMonthlyUserTariffs"],
@@ -262,31 +289,56 @@ const TariffsTab = () => {
             queryKey: ["userFutureTariffs", uid],
           });
 
-          toast.success("Tariff assigned to user!");
+          toast.success("Tarifa asignada al usuario");
           setIsAddTariffDialogOpen(false);
           addTariffForm.reset();
         },
         onError: (err) => {
           console.error("assignMonthlyTariff failed:", err);
-          toast.error("Error assigning tariff to user");
+          toast.error("Error al asignar la tarifa al usuario");
         },
       });
-
-      //Generate invoice
+      return;
     }
 
+    // --- CARD flow: use mutateAsync + await ---
     if (paymentMethod === "card") {
-      console.log("start stripe process");
+      (async () => {
+        try {
+          // 1) Assign tariff & create order (server returns order/payment)
+          const result = await assignTariffAsync(payload);
+          // Depending on your mutationFn, result may be res.data or AxiosResponse
+          const orderId = result?.order?.id ?? result?.data?.order?.id;
+          if (!orderId) throw new Error("No se recibió un ID de orden");
+
+          // 2) Create Stripe Checkout session
+          const response = await createStripePaymentIntent(orderId);
+          console.log("response", response);
+
+          const checkoutUrl = response?.checkoutUrl;
+          if (!checkoutUrl) throw new Error("No se recibió URL de pago");
+
+          // 3) Always open QR dialog (no redirect)
+          setQrData({ checkoutUrl, orderId });
+
+          toast.success("Tarifa creada. Escanea el QR para pagar con tarjeta.");
+        } catch (err) {
+          console.error("Stripe payment flow failed", err);
+          toast.error("Error al procesar el pago con tarjeta");
+        }
+      })();
     }
   }
 
-  //Uses the same create function form above
+  //Uses the same create function from above
   const onSubmitAddTariffFromRightPane = (values: {
     planId: string;
     dateRange: { from: Date; to: Date };
     remainingCredits?: string;
     note?: string;
     paymentMethod: string;
+    collectWhen: string;
+    graceDays?: number;
   }) => {
     const userId = Number(selectedUserId ?? currentTariff?.user?.id);
     if (!userId) {
@@ -302,6 +354,8 @@ const TariffsTab = () => {
       remainingCredits: values.remainingCredits,
       paymentMethod: values.paymentMethod,
       note: values.note,
+      collectWhen: values.collectWhen,
+      graceDays: values.graceDays,
     } as any);
   };
 
@@ -582,7 +636,6 @@ const TariffsTab = () => {
           </Pagination>
         </div>
       </Section>
-
       {/* Add Tariff Dialog */}
       <Dialog
         open={isAddTariffDialogOpen}
@@ -675,6 +728,7 @@ const TariffsTab = () => {
                           disabled={(date) => date < new Date("2000-01-01")}
                           captionLayout="dropdown"
                           startMonth={new Date(2024, 0)}
+                          endMonth={new Date(2026, 12)}
                           locale={{
                             ...es,
                             options: { ...es.options, weekStartsOn: 1 },
@@ -724,6 +778,7 @@ const TariffsTab = () => {
                           disabled={(date) => date < new Date("2000-01-01")}
                           captionLayout="dropdown"
                           startMonth={new Date(2024, 0)}
+                          endMonth={new Date(2026, 12)}
                           locale={{
                             ...es,
                             options: { ...es.options, weekStartsOn: 1 },
@@ -762,6 +817,76 @@ const TariffsTab = () => {
 
               <FormField
                 control={addTariffForm.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Método de pago</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona un método de pago" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="card">Tarjeta</SelectItem>
+                        <SelectItem value="cash">Efectivo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={addTariffForm.control}
+                name="collectWhen"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cuándo cobrar</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona el momento del cobro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="now">Cobrar ahora</SelectItem>
+                        <SelectItem value="later">Cobrar más tarde</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {/* GRACIA (solo si later) */}
+              {addTariffForm.watch("collectWhen") === "later" && (
+                <FormField
+                  control={addTariffForm.control}
+                  name="graceDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Días de gracia (acceso provisional)</FormLabel>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={14}
+                        className="mt-1"
+                        value={field.value != null ? String(field.value) : ""} // string
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          field.onChange(v === "" ? undefined : Number(v)); // number | undefined
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        El usuario tendrá acceso inmediato durante{" "}
+                        {field.value ?? 3} días mientras el pago queda
+                        pendiente.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={addTariffForm.control}
                 name="note"
                 render={({ field }) => (
                   <FormItem>
@@ -790,7 +915,6 @@ const TariffsTab = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Edit Tariff Dialog */}
       <Dialog
         open={isEditTariffDialogOpen}
@@ -929,7 +1053,6 @@ const TariffsTab = () => {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Upgrade Tariff Dialog */}
       <UpgradeTariffForm
         open={isUpgradeOpen}
@@ -941,6 +1064,14 @@ const TariffsTab = () => {
         allPlans={allMonthlyTariffs?.tariffs ?? []} // from your query
         onSubmit={submitUpgrade}
       />
+      <StripeQRDialog
+        open={!!qrData}
+        onOpenChange={(open: any) => !open && setQrData(null)}
+        checkoutUrl={qrData?.checkoutUrl ?? ""}
+        orderId={qrData?.orderId}
+        onCopied={() => toast.success("Enlace copiado")}
+      />
+      ;
     </>
   );
 };
@@ -959,8 +1090,6 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
 
   const { plan, userTariff } = tariff;
 
-  console.log("Plan from current tariff card", plan);
-
   const start = new Date(userTariff?.startsOn);
   const end = new Date(userTariff?.expiresOn);
   const sameMonth =
@@ -978,10 +1107,24 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
       ? `${userTariff.remainingCredits}`
       : "∞";
 
-  // Optional fields you might have on your plan object:
-  const maxPerDay = plan?.maxPerDay as number | undefined; // e.g. 1, 2, 3
-  const price = plan?.price as number | undefined; // e.g. 49.9
+  const maxPerDay = plan?.maxPerDay as number | undefined;
+  const price = plan?.price as number | undefined;
   const tariffId = userTariff?.id as number | undefined;
+
+  //Payment state
+  const isPaymentIncomplete =
+    userTariff?.status === "pending" ||
+    userTariff?.billingStatus === "processing";
+
+  const isPaymentComplete =
+    userTariff?.status === "active" && userTariff?.billingStatus === "paid";
+
+  // (optional) show provisional limit in tooltip if you store it
+  const provisionalUntilText = userTariff?.provisionalAccessUntil
+    ? format(new Date(userTariff.provisionalAccessUntil), "dd MMM yyyy", {
+        locale: es,
+      })
+    : null;
 
   return (
     <TooltipProvider>
@@ -995,12 +1138,42 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
                 <span className="text-sm font-medium text-foreground truncate">
                   {plan.name}
                 </span>
+
                 <Badge
                   variant="green"
                   className="h-5 px-1.5 text-[10px] capitalize"
                 >
                   {plan.type}
                 </Badge>
+
+                {/* NEW: payment badges */}
+                {isPaymentIncomplete && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="yellow"
+                        className="h-5 px-1.5 text-[10px] border-amber-400/60 text-amber-800 bg-amber-50"
+                      >
+                        Procesando pago
+                      </Badge>
+                    </TooltipTrigger>
+                    {provisionalUntilText && (
+                      <TooltipContent className="max-w-xs text-xs">
+                        Acceso provisional hasta {provisionalUntilText}.
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                )}
+
+                {isPaymentComplete && (
+                  <Badge
+                    variant="green"
+                    className="h-5 px-1.5 text-[10px] bg-emerald-600/10 text-emerald-700 border-emerald-600/30"
+                  >
+                    Pago completo
+                  </Badge>
+                )}
+
                 {userTariff?.note && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1028,7 +1201,7 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
                 </span>
               </div>
 
-              {/* Meta row 2: max/day · price · tariff id (all conditional) */}
+              {/* Meta row 2: max/day · price · tariff id */}
               <div className="mt-0.5 text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
                 {typeof maxPerDay === "number" && (
                   <span className="inline-flex items-center gap-1.25">
@@ -1051,7 +1224,7 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
               </div>
             </div>
 
-            {/* RIGHT: actions (icon + tooltips) */}
+            {/* RIGHT: actions */}
             <div className="flex items-center gap-1.5">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1222,107 +1395,213 @@ export function FutureTariffsList({
 
   return (
     <div className="space-y-2">
-      {items.map((t) => (
-        <Accordion key={t.userTariff.id} type="single" collapsible>
-          <AccordionItem value="future-tariff">
-            <AccordionTrigger className="px-4 py-2 text-xs hover:no-underline">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 w-full text-muted-foreground">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-foreground">
-                    {t.plan.name}
-                  </span>
-                  <Badge
-                    variant="gray"
-                    className="text-[10px] px-1.5 py-0.5 capitalize"
-                  >
-                    {t.plan.type}
-                  </Badge>
-                </div>
+      {items.map((t) => {
+        const isPaymentIncomplete =
+          t.userTariff?.status === "pending" ||
+          t.userTariff?.billingStatus === "processing";
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays className="w-3 h-3 text-primary" />
-                    {format(new Date(t.userTariff.startsOn), "dd MMM", {
-                      locale: es,
-                    })}
-                  </span>
+        const isPaymentComplete =
+          t.userTariff?.status === "active" &&
+          t.userTariff?.billingStatus === "paid";
 
-                  <span className="flex items-center gap-1">
-                    <Clock4 className="w-3 h-3 text-primary" />
-                    {format(new Date(t.userTariff.expiresOn), "dd MMM", {
-                      locale: es,
-                    })}
-                  </span>
+        const provisionalUntilText = t.userTariff?.provisionalAccessUntil
+          ? format(
+              new Date(t.userTariff.provisionalAccessUntil),
+              "dd MMM yyyy",
+              { locale: es }
+            )
+          : null;
 
-                  <span className="flex items-center gap-1">
-                    <Ticket className="w-3 h-3 text-primary" />
-                    {t.userTariff.remainingCredits ?? "Ilimitados"}
-                  </span>
-
-                  {t.userTariff.note && (
-                    <span className="flex items-center gap-1">
-                      <StickyNote className="w-3 h-3 text-primary" />
-                      {t.userTariff.note}
+        return (
+          <Accordion key={t.userTariff.id} type="single" collapsible>
+            <AccordionItem value="future-tariff">
+              <AccordionTrigger className="px-4 py-2 text-xs hover:no-underline">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 w-full text-muted-foreground">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-foreground">
+                      {t.plan.name}
                     </span>
-                  )}
-                </div>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit?.(t);
-                      }}
-                      aria-label="Editar detalles de la tarifa"
+                    <Badge
+                      variant="gray"
+                      className="text-[10px] px-1.5 py-0.5 capitalize"
                     >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    Edita detalles administrativos (nota, corrección de fechas,
-                    etc.).
-                    <br />
-                    Para más clases o cambiar de plan, usa “Mejorar / Recargar”.
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </AccordionTrigger>
+                      {t.plan.type}
+                    </Badge>
 
-            <AccordionContent className="px-4 pb-4 pt-2 text-xs text-muted-foreground">
-              <div className="space-y-1">
-                <div>
-                  <strong>Inicio:</strong>{" "}
-                  {format(
-                    new Date(t.userTariff.startsOn),
-                    "dd 'de' MMMM yyyy",
-                    { locale: es }
-                  )}
-                </div>
-                <div>
-                  <strong>Expira:</strong>{" "}
-                  {format(
-                    new Date(t.userTariff.expiresOn),
-                    "dd 'de' MMMM yyyy",
-                    { locale: es }
-                  )}
-                </div>
-                <div>
-                  <strong>Créditos:</strong>{" "}
-                  {t.userTariff.remainingCredits ?? "Ilimitados"}
-                </div>
-                {t.userTariff.note && (
-                  <div>
-                    <strong>Nota:</strong> {t.userTariff.note}
+                    {/* Payment badges (same logic as CurrentTariffCard) */}
+                    {isPaymentIncomplete && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="yellow"
+                            className="h-5 px-1.5 text-[10px] border-amber-400/60 text-amber-800 bg-amber-50"
+                          >
+                            Procesando pago
+                          </Badge>
+                        </TooltipTrigger>
+                        {provisionalUntilText && (
+                          <TooltipContent className="max-w-xs text-xs">
+                            Acceso provisional hasta {provisionalUntilText}.
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    )}
+
+                    {isPaymentComplete && (
+                      <Badge
+                        variant="green"
+                        className="h-5 px-1.5 text-[10px] bg-emerald-600/10 text-emerald-700 border-emerald-600/30"
+                      >
+                        Pago completo
+                      </Badge>
+                    )}
                   </div>
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      ))}
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="w-3 h-3 text-primary" />
+                      {format(new Date(t.userTariff.startsOn), "dd MMM", {
+                        locale: es,
+                      })}
+                    </span>
+
+                    <span className="flex items-center gap-1">
+                      <Clock4 className="w-3 h-3 text-primary" />
+                      {format(new Date(t.userTariff.expiresOn), "dd MMM", {
+                        locale: es,
+                      })}
+                    </span>
+
+                    <span className="flex items-center gap-1">
+                      <Ticket className="w-3 h-3 text-primary" />
+                      {t.userTariff.remainingCredits ?? "Ilimitados"}
+                    </span>
+
+                    {t.userTariff.note && (
+                      <span className="flex items-center gap-1">
+                        <StickyNote className="w-3 h-3 text-primary" />
+                        {t.userTariff.note}
+                      </span>
+                    )}
+                  </div>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit?.(t);
+                        }}
+                        aria-label="Editar detalles de la tarifa"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      Edita detalles administrativos (nota, corrección de
+                      fechas, etc.).
+                      <br />
+                      Para más clases o cambiar de plan, usa “Mejorar /
+                      Recargar”.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </AccordionTrigger>
+
+              <AccordionContent className="px-4 pb-4 pt-2 text-xs text-muted-foreground">
+                <div className="space-y-1">
+                  <div>
+                    <strong>Inicio:</strong>{" "}
+                    {format(
+                      new Date(t.userTariff.startsOn),
+                      "dd 'de' MMMM yyyy",
+                      {
+                        locale: es,
+                      }
+                    )}
+                  </div>
+                  <div>
+                    <strong>Expira:</strong>{" "}
+                    {format(
+                      new Date(t.userTariff.expiresOn),
+                      "dd 'de' MMMM yyyy",
+                      {
+                        locale: es,
+                      }
+                    )}
+                  </div>
+                  <div>
+                    <strong>Créditos:</strong>{" "}
+                    {t.userTariff.remainingCredits ?? "Ilimitados"}
+                  </div>
+                  {t.userTariff.note && (
+                    <div>
+                      <strong>Nota:</strong> {t.userTariff.note}
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        );
+      })}
     </div>
+  );
+}
+
+export function StripeQRDialog({
+  open,
+  onOpenChange,
+  checkoutUrl,
+  orderId,
+  onCopied,
+}: any) {
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(checkoutUrl);
+      onCopied?.();
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>Pagar con tarjeta</DialogTitle>
+          <DialogDescription>
+            Escanea el QR para completar el pago
+            {orderId ? ` de la orden #${orderId}` : ""}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col items-center gap-4 py-2">
+          <div className="rounded-lg border bg-background p-4">
+            <QRCodeSVG
+              value={checkoutUrl || "about:blank"}
+              size={220}
+              includeMargin
+            />
+          </div>
+          <div className="w-full break-all rounded-md bg-muted/50 p-2 text-xs">
+            {checkoutUrl}
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={copy}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copiar enlace
+          </Button>
+          <Button onClick={() => window.open(checkoutUrl, "_blank")}>
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Abrir en pestaña nueva
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

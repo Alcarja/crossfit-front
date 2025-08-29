@@ -53,6 +53,8 @@ const addTariffFormSchema = z.object({
     }),
   paymentMethod: z.string(),
   note: z.string().max(100).optional(),
+  collectWhen: z.enum(["now", "later"]),
+  graceDays: z.number().min(1).max(14).optional(),
 });
 
 type FormInput = z.input<typeof addTariffFormSchema>; // from?: Date; to?: Date
@@ -78,6 +80,8 @@ export function AddTariffForm({
       planId: "",
       dateRange: { from: undefined, to: undefined },
       paymentMethod: "cash",
+      collectWhen: "now",
+      graceDays: 3,
     },
   });
 
@@ -218,6 +222,54 @@ export function AddTariffForm({
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="collectWhen"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Cuándo cobrar</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecciona el momento del cobro" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="now">Cobrar ahora</SelectItem>
+                  <SelectItem value="later">Cobrar más tarde</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* GRACIA (solo si later) */}
+        {form.watch("collectWhen") === "later" && (
+          <FormField
+            control={form.control}
+            name="graceDays"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Días de gracia (acceso provisional)</FormLabel>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={14}
+                  className="mt-1"
+                  value={field.value != null ? String(field.value) : ""} // string
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    field.onChange(v === "" ? undefined : Number(v)); // number | undefined
+                  }}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  El usuario tendrá acceso inmediato durante {field.value ?? 3}{" "}
+                  días mientras el pago queda pendiente.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         {/* Notas */}
         <div>
           <Label>Notas</Label>

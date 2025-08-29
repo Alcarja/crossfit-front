@@ -1,4 +1,4 @@
-import { InventoryView } from "@/modules/dashboard/inventory/ui/views/inventory-view";
+import { InventoryView } from "@/modules/dashboard/admin/inventory/ui/views/inventory-view";
 
 const Page = async () => {
   return <InventoryView />;
