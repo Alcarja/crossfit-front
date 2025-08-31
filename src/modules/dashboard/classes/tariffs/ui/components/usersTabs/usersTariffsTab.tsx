@@ -3,16 +3,12 @@
 
 import z from "zod";
 
-import { QRCodeSVG } from "qrcode.react";
-
 import {
   ArrowUpRight,
   CalendarDays,
   CalendarIcon,
   CircleDollarSign,
   Clock4,
-  Copy,
-  ExternalLink,
   GaugeCircle,
   Hash,
   Pencil,
@@ -114,6 +110,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StripeQRDialog } from "@/components/web/stripeQRDialog";
 
 const addTariffFormSchema = z.object({
   userId: z.number(),
@@ -1548,60 +1545,5 @@ export function FutureTariffsList({
         );
       })}
     </div>
-  );
-}
-
-export function StripeQRDialog({
-  open,
-  onOpenChange,
-  checkoutUrl,
-  orderId,
-  onCopied,
-}: any) {
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(checkoutUrl);
-      onCopied?.();
-    } catch {
-      // ignore
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle>Pagar con tarjeta</DialogTitle>
-          <DialogDescription>
-            Escanea el QR para completar el pago
-            {orderId ? ` de la orden #${orderId}` : ""}.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col items-center gap-4 py-2">
-          <div className="rounded-lg border bg-background p-4">
-            <QRCodeSVG
-              value={checkoutUrl || "about:blank"}
-              size={220}
-              includeMargin
-            />
-          </div>
-          <div className="w-full break-all rounded-md bg-muted/50 p-2 text-xs">
-            {checkoutUrl}
-          </div>
-        </div>
-
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={copy}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copiar enlace
-          </Button>
-          <Button onClick={() => window.open(checkoutUrl, "_blank")}>
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Abrir en pestaña nueva
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

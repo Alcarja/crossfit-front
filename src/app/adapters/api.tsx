@@ -457,3 +457,17 @@ export const getOrderById = async (orderId: number) => {
 export const createStripePaymentIntent = async (orderId: number) => {
   return await stpApi.post(`/api/payments/create-intent`, { orderId });
 };
+
+export const finalizeStripeCardPayment = async (orderId: number) => {
+  return await stpApi.post(`/api/payments/finalize-card-payment`, { orderId });
+};
+
+// Switch a pending card payment to cash
+export const switchPaymentToCash = async (params: {
+  orderId: number;
+  amount?: number; // optional partial/remaining amount
+  note?: string;
+  recordedByCoachId?: number;
+}) => {
+  return await stpApi.post(`/api/payments/switch-to-cash`, params);
+};
