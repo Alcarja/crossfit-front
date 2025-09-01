@@ -58,11 +58,11 @@ export interface Coach {
 
 const hourlyRates: Record<string, number> = {
   WOD: 10,
-  Gymnastics: 15,
-  Weightlifting: 15,
+  Gymnastics: 10,
+  Weightlifting: 10,
   Endurance: 10,
   Kids: 15,
-  Foundations: 15,
+  Foundations: 10,
   isOpen: 5,
   isClose: 5,
 };
