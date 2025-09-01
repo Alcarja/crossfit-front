@@ -10,8 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -22,28 +20,8 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import {
-  CreditCard,
-  Wallet,
-  RotateCw,
-  Ban,
-  Check,
-  MoreHorizontal,
-} from "lucide-react";
+
+import { CreditCard, Wallet, Ban, RefreshCw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -57,11 +35,23 @@ import {
 import { useEffect, useState } from "react";
 import { orderByIdQueryOptions } from "@/app/queries/orders";
 import {
+  cancelOpenOrderQueryOptions,
+  createNewPaymentForOrderQueryOptions,
+  finalizePendingCashPaymentQueryOptions,
   finalizeStripeCardPaymentQueryOptions,
+  stripePaymentIntentQueryOptions,
   switchPaymentToCashQueryOptions,
+  switchPendingCashToCardQueryOptions,
 } from "@/app/queries/payments";
 import { toast } from "sonner";
 import { StripeQRDialog } from "@/components/web/stripeQRDialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Props = {
   orderId: number | null;
@@ -101,13 +91,13 @@ function fmtDate(d: string | Date | null | undefined) {
 
 export function OrderDialog({ orderId, open, onOpenChange }: Props) {
   const queryClient = useQueryClient();
-  const [newPaymentOpen, setNewPaymentOpen] = useState<null | {
-    method: "cash" | "card";
-  }>(null);
 
-  const [confirmCancel, setConfirmCancel] = useState<null | { id: number }>(
-    null
-  );
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false); //Cancel payment but kep order open
+
+  const [isNewPaymentDialogOpen, setIsNewPaymentDialogOpen] = useState(false); //Start new payment with current order open
+  const [newPaymentMethod, setNewPaymentMethod] = useState<"card" | "cash">(
+    "card"
+  ); //type of payment selected for new payment
 
   const [qrData, setQrData] = useState<{
     checkoutUrl: string;
@@ -121,6 +111,10 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
   useEffect(() => {
     console.log("Individual order data", individualOrderData);
   }, [individualOrderData]);
+
+  useEffect(() => {
+    console.log("Order id", orderId);
+  }, [orderId]);
 
   function renderPaymentStatus(status: string) {
     // Tweak variants as you prefer
@@ -136,7 +130,8 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
       requires_action: { label: "Requiere acción", variant: "yellow" },
       succeeded: { label: "Pagado", variant: "green" },
       failed: { label: "Fallido", variant: "red" },
-      canceled: { label: "Cancelado", variant: "red" },
+      cancelled: { label: "Cancelado", variant: "red" },
+      void: { label: "Cancelado", variant: "red" },
       refunded: { label: "Reembolsado", variant: "gray" },
     };
     const cfg = map[status] ?? { label: status, variant: "outline" as const };
@@ -147,6 +142,7 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
     );
   }
 
+  //Finalize a pending payment by card
   const { mutate: finalizeCard } = useMutation({
     mutationFn: (orderId: number) =>
       finalizeStripeCardPaymentQueryOptions(orderId).queryFn(),
@@ -183,6 +179,7 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
       });
     };
 
+  //Switch a pending card payment to cash
   const { mutate: switchToCash } = useMutation({
     mutationFn: (params: {
       orderId: number;
@@ -215,6 +212,180 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
           onError: (err) => {
             console.error("switchToCash failed:", err);
             toast.error("No se pudo cambiar a efectivo");
+          },
+        }
+      );
+    };
+
+  //Switch a pending cash payment to card
+  const { mutate: switchToCard } = useMutation({
+    mutationFn: (orderId: number) =>
+      switchPendingCashToCardQueryOptions(orderId).queryFn(),
+  });
+
+  const onClickSwitchToCard =
+    (orderId: number | null): React.MouseEventHandler<HTMLButtonElement> =>
+    (e) => {
+      e.preventDefault();
+      if (orderId == null) {
+        toast.error("Falta el ID de la orden");
+        return;
+      }
+      switchToCard(orderId, {
+        onSuccess: async (res: any) => {
+          const data = res?.data ?? res;
+          const checkoutUrl: string | null = data?.checkoutUrl ?? null;
+
+          if (checkoutUrl) {
+            // assumes: const [qrData, setQrData] = useState<{ checkoutUrl: string; orderId: number } | null>(null);
+            setQrData({ checkoutUrl, orderId });
+            toast.success("Escanea el QR para pagar con tarjeta.");
+          } else {
+            toast.success("Cambio a tarjeta preparado");
+          }
+
+          await queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+          await queryClient.invalidateQueries({ queryKey: ["orders"] });
+        },
+        onError: (err) => {
+          console.error("switchToCard failed:", err);
+          toast.error("No se pudo cambiar a tarjeta");
+        },
+      });
+    };
+
+  //Finalize cash payment
+  const { mutate: finalizeCash } = useMutation({
+    mutationFn: (params: {
+      orderId: number;
+      amount?: number;
+      note?: string;
+      recordedByCoachId?: number;
+    }) => finalizePendingCashPaymentQueryOptions(params).queryFn(),
+  });
+
+  const onClickFinalizeCash =
+    (orderId: number | null): React.MouseEventHandler<HTMLButtonElement> =>
+    (e) => {
+      e.preventDefault();
+      if (orderId == null) {
+        toast.error("Falta el ID de la orden");
+        return;
+      }
+      finalizeCash(
+        { orderId, note: "Pago en efectivo confirmado" },
+        {
+          onSuccess: async () => {
+            toast.success("Pago en efectivo confirmado");
+            await queryClient.invalidateQueries({
+              queryKey: ["order", orderId],
+            });
+            await queryClient.invalidateQueries({ queryKey: ["orders"] });
+          },
+          onError: (err) => {
+            console.error("finalizeCash failed:", err);
+            toast.error("No se pudo confirmar el pago en efectivo");
+          },
+        }
+      );
+    };
+
+  //Cancel open order
+  const { mutate: cancelOrder } = useMutation({
+    mutationFn: (params: { orderId: number; reason?: string }) =>
+      cancelOpenOrderQueryOptions(params).queryFn(),
+  });
+
+  const onClickCancelOrder =
+    (orderId: number | null): React.MouseEventHandler<HTMLButtonElement> =>
+    (e) => {
+      e.preventDefault();
+      if (orderId == null) {
+        toast.error("Falta el ID de la orden");
+        return;
+      }
+
+      cancelOrder(
+        { orderId, reason: "Cancelada por el administrador" },
+        {
+          onSuccess: async () => {
+            toast.success("Orden cancelada");
+            await queryClient.invalidateQueries({
+              queryKey: ["order", orderId],
+            });
+            await queryClient.invalidateQueries({ queryKey: ["orders"] });
+          },
+          onError: (err) => {
+            console.error("cancelOrder failed:", err);
+            toast.error("No se pudo cancelar la orden");
+          },
+        }
+      );
+    };
+
+  //Start new payment
+
+  const { mutate: createNewPayment } = useMutation({
+    mutationFn: (params: {
+      orderId: number;
+      method: "card" | "cash";
+      note?: string;
+      recordedByCoachId?: number;
+      amount?: number;
+    }) => createNewPaymentForOrderQueryOptions(params).queryFn(),
+  });
+
+  const onClickStartNewPayment =
+    (
+      orderId: number | null,
+      newPaymentMethod: "card" | "cash"
+    ): React.MouseEventHandler<HTMLButtonElement> =>
+    async (e) => {
+      e.preventDefault();
+      if (orderId == null) {
+        toast.error("Falta el ID de la orden");
+        return;
+      }
+
+      createNewPayment(
+        { orderId, method: newPaymentMethod },
+        {
+          onSuccess: async () => {
+            if (newPaymentMethod === "card") {
+              try {
+                const res: any = await stripePaymentIntentQueryOptions(
+                  orderId
+                ).queryFn();
+
+                const checkoutUrl = res?.data?.checkoutUrl ?? res?.checkoutUrl;
+                if (!checkoutUrl) {
+                  toast.error("No se pudo obtener el enlace de pago");
+                  return;
+                }
+                setQrData({ checkoutUrl, orderId });
+
+                await queryClient.invalidateQueries({
+                  queryKey: ["order", orderId],
+                });
+                await queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+                toast.success("Escanea el QR para pagar con tarjeta.");
+              } catch (err) {
+                console.error("createPaymentIntent failed:", err);
+                toast.error("No se pudo iniciar el pago con tarjeta");
+              }
+            } else {
+              // cash: you just created a new pending cash payment row (per your spec)
+              toast.success("Nuevo pago en efectivo creado");
+              await queryClient.invalidateQueries({
+                queryKey: ["order", orderId],
+              });
+              await queryClient.invalidateQueries({ queryKey: ["orders"] });
+            }
+          },
+          onError: (err) => {
+            console.error("createNewPayment failed:", err);
+            toast.error("No se pudo crear el nuevo pago");
           },
         }
       );
@@ -342,15 +513,6 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
                           Gestiona cobros y estados.
                         </CardDescription>
                       </div>
-
-                      <Button
-                        className="w-auto"
-                        size="sm"
-                        onClick={() => setNewPaymentOpen({ method: "cash" })}
-                      >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Nuevo pago
-                      </Button>
                     </div>
                   </CardHeader>
 
@@ -360,10 +522,7 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
                         <div className="text-sm text-muted-foreground">
                           Aún no hay pagos.
                         </div>
-                        <Button
-                          size="sm"
-                          onClick={() => setNewPaymentOpen({ method: "cash" })}
-                        >
+                        <Button size="sm">
                           <Wallet className="mr-2 h-4 w-4" /> Añadir pago
                         </Button>
                       </div>
@@ -377,24 +536,12 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
                             <TableHead className="w-[120px]">Importe</TableHead>
                             <TableHead className="w-[380px]">Nota</TableHead>
                             <TableHead className="w-[400px]">Fecha</TableHead>
-                            <TableHead className="w-[100px]">
-                              Acciones
-                            </TableHead>
                           </TableRow>
                         </TableHeader>
 
                         <TableBody>
                           {(individualOrderData?.payments ?? []).map(
                             (payment: any) => {
-                              const isOpen = [
-                                "pending",
-                                "processing",
-                                "requires_action",
-                              ].includes(payment.status);
-                              const isSucceeded =
-                                payment.status === "succeeded";
-                              const isCanceled = payment.status === "canceled";
-
                               return (
                                 <TableRow key={payment.id}>
                                   <TableCell className="w-[70px]">
@@ -419,106 +566,6 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
                                       ? fmtDate(payment.paidAt)
                                       : fmtDate(payment.createdAt)}
                                   </TableCell>
-
-                                  {/* ACTIONS */}
-                                  <TableCell className="w-[100px] pl-5">
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label="Acciones"
-                                        >
-                                          <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-
-                                      <DropdownMenuContent
-                                        align="end"
-                                        className="w-56"
-                                      >
-                                        {/* Succeeded */}
-                                        {isSucceeded && (
-                                          <DropdownMenuItem
-                                          // onClick={() => viewReceipt(p.id)}
-                                          >
-                                            Ver recibo
-                                          </DropdownMenuItem>
-                                        )}
-
-                                        {/* Canceled */}
-                                        {isCanceled && (
-                                          <DropdownMenuItem
-                                          // onClick={() => setNewPaymentOpen({ method: "cash" })}
-                                          >
-                                            Nuevo pago
-                                          </DropdownMenuItem>
-                                        )}
-
-                                        {/* Open + CASH */}
-                                        {isOpen &&
-                                          payment.method === "cash" && (
-                                            <>
-                                              <DropdownMenuItem
-                                              // onClick={() => settleCash(p.id)}
-                                              >
-                                                <Check className="mr-2 h-4 w-4" />
-                                                Liquidar efectivo
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                              // onClick={() => convertMethod(p.id, "card")}
-                                              >
-                                                <CreditCard className="mr-2 h-4 w-4" />
-                                                Cambiar a tarjeta
-                                              </DropdownMenuItem>
-                                              <DropdownMenuSeparator />
-                                              <DropdownMenuItem
-                                                className="text-destructive"
-                                                onClick={() =>
-                                                  setConfirmCancel({
-                                                    id: payment.id,
-                                                  })
-                                                }
-                                              >
-                                                <Ban className="mr-2 h-4 w-4" />
-                                                Cancelar
-                                              </DropdownMenuItem>
-                                            </>
-                                          )}
-
-                                        {/* Open + CARD */}
-                                        {isOpen &&
-                                          payment.method === "card" && (
-                                            <>
-                                              <DropdownMenuItem
-                                              // onClick={() => finishCard(p.id)}
-                                              >
-                                                <RotateCw className="mr-2 h-4 w-4" />
-                                                Finalizar con tarjeta
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                              // onClick={() => convertMethod(p.id, "cash")}
-                                              >
-                                                <Wallet className="mr-2 h-4 w-4" />
-                                                Cambiar a efectivo
-                                              </DropdownMenuItem>
-                                              <DropdownMenuSeparator />
-                                              <DropdownMenuItem
-                                                className="text-destructive"
-                                                onClick={() =>
-                                                  setConfirmCancel({
-                                                    id: payment.id,
-                                                  })
-                                                }
-                                              >
-                                                <Ban className="mr-2 h-4 w-4" />
-                                                Cancelar
-                                              </DropdownMenuItem>
-                                            </>
-                                          )}
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </TableCell>
                                 </TableRow>
                               );
                             }
@@ -528,90 +575,6 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
                     )}
                   </CardContent>
                 </Card>
-
-                {/* New Payment */}
-                <Dialog
-                  open={!!newPaymentOpen}
-                  onOpenChange={(v) => !v && setNewPaymentOpen(null)}
-                >
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Nuevo pago</DialogTitle>
-                      <DialogDescription>
-                        Registra un nuevo pago para esta orden.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right">Método</Label>
-                        <div className="col-span-3">
-                          <Select
-                            defaultValue={newPaymentOpen?.method ?? "cash"}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="cash">Efectivo</SelectItem>
-                              <SelectItem value="card">Tarjeta</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right">Importe</Label>
-                        <div className="col-span-3">
-                          <Input placeholder="0,00" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-4 items-start gap-4">
-                        <Label className="text-right">Nota</Label>
-                        <div className="col-span-3">
-                          <Textarea placeholder="Opcional" />
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => setNewPaymentOpen(null)}
-                      >
-                        Cerrar
-                      </Button>
-                      <Button /* onClick={createPayment} */>Guardar</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-
-                {/* Cancel payment */}
-                <Dialog
-                  open={!!confirmCancel}
-                  onOpenChange={(v) => !v && setConfirmCancel(null)}
-                >
-                  <DialogContent className="sm:max-w-[420px]">
-                    <DialogHeader>
-                      <DialogTitle>Cancelar pago</DialogTitle>
-                      <DialogDescription>
-                        ¿Seguro que deseas cancelar este pago? Esta acción no se
-                        puede deshacer.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => setConfirmCancel(null)}
-                      >
-                        Cerrar
-                      </Button>
-                      <Button
-                        variant="delete"
-                        // onClick={() => { cancelPayment(confirmCancel!.id); setConfirmCancel(null); }}
-                      >
-                        Cancelar pago
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </div>
 
               {/* Sidebar: Totals + Quick actions */}
@@ -623,18 +586,16 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>€120.00</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Total</span>
-                      <span className="font-medium">€120.00</span>
+                      <span className="font-medium">
+                        {individualOrderData?.order?.total}
+                      </span>
                     </div>
                     <Separator />
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Pendiente</span>
                       <span className="font-semibold text-amber-600">
-                        €120.00
+                        {individualOrderData?.computed?.balanceDue}
                       </span>
                     </div>
                   </CardContent>
@@ -648,31 +609,183 @@ export function OrderDialog({ orderId, open, onOpenChange }: Props) {
                     <CardDescription>Operaciones comunes</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2">
-                    <Button
-                      className="justify-start w-auto"
-                      onClick={onClickFinalizeCard(orderId)}
-                    >
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Cobrar con tarjeta
-                    </Button>
+                    {/* CARD actions (hide if payment is void) */}
+                    {individualOrderData?.payments[0]?.method === "card" &&
+                      individualOrderData?.payments[0]?.status !== "void" && (
+                        <>
+                          {/* WORKING */}
+                          <Button
+                            className="justify-start w-auto"
+                            onClick={onClickFinalizeCard(orderId)}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Terminar pago con tarjeta
+                          </Button>
 
-                    <Button
-                      variant="outline"
-                      className="justify-start"
-                      onClick={onClickSwitchToCash(orderId)}
-                    >
-                      <Wallet className="mr-2 h-4 w-4" />
-                      Registrar efectivo
-                    </Button>
-                    <Button variant="delete" className="justify-start">
-                      <Ban className="mr-2 h-4 w-4" />
-                      Cancelar orden
-                    </Button>
+                          {/* WORKING */}
+                          <Button
+                            variant="outline"
+                            className="justify-start"
+                            onClick={onClickSwitchToCash(orderId)}
+                          >
+                            <Wallet className="mr-2 h-4 w-4" />
+                            Cambiar pago a efectivo
+                          </Button>
+                        </>
+                      )}
+
+                    {/* CASH actions (hide if payment is void) */}
+                    {individualOrderData?.payments[0]?.method === "cash" &&
+                      individualOrderData?.payments[0]?.status !== "void" && (
+                        <>
+                          <Button
+                            className="justify-start w-auto"
+                            onClick={onClickFinalizeCash(orderId)}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Terminar pago en efectivo
+                          </Button>
+
+                          {/* WORKING */}
+                          <Button
+                            variant="outline"
+                            className="justify-start"
+                            onClick={onClickSwitchToCard(orderId)}
+                          >
+                            <Wallet className="mr-2 h-4 w-4" />
+                            Cambiar pago a tarjeta
+                          </Button>
+                        </>
+                      )}
+
+                    {/* Cancel order (only when pending; naturally hidden if void) */}
+                    {individualOrderData?.order.status === "open" &&
+                      individualOrderData?.payments[0]?.status ===
+                        "pending" && (
+                        <>
+                          <Button
+                            variant="delete"
+                            className="justify-start"
+                            onClick={() => setIsCancelDialogOpen(true)}
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Cancelar orden
+                          </Button>
+
+                          {/* Dialog: confirm with the function above */}
+                          <Dialog
+                            open={isCancelDialogOpen}
+                            onOpenChange={setIsCancelDialogOpen}
+                          >
+                            <DialogContent className="sm:max-w-[520px]">
+                              <DialogHeader>
+                                <DialogTitle>Cancelar orden</DialogTitle>
+                                <DialogDescription>
+                                  Esta acción anulará los pagos pendientes y
+                                  cancelará la tarifa si no ha sido usada. No
+                                  podrás deshacer esta acción.
+                                </DialogDescription>
+                              </DialogHeader>
+
+                              <DialogFooter className="gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setIsCancelDialogOpen(false)}
+                                >
+                                  Volver
+                                </Button>
+                                <Button
+                                  variant="delete"
+                                  onClick={onClickCancelOrder(orderId)}
+                                >
+                                  Confirmar cancelación
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      )}
+
+                    {/* Only show this when order is open AND payment is void */}
+                    {individualOrderData?.order?.status === "open" &&
+                      individualOrderData?.payments?.[0]?.status === "void" && (
+                        <>
+                          <Button
+                            className="justify-start w-auto"
+                            onClick={() => setIsNewPaymentDialogOpen(true)}
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Iniciar nuevo pago
+                          </Button>
+
+                          <Dialog
+                            open={isNewPaymentDialogOpen}
+                            onOpenChange={setIsNewPaymentDialogOpen}
+                          >
+                            <DialogContent className="sm:max-w-[420px]!">
+                              <DialogHeader>
+                                <DialogTitle>Iniciar nuevo pago</DialogTitle>
+                                <DialogDescription>
+                                  El pago anterior fue anulado. Selecciona el
+                                  método para reiniciar el cobro.
+                                </DialogDescription>
+                              </DialogHeader>
+
+                              <div className="space-y-3">
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">
+                                    Método de pago
+                                  </label>
+                                  <Select
+                                    value={newPaymentMethod}
+                                    onValueChange={(v) =>
+                                      setNewPaymentMethod(v as "card" | "cash")
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Selecciona método" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="card">
+                                        Tarjeta
+                                      </SelectItem>
+                                      <SelectItem value="cash">
+                                        Efectivo
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+
+                              <DialogFooter className="gap-2 mt-2">
+                                <Button
+                                  className="w-auto"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setIsNewPaymentDialogOpen(false)
+                                  }
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  className="w-auto"
+                                  onClick={onClickStartNewPayment(
+                                    orderId,
+                                    newPaymentMethod
+                                  )}
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                  Confirmar e iniciar
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      )}
                   </CardContent>
                 </Card>
               </div>
             </div>
-            {/* === END ORDER MANAGEMENT UI === */}
           </div>
 
           {/* Footer (sticks to bottom) */}

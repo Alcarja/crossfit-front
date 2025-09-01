@@ -36,7 +36,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { ordersByMonthQueryOptions } from "@/app/queries/orders";
+import {
+  ordersByMonthQueryOptions,
+  pendingOrdersQueryOptions,
+} from "@/app/queries/orders";
 import { es } from "date-fns/locale";
 import {
   Pagination,
@@ -47,6 +50,8 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { OrderDialog } from "../components/orderDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 
 export const TransactionsView = () => {
   const today = new Date();
@@ -82,6 +87,8 @@ export const TransactionsView = () => {
   const { data: ordersData } = useQuery(
     ordersByMonthQueryOptions(startParam, endParam)
   );
+
+  const { data: pendingOrders } = useQuery(pendingOrdersQueryOptions());
 
   //Format the label in the calendar filter so it's understandable
   const formattedRange = useMemo(() => {
@@ -206,237 +213,435 @@ export const TransactionsView = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center gap-3">
-        <div className="rounded-2xl border bg-background p-2 shadow-sm">
-          <DollarSignIcon className="h-5 w-5" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Gestión de Transacciones
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Administra compras y órdenes registradas
-          </p>
-        </div>
-      </div>
-
-      {/* Filters + Search */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-start gap-4">
-        <div className="flex flex-wrap gap-3 items-center">
-          <Select
-            value={orderType ?? "all"}
-            onValueChange={(v) => setOrderType(v === "all" ? undefined : v)}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Tipo de orden" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem> {/* was "" */}
-              <SelectItem value="member_sale">Venta cliente</SelectItem>
-              <SelectItem value="internal_use">Consumo interno</SelectItem>
-              <SelectItem value="stock_purchase">Compra stock</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={status ?? "all"}
-            onValueChange={(v) => setStatus(v === "all" ? undefined : v)}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem> {/* was "" */}
-              <SelectItem value="open">Abierta</SelectItem>
-              <SelectItem value="paid">Pagada</SelectItem>
-              <SelectItem value="settled">Liquidada</SelectItem>
-              <SelectItem value="canceled">Cancelada</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={paymentMethod ?? "all"}
-            onValueChange={(v) => setPaymentMethod(v === "all" ? undefined : v)}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Método de pago" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem> {/* was "" */}
-              <SelectItem value="cash">Efectivo</SelectItem>
-              <SelectItem value="card">Tarjeta</SelectItem>
-            </SelectContent>
-          </Select>
+    <>
+      <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl border bg-background p-2 shadow-sm">
+            <DollarSignIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Gestión de Transacciones
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Administra compras y órdenes registradas
+            </p>
+          </div>
         </div>
 
-        <div className="relative w-full max-w-sm">
-          <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre, nota..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />{" "}
-        </div>
-        {/* Calendar Date Filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-auto min-w-[220px] justify-start text-left font-normal"
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              <span>{formattedRange}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-              numberOfMonths={2}
-              selected={selectedRange}
-              onSelect={(r) => {
-                setStartDate(r?.from);
-                setEndDate(r?.to);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Transactions Table */}
-      <Card>
-        <CardHeader className="pb-0 pt-4 px-4">
-          <h2 className="text-lg font-semibold">Transacciones recientes</h2>
-        </CardHeader>
-        <CardContent className="px-4 py-2">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]">ID</TableHead>
-                <TableHead className="w-[200px]">Cliente</TableHead>
-                <TableHead className="w-[200px]">Item</TableHead>
-                <TableHead className="w-[150px]">Tipo</TableHead>
-                <TableHead className="w-[120px]">Estado</TableHead>
-                <TableHead className="w-[100px]">Pago</TableHead>
-                <TableHead className="w-[100px]">Total</TableHead>
-                <TableHead className="w-[130px] hidden md:table-cell">
-                  Fecha
-                </TableHead>
-                <TableHead className="w-[56px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {total === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-center text-muted-foreground"
-                  >
-                    Sin resultados
-                  </TableCell>
-                </TableRow>
-              ) : (
-                pageRows.map((o: any) => {
-                  const s = statusBadge(o.status);
-                  return (
-                    <TableRow
-                      key={o.id}
-                      onClick={() => openOrder(o.id)}
-                      className="cursor-pointer hover:bg-accent/40"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") openOrder(o.id);
-                      }}
+        <Tabs defaultValue="all">
+          <TabsList className="flex flex-wrap items-center justify-center w-full">
+            <TabsTrigger value="all">Todas las transacciones</TabsTrigger>
+            <TabsTrigger value="pending">Lista de morosos</TabsTrigger>
+          </TabsList>
+          <TabsContent value="all">
+            <div className="mx-auto w-full space-y-6">
+              {/* Filters + Search */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-start gap-4 mt-4">
+                <div className="flex flex-wrap gap-6 items-center">
+                  {/* Order Type */}
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor="orderType"
+                      className="text-xs text-muted-foreground"
                     >
-                      <TableCell className="w-[60px]">#{o.id}</TableCell>
-                      <TableCell className="w-[200px]">
-                        {[o.userName, o.userLastName]
-                          .filter(Boolean)
-                          .join(" ") || `#${o.userId}`}
-                      </TableCell>
-                      <TableCell className="w-[200px]">
-                        {o.itemName ?? "—"}
-                      </TableCell>
-                      <TableCell className="w-[150px]">
-                        <Badge variant="gray">
-                          {typeLabel[o.orderType] ?? o.orderType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="w-[120px]">
-                        <Badge variant={s.variant}>{s.label}</Badge>
-                      </TableCell>
-                      <TableCell className="w-[100px] capitalize">
-                        {o.paymentMethod ?? "—"}
-                      </TableCell>
-                      <TableCell className="w-[100px]">
-                        {fmtMoney(o.total)}
-                      </TableCell>
-                      <TableCell className="w-[130px] hidden md:table-cell">
-                        {o.createdAt
-                          ? format(new Date(o.createdAt), "yyyy-MM-dd", {
-                              locale: es,
-                            })
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="w-[56px]">
-                        <Button
-                          className="ml-3"
-                          variant="default"
-                          size="icon"
-                          aria-label="Más acciones"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          {/* Controles de paginación (shadcn/ui) */}
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  aria-label="Anterior"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className={page === 1 ? "pointer-events-none opacity-50" : ""}
-                />
-              </PaginationItem>
+                      Tipo de orden
+                    </Label>
+                    <Select
+                      value={orderType ?? "all"}
+                      onValueChange={(v) =>
+                        setOrderType(v === "all" ? undefined : v)
+                      }
+                    >
+                      <SelectTrigger id="orderType" className="w-[160px]">
+                        <SelectValue placeholder="Tipo de orden" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="member_sale">
+                          Venta cliente
+                        </SelectItem>
+                        <SelectItem value="internal_use">
+                          Consumo interno
+                        </SelectItem>
+                        <SelectItem value="stock_purchase">
+                          Compra stock
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <PaginationItem>
-                <PaginationLink isActive>{page}</PaginationLink>
-              </PaginationItem>
+                  {/* Status */}
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor="status"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Estado
+                    </Label>
+                    <Select
+                      value={status ?? "all"}
+                      onValueChange={(v) =>
+                        setStatus(v === "all" ? undefined : v)
+                      }
+                    >
+                      <SelectTrigger id="status" className="w-[160px]">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="open">Abierta</SelectItem>
+                        <SelectItem value="paid">Pagada</SelectItem>
+                        <SelectItem value="settled">Liquidada</SelectItem>
+                        <SelectItem value="canceled">Cancelada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <PaginationItem>
-                <PaginationNext
-                  aria-label="Siguiente"
-                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                  className={
-                    page === pageCount ? "pointer-events-none opacity-50" : ""
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      </Card>
+                  {/* Payment Method */}
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor="paymentMethod"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Método de pago
+                    </Label>
+                    <Select
+                      value={paymentMethod ?? "all"}
+                      onValueChange={(v) =>
+                        setPaymentMethod(v === "all" ? undefined : v)
+                      }
+                    >
+                      <SelectTrigger id="paymentMethod" className="w-[160px]">
+                        <SelectValue placeholder="Método de pago" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="cash">Efectivo</SelectItem>
+                        <SelectItem value="card">Tarjeta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-      <OrderDialog
-        orderId={selectedOrderId}
-        open={open}
-        onOpenChange={(v) => {
-          if (!v) setSelectedOrderId(null);
-          setOpen(v);
-        }}
-      />
-    </div>
+                {/* Search */}
+                <div className="flex flex-col gap-1 w-full max-w-sm">
+                  <Label
+                    htmlFor="search"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Búsqueda
+                  </Label>
+                  <div className="relative">
+                    <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="search"
+                      placeholder="Buscar por nombre, nota..."
+                      className="pl-9"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Calendar Date Filter */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Rango de fechas
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-auto min-w-[220px] justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <span>{formattedRange}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        numberOfMonths={2}
+                        selected={selectedRange}
+                        onSelect={(r) => {
+                          setStartDate(r?.from);
+                          setEndDate(r?.to);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Transactions Table */}
+              <Card>
+                <CardHeader className="px-6">
+                  <h2 className="text-2xl font-semibold">
+                    Transacciones recientes
+                  </h2>
+                </CardHeader>
+                <CardContent className="px-4 py-2">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">ID</TableHead>
+                        <TableHead className="w-[200px]">Cliente</TableHead>
+                        <TableHead className="w-[200px]">Item</TableHead>
+                        <TableHead className="w-[150px]">Tipo</TableHead>
+                        <TableHead className="w-[120px]">Estado</TableHead>
+                        <TableHead className="w-[100px]">Pago</TableHead>
+                        <TableHead className="w-[100px]">Total</TableHead>
+                        <TableHead className="w-[130px] hidden md:table-cell">
+                          Fecha
+                        </TableHead>
+                        <TableHead className="w-[56px]">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+                      {total === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={9}
+                            className="text-center text-muted-foreground"
+                          >
+                            Sin resultados
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        pageRows.map((o: any) => {
+                          const s = statusBadge(o.status);
+                          return (
+                            <TableRow
+                              key={o.id}
+                              onClick={() => openOrder(o.id)}
+                              className="cursor-pointer hover:bg-accent/40"
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ")
+                                  openOrder(o.id);
+                              }}
+                            >
+                              <TableCell className="w-[60px]">
+                                #{o.id}
+                              </TableCell>
+                              <TableCell className="w-[200px]">
+                                {[o.userName, o.userLastName]
+                                  .filter(Boolean)
+                                  .join(" ") || `#${o.userId}`}
+                              </TableCell>
+                              <TableCell className="w-[200px]">
+                                {o.itemName ?? "—"}
+                              </TableCell>
+                              <TableCell className="w-[150px]">
+                                <Badge variant="gray">
+                                  {typeLabel[o.orderType] ?? o.orderType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="w-[120px]">
+                                <Badge variant={s.variant}>{s.label}</Badge>
+                              </TableCell>
+                              <TableCell className="w-[100px] capitalize">
+                                {o.paymentMethod ?? "—"}
+                              </TableCell>
+                              <TableCell className="w-[100px]">
+                                {fmtMoney(o.total)}
+                              </TableCell>
+                              <TableCell className="w-[130px] hidden md:table-cell">
+                                {o.createdAt
+                                  ? format(
+                                      new Date(o.createdAt),
+                                      "yyyy-MM-dd",
+                                      {
+                                        locale: es,
+                                      }
+                                    )
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="w-[56px]">
+                                <Button
+                                  className="ml-3"
+                                  variant="default"
+                                  size="icon"
+                                  aria-label="Más acciones"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+                <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  {/* Controles de paginación (shadcn/ui) */}
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          aria-label="Anterior"
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          className={
+                            page === 1 ? "pointer-events-none opacity-50" : ""
+                          }
+                        />
+                      </PaginationItem>
+
+                      <PaginationItem>
+                        <PaginationLink isActive>{page}</PaginationLink>
+                      </PaginationItem>
+
+                      <PaginationItem>
+                        <PaginationNext
+                          aria-label="Siguiente"
+                          onClick={() =>
+                            setPage((p) => Math.min(pageCount, p + 1))
+                          }
+                          className={
+                            page === pageCount
+                              ? "pointer-events-none opacity-50"
+                              : ""
+                          }
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              </Card>
+
+              <OrderDialog
+                orderId={selectedOrderId}
+                open={open}
+                onOpenChange={(v) => {
+                  if (!v) setSelectedOrderId(null);
+                  setOpen(v);
+                }}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="pending">
+            <div className="mx-auto w-full space-y-6">
+              <Card>
+                <CardHeader className="px-6">
+                  <h2 className="text-2xl font-semibold">
+                    Transacciones pendientes
+                  </h2>
+                </CardHeader>
+                <CardContent className="px-4 py-2">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">ID</TableHead>
+                        <TableHead className="w-[200px]">Cliente</TableHead>
+                        <TableHead className="w-[200px]">Item</TableHead>
+                        <TableHead className="w-[150px]">Tipo</TableHead>
+                        <TableHead className="w-[120px]">Estado</TableHead>
+                        <TableHead className="w-[100px]">Pago</TableHead>
+                        <TableHead className="w-[100px]">Total</TableHead>
+                        <TableHead className="w-[130px] hidden md:table-cell">
+                          Fecha
+                        </TableHead>
+                        <TableHead className="w-[56px]">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+                      {pendingOrders?.results?.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={9}
+                            className="text-center text-muted-foreground"
+                          >
+                            Sin resultados
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        pendingOrders?.results?.map((o: any) => {
+                          const s = statusBadge(o.status);
+                          return (
+                            <TableRow
+                              key={o.id}
+                              onClick={() => openOrder(o.id)}
+                              className="cursor-pointer hover:bg-accent/40"
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ")
+                                  openOrder(o.id);
+                              }}
+                            >
+                              <TableCell className="w-[60px]">
+                                #{o.id}
+                              </TableCell>
+                              <TableCell className="w-[200px]">
+                                {[o.userName, o.userLastName]
+                                  .filter(Boolean)
+                                  .join(" ") || `#${o.userId}`}
+                              </TableCell>
+                              <TableCell className="w-[200px]">
+                                {o.itemName ?? "—"}
+                              </TableCell>
+                              <TableCell className="w-[150px]">
+                                <Badge variant="gray">
+                                  {typeLabel[o.orderType] ?? o.orderType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="w-[120px]">
+                                <Badge variant={s.variant}>{s.label}</Badge>
+                              </TableCell>
+                              <TableCell className="w-[100px] capitalize">
+                                {o.paymentMethod ?? "—"}
+                              </TableCell>
+                              <TableCell className="w-[100px]">
+                                {fmtMoney(o.total)}
+                              </TableCell>
+                              <TableCell className="w-[130px] hidden md:table-cell">
+                                {o.createdAt
+                                  ? format(
+                                      new Date(o.createdAt),
+                                      "yyyy-MM-dd",
+                                      {
+                                        locale: es,
+                                      }
+                                    )
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="w-[56px]">
+                                <Button
+                                  className="ml-3"
+                                  variant="default"
+                                  size="icon"
+                                  aria-label="Más acciones"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <OrderDialog
+                orderId={selectedOrderId}
+                open={open}
+                onOpenChange={(v) => {
+                  if (!v) setSelectedOrderId(null);
+                  setOpen(v);
+                }}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
   );
 };

@@ -429,24 +429,42 @@ export const updateUserMonthlyTariff = (
   }
 ) => stpApi.put(`/api/tariffs/update-user-monthly-tariff/${tariffId}`, data);
 
-export const upgradeUserTariff = (
-  tariffId: number,
-  data: {
-    userId: number;
-    toPlanId: number;
-    commissionPct?: number;
-    commissionCents?: number;
-    creditMode?: "keep" | "resetToNewCap" | "addPlanDiff";
-    prorate?: boolean;
-    note?: string | null;
-  }
-) => stpApi.post(`/api/tariffs/upgrade-tariff/${tariffId}`, data);
+export const upgradeUserTariff = (body: {
+  // which tariff to modify
+  tariffId: number; // user_tariffs.id
+  userId: number;
+
+  // plan change
+  fromPlanId: number;
+  toPlanId: number;
+
+  // pricing (in cents)
+  baseDiffCents: number;
+  totalCents: number;
+  commissionCents?: number;
+
+  // currency
+  currency: "eur";
+
+  // audit
+  commissionPct?: number | null;
+  note?: string | null;
+
+  // payment choice
+  paymentMethod: "card" | "cash";
+}) => {
+  return stpApi.post(`/api/tariffs/upgrade-user-tariff`, body);
+};
 
 //ORDERS
 export const getOrdersByMonth = async (start: string, end: string) => {
   return await stpApi.get(`/api/transactions/get-orders-by-month`, {
     params: { start, end },
   });
+};
+
+export const getPendingOrders = async () => {
+  return await stpApi.get(`/api/transactions/get-pending-orders`);
 };
 
 export const getOrderById = async (orderId: number) => {
@@ -463,11 +481,47 @@ export const finalizeStripeCardPayment = async (orderId: number) => {
 };
 
 // Switch a pending card payment to cash
-export const switchPaymentToCash = async (params: {
+export const switchPaymentToCash = async (body: {
   orderId: number;
   amount?: number; // optional partial/remaining amount
   note?: string;
   recordedByCoachId?: number;
 }) => {
-  return await stpApi.post(`/api/payments/switch-to-cash`, params);
+  return await stpApi.post(`/api/payments/switch-to-cash`, body);
+};
+
+export const switchPendingCashToCard = async (
+  orderId: number,
+  note?: string
+) => {
+  return stpApi.post(`/api/payments/switch-pending-cash-to-card`, {
+    orderId,
+    note,
+  });
+};
+
+export const finalizePendingCashPayment = async (body: {
+  orderId: number;
+  amount?: number;
+  note?: string;
+  recordedByCoachId?: number;
+}) => {
+  return stpApi.post(`/api/payments/finalize-cash-payment`, body);
+};
+
+export const cancelOpenOrder = async (body: {
+  orderId: number;
+  reason?: string;
+}) => {
+  return stpApi.post(`/api/payments/cancel-open-order`, body);
+};
+
+export const createNewPaymentForOrder = async (body: {
+  orderId: number;
+  method: "card" | "cash";
+  note?: string;
+  recordedByCoachId?: number;
+  amount?: number;
+}) => {
+  return stpApi.post(`/api/payments/create-new-payment-for-order`, body);
 };

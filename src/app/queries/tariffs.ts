@@ -146,16 +146,30 @@ export const useUpdateUserMonthlyTariff = () =>
     }) => updateUserMonthlyTariff(v.tariffId, v),
   });
 
-export const useUpgradeUserMonthlyTariff = () =>
+export const useUpgradeUserTariff = () =>
   useMutation({
     mutationFn: (v: {
-      tariffId: number; // 👈 explicit
+      // which tariff to modify
+      tariffId: number; // user_tariffs.id
       userId: number;
+
+      // plan change
+      fromPlanId: number;
       toPlanId: number;
-      commissionPct?: number;
+
+      // pricing (in cents)
+      baseDiffCents: number;
+      totalCents: number;
       commissionCents?: number;
-      creditMode?: "keep" | "resetToNewCap" | "addPlanDiff";
-      prorate?: boolean;
+
+      // currency
+      currency: "eur";
+
+      // audit
+      commissionPct?: number | null;
       note?: string | null;
-    }) => upgradeUserTariff(v.tariffId, v),
+
+      // payment choice
+      paymentMethod: "card" | "cash";
+    }) => upgradeUserTariff(v),
   });

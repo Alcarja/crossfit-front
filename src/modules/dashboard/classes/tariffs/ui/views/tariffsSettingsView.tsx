@@ -14,22 +14,21 @@ const TariffsSettingsView = () => {
       <div className="grid gap-6">
         <Header />
 
-        <Tabs defaultValue="plans" className="w-full">
+        <Tabs defaultValue="users" className="w-full">
           <TabsList className="grid w-full grid-cols-2 rounded-2xl">
-            <TabsTrigger value="plans" className="gap-2">
-              <Tag className="h-4 w-4" /> Planes (Tarifas y Bonos)
-            </TabsTrigger>
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" /> Atletas
             </TabsTrigger>
+            <TabsTrigger value="plans" className="gap-2">
+              <Tag className="h-4 w-4" /> Planes (Tarifas y Bonos)
+            </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="plans" className="mt-4">
-            <PlansTab />
-          </TabsContent>
 
           <TabsContent value="users" className="mt-4">
             <UsersTab />
+          </TabsContent>
+          <TabsContent value="plans" className="mt-4">
+            <PlansTab />
           </TabsContent>
         </Tabs>
       </div>

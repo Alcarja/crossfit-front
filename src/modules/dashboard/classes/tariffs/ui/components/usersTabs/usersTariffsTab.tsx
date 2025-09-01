@@ -29,6 +29,7 @@ import {
   useAllMonthlyTariffs,
   useAssignMonthlyTariff,
   useUpdateUserMonthlyTariff,
+  useUpgradeUserTariff,
   useUserFutureTariffs,
   useUserTariffHistory,
 } from "@/app/queries/tariffs";
@@ -431,6 +432,8 @@ const TariffsTab = () => {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [upgradeFor, setUpgradeFor] = useState<any | null>(null);
 
+  const { mutate: upgradeTariff, mutateAsync: upgradeTariffAsync } =
+    useUpgradeUserTariff();
   // open from current tariff card (or any row)
   function openUpgrade(tariff: any) {
     setUpgradeFor(tariff); // { user, plan, userTariff }
@@ -438,7 +441,7 @@ const TariffsTab = () => {
   }
 
   //Upgrade user tariff with payment
-  function submitUpgrade(values: {
+  async function onClickSubmitUpgrade(values: {
     toPlanId: string;
     commissionPct?: number | null;
     commissionAmount?: string | null;
@@ -471,32 +474,81 @@ const TariffsTab = () => {
     const payload = {
       tariffId: meta.userTariffId,
       userId: meta.userId,
+      fromPlanId: meta.fromPlanId,
       toPlanId: meta.toPlanId,
-      commissionPct:
-        commissionPct == null || commissionPct === 0
-          ? undefined
-          : Number(commissionPct),
+      baseDiffCents: pricing.baseDiffCents,
+      totalCents: pricing.totalCents,
       commissionCents:
         commissionAmount && commissionAmount.trim() !== ""
           ? Math.round(Number(commissionAmount) * 100)
           : undefined,
-      baseDiffCents: pricing.baseDiffCents,
-      totalCents: pricing.totalCents,
+      commissionPct:
+        commissionPct == null || commissionPct === 0
+          ? undefined
+          : Number(commissionPct),
       currency: pricing.currency,
       note: note || undefined,
-      fromPlanId: meta.fromPlanId,
       paymentMethod,
     };
 
-    console.log("Payload", payload);
-
+    // --- CASH flow: callbacks (no await) ---
     if (paymentMethod === "cash") {
-      console.log("make changes to tariff");
-      console.log("generate invoice");
+      upgradeTariff(payload, {
+        onSuccess: async () => {
+          const uid = meta.userId;
+
+          await queryClient.invalidateQueries({
+            queryKey: ["allActiveMonthlyUserTariffs"],
+          });
+          await queryClient.invalidateQueries({
+            queryKey: ["userTariffHistory", uid],
+          });
+          await queryClient.invalidateQueries({
+            queryKey: ["userFutureTariffs", uid],
+          });
+          await queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+          toast.success("Upgrade aplicado y pagado en efectivo");
+          setIsUpgradeOpen(false);
+        },
+        onError: (err) => {
+          console.error("upgradeUserTariff (cash) failed:", err);
+          toast.error("No se pudo aplicar el upgrade en efectivo");
+        },
+      });
+      return;
     }
 
+    // --- CARD flow: await then create Checkout + show QR ---
     if (paymentMethod === "card") {
-      console.log("start stripe process");
+      try {
+        // 1) Upgrade & create order/payment (pending)
+        const result: any = await upgradeTariffAsync(payload);
+
+        // result can be AxiosResponse or plain; handle both:
+        const orderId = result?.order?.id ?? result?.data?.order?.id;
+        if (!orderId) throw new Error("No se recibió un ID de orden");
+
+        // 2) Create Stripe Checkout Session
+        const response: any = await createStripePaymentIntent(orderId);
+        const checkoutUrl =
+          response?.checkoutUrl ?? response?.data?.checkoutUrl;
+        if (!checkoutUrl) throw new Error("No se recibió URL de pago");
+
+        // 3) Open QR dialog
+        setQrData({ checkoutUrl, orderId });
+        toast.success("Upgrade creado. Escanea el QR para pagar con tarjeta.");
+        setIsUpgradeOpen(false);
+
+        // Optional: refresh related data
+        await queryClient.invalidateQueries({ queryKey: ["orders"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["userTariffHistory", meta.userId],
+        });
+      } catch (err) {
+        console.error("Stripe upgrade flow failed:", err);
+        toast.error("Error al iniciar el pago con tarjeta");
+      }
     }
   }
 
@@ -1059,7 +1111,7 @@ const TariffsTab = () => {
         }}
         current={upgradeFor} // { user, plan, userTariff }
         allPlans={allMonthlyTariffs?.tariffs ?? []} // from your query
-        onSubmit={submitUpgrade}
+        onSubmit={onClickSubmitUpgrade}
       />
       <StripeQRDialog
         open={!!qrData}
