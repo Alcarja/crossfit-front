@@ -56,6 +56,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { fromZonedTime } from "date-fns-tz";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchSelectDropdown } from "@/components/web/searchSelectDropdown";
+import { Input } from "@/components/ui/input";
 
 type Class = {
   event: {
@@ -68,7 +69,7 @@ type Class = {
   coach: string;
   isOpen?: boolean;
   isClose?: boolean;
-  isHalfHour?: boolean;
+  /* isHalfHour?: boolean; */
 };
 
 const createFormSchema = z
@@ -77,25 +78,34 @@ const createFormSchema = z
     type: z.string().min(1, "Type is required"),
     isOpen: z.boolean().optional().default(false),
     isClose: z.boolean().optional().default(false),
-    isHalfHour: z.boolean().optional().default(false), // 🆕
+    //isHalfHour: z.boolean().optional().default(false), // 🆕
+    startTime: z.string(),
+    endTime: z.string(),
   })
   .refine((data) => !(data.isOpen && data.isClose), {
     message: "You can't check both Apertura and Cierre",
     path: ["isClose"],
   });
 
-const updateClassFormSchema = z
+const hhmm = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+export const updateClassFormSchema = z
   .object({
-    coach: z.string().min(1, "Coach is required"),
-    type: z.string().min(1, "Type is required"),
-    isOpen: z.boolean().optional().default(false),
-    isClose: z.boolean().optional().default(false),
-    isHalfHour: z.boolean().optional().default(false),
+    coach: z.string().min(1, "Select a coach"),
+    type: z.string().min(1, "Select a type"),
+    isOpen: z.boolean().optional(),
+    isClose: z.boolean().optional(),
+    //isHalfHour: z.boolean().optional(), // keep if you still show it
+    startTime: z.string().regex(hhmm, "Invalid time (HH:MM)"),
+    endTime: z.string().regex(hhmm, "Invalid time (HH:MM)"),
   })
-  .refine((data) => !(data.isOpen && data.isClose), {
-    message: "You can't check both Apertura and Cierre",
-    path: ["isClose"],
-  });
+  .refine(
+    (vals) => {
+      // do a simple HH:MM comparison
+      return vals.startTime < vals.endTime;
+    },
+    { path: ["endTime"], message: "End time must be after start time" }
+  );
 
 export default function Calendar() {
   const { user } = useAuth();
@@ -167,9 +177,9 @@ export default function Calendar() {
     if (!classes) return;
 
     const formatted: Class[] = classes.results.map((cls: any) => {
-      const start = new Date(cls.start);
-      const end = new Date(cls.end);
-      const duration = (end.getTime() - start.getTime()) / (1000 * 60); // in minutes
+      //const start = new Date(cls.start);
+      //const end = new Date(cls.end);
+      //const duration = (end.getTime() - start.getTime()) / (1000 * 60); // in minutes
 
       return {
         id: cls.id.toString(),
@@ -179,7 +189,7 @@ export default function Calendar() {
         coach: cls.coach?.name || "",
         isOpen: cls.isOpen,
         isClose: cls.isClose,
-        isHalfHour: duration === 30,
+        //isHalfHour: duration === 30,
       };
     });
 
@@ -200,19 +210,41 @@ export default function Calendar() {
       type: "",
       isOpen: false,
       isClose: false,
+      startTime: "", // manual start time control
+      endTime: "",
     },
   });
 
   // This gets triggered by WeekView
+  // This gets triggered by WeekView
   const openCreateDialog = (range: { startStr: string; endStr: string }) => {
     setSelectedRange({ start: range.startStr, end: range.endStr });
+
+    // Default to start of the clicked hour, end = +60 min
+    const localStart = new Date(range.startStr);
+    localStart.setMinutes(0, 0, 0); // start of the hour
+    const localEnd = new Date(localStart.getTime() + 60 * 60 * 1000);
+
+    const startTimeDefault =
+      String(localStart.getHours()).padStart(2, "0") +
+      ":" +
+      String(localStart.getMinutes()).padStart(2, "0"); // "HH:MM"
+    const endTimeDefault =
+      String(localEnd.getHours()).padStart(2, "0") +
+      ":" +
+      String(localEnd.getMinutes()).padStart(2, "0"); // "HH:MM"
+
     createForm.reset({
       coach: "",
       type: "WOD",
       isOpen: false,
       isClose: false,
-      isHalfHour: false,
+      //isHalfHour: false, // keep if you still use it elsewhere
+
+      startTime: startTimeDefault,
+      endTime: endTimeDefault,
     });
+
     setCreateDialogOpen(true);
   };
 
@@ -223,16 +255,35 @@ export default function Calendar() {
     const coachData = users?.find((u: any) => u.id === Number(coachId));
     const coachName = coachData ? coachData.name : coachId;
 
+    if (!user?.id) {
+      toast.error("User not authenticated.");
+      return;
+    }
+
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    const start = fromZonedTime(selectedRange?.start || "", timeZone);
-    const end = new Date(start);
+    // Date part from the clicked day
+    const datePart = (selectedRange?.start || "").slice(0, 10); // "YYYY-MM-DD"
+    const startClock = values.startTime || "09:00";
+    const endClock = values.endTime || "10:00";
 
-    // ⏱️ Adjust end time for half-hour if checked
-    if (values.isHalfHour) {
-      end.setMinutes(end.getMinutes() + 30);
-    } else {
-      end.setMinutes(end.getMinutes() + 60);
+    const startLocalISO = `${datePart}T${startClock}:00`;
+    const endLocalISO = `${datePart}T${endClock}:00`;
+
+    const start = fromZonedTime(startLocalISO, timeZone);
+    const end = fromZonedTime(endLocalISO, timeZone);
+
+    if (!(start instanceof Date) || isNaN(start.getTime())) {
+      toast.error("Invalid start time.");
+      return;
+    }
+    if (!(end instanceof Date) || isNaN(end.getTime())) {
+      toast.error("Invalid end time.");
+      return;
+    }
+    if (end <= start) {
+      toast.error("End time must be after start time.");
+      return;
     }
 
     const newClass = {
@@ -244,11 +295,6 @@ export default function Calendar() {
       isClose: values.isClose,
     };
 
-    if (!user?.id) {
-      toast.error("User not authenticated.");
-      return;
-    }
-
     createClassMutation.mutate(
       { userId: user.id, classData: newClass },
       {
@@ -257,11 +303,13 @@ export default function Calendar() {
             ...prev,
             {
               ...res.data,
+              // ensure these are present even if backend omits/renames
+              start: res.data?.start ?? newClass.start,
+              end: res.data?.end ?? newClass.end,
               coach: coachName,
             },
           ]);
           queryClient.invalidateQueries({ queryKey: ["classes"] });
-
           toast.success("Class created successfully!");
           setCreateDialogOpen(false);
         },
@@ -281,7 +329,7 @@ export default function Calendar() {
       type: "WOD",
       isOpen: false,
       isClose: false,
-      isHalfHour: false,
+      //isHalfHour: false,
     });
   };
 
@@ -292,6 +340,9 @@ export default function Calendar() {
       type: "",
       isOpen: false,
       isClose: false,
+      //isHalfHour: false, // optional
+      startTime: "09:00", // NEW
+      endTime: "10:00", // NEW
     },
   });
 
@@ -301,7 +352,6 @@ export default function Calendar() {
   const updateClassMutation = useUpdateClassQuery();
 
   const openEditDialog = (cls: Class) => {
-    console.log("Class id", cls?.event?.id);
     const found = calendarClasses.find((c) => c.id === cls?.event?.id);
     if (!found) {
       console.warn("⚠️ Could not find class to edit.");
@@ -312,12 +362,32 @@ export default function Calendar() {
 
     const matchedUserId = users?.find((u: any) => u.name === found.coach)?.id;
 
+    // Derive HH:MM in the desired time zone
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const startHHmm = new Date(found.start).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone,
+    }); // e.g., "10:00"
+
+    const endHHmm = new Date(found.end).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone,
+    }); // e.g., "11:00"
+
     updateClassForm.reset({
       coach: matchedUserId ? String(matchedUserId) : "",
       type: found.type,
       isOpen: found.isOpen ?? false,
       isClose: found.isClose ?? false,
-      isHalfHour: found.isHalfHour ?? false,
+      //isHalfHour: found.isHalfHour ?? false,
+      // NEW:
+      startTime: startHHmm,
+      endTime: endHHmm,
     });
 
     setUpdateClassDialogOpen(true);
@@ -334,14 +404,33 @@ export default function Calendar() {
     const coachData = users?.find((u: any) => u.id === coachId);
     const coachName = coachData?.name ?? String(coachId);
 
-    // ⏱ Recalculate end time based on isHalfHour checkbox
-    const start = new Date(editingEvent.start);
-    const end = new Date(start);
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    if (values.isHalfHour) {
-      end.setMinutes(start.getMinutes() + 30);
-    } else {
-      end.setMinutes(start.getMinutes() + 60);
+    // Get date part for the edited class in the chosen time zone: YYYY-MM-DD
+    const datePart = new Date(editingEvent.start).toLocaleDateString("en-CA", {
+      timeZone,
+    });
+
+    const startClock = values.startTime || "09:00";
+    const endClock = values.endTime || "10:00";
+
+    const startLocalISO = `${datePart}T${startClock}:00`;
+    const endLocalISO = `${datePart}T${endClock}:00`;
+
+    const start = fromZonedTime(startLocalISO, timeZone);
+    const end = fromZonedTime(endLocalISO, timeZone);
+
+    if (!(start instanceof Date) || isNaN(start.getTime())) {
+      toast.error("Invalid start time.");
+      return;
+    }
+    if (!(end instanceof Date) || isNaN(end.getTime())) {
+      toast.error("Invalid end time.");
+      return;
+    }
+    if (end <= start) {
+      toast.error("End time must be after start time.");
+      return;
     }
 
     updateClassMutation.mutate(
@@ -360,7 +449,7 @@ export default function Calendar() {
         onSuccess: () => {
           toast.success("Class updated successfully!");
 
-          // Optimistic update
+          // Optimistic update — ensure start/end are present
           setCalendarClasses((prev) =>
             prev.map((cls) =>
               cls.id === classId
@@ -370,7 +459,7 @@ export default function Calendar() {
                     type: values.type,
                     start: start.toISOString(),
                     end: end.toISOString(),
-                    isHalfHour: values.isHalfHour ?? false, // ✅ update flag locally too
+                    //isHalfHour: values.isHalfHour ?? false,
                   }
                 : cls
             )
@@ -396,7 +485,7 @@ export default function Calendar() {
       type: "WOD",
       isOpen: false,
       isClose: false,
-      isHalfHour: false,
+      //isHalfHour: false,
     });
   };
 
@@ -785,6 +874,45 @@ export default function Calendar() {
                 )}
               />
 
+              {/* === TIME CONTROLS === */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Start time (local) */}
+                <FormField
+                  control={createForm.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start time</FormLabel>
+                      <FormControl>
+                        <Input type="time" step={900} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Duration (minutes) */}
+                <FormField
+                  control={createForm.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End time</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          step={900}
+                          min="09:00"
+                          max="21:00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               {/* Checkboxes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Apertura */}
@@ -826,7 +954,7 @@ export default function Calendar() {
                 />
 
                 {/* Half Hour */}
-                <FormField
+                {/*  <FormField
                   control={createForm.control}
                   name="isHalfHour"
                   render={({ field }) => (
@@ -842,7 +970,7 @@ export default function Calendar() {
                       </FormLabel>
                     </FormItem>
                   )}
-                />
+                /> */}
               </div>
 
               <DialogFooter className="pt-4 gap-2">
@@ -914,6 +1042,50 @@ export default function Calendar() {
                 )}
               />
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Start time */}
+                <FormField
+                  control={updateClassForm.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start time</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          step={900}
+                          min="09:00"
+                          max="21:00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* End time */}
+                <FormField
+                  control={updateClassForm.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End time</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          step={900}
+                          min="09:00"
+                          max="21:00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               {/* Checkboxes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Apertura */}
@@ -955,7 +1127,7 @@ export default function Calendar() {
                 />
 
                 {/* Clase de media hora */}
-                <FormField
+                {/*  <FormField
                   control={updateClassForm.control}
                   name="isHalfHour"
                   render={({ field }) => (
@@ -971,7 +1143,7 @@ export default function Calendar() {
                       </FormLabel>
                     </FormItem>
                   )}
-                />
+                /> */}
               </div>
 
               <div className="pt-4 gap-2 w-full flex items-center justify-between">
