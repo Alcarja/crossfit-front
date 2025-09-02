@@ -38,11 +38,26 @@ const types = [
   "Kids",
 ];
 
+function getTimeOptions() {
+  return Array.from({ length: 96 }, (_, i) => {
+    const hours = Math.floor((i * 15) / 60)
+      .toString()
+      .padStart(2, "0");
+    const minutes = ((i * 15) % 60).toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  });
+}
+
+function parseTimeToMinutes(time: string) {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
 /* ---------- Quick Add (shared) ---------- */
 export function QuickAddModal({
   open,
   onOpenChange,
-  slot, // { day, hour } | { dateISO, hour }
+  slot,
   onCreateOne,
 }: {
   open: boolean;
@@ -81,19 +96,72 @@ export function QuickAddModal({
   const [name, setName] = useState("WOD");
   const [coach, setCoach] = useState("");
   const [zone, setZone] = useState("");
-  const [duration, setDuration] = useState(60);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
   const [capacity, setCapacity] = useState(16);
+
+  useEffect(() => {
+    if (open && slot) {
+      const h = String(slot.hour).padStart(2, "0");
+      setStartTime(`${h}:00`);
+      setEndTime(`${String(slot.hour + 1).padStart(2, "0")}:00`);
+      setType("WOD");
+      setName("WOD");
+      setCoach("");
+      setZone("");
+      setCapacity(16);
+    }
+  }, [open, slot]);
 
   const isTemplateSlot = slot && "day" in slot!;
   const whenText = slot
     ? isTemplateSlot
-      ? `Hora: ${String((slot as any).hour).padStart(2, "0")}:00 • Día: ${
-          weekdayShort[(slot as any).day]
+      ? `Hora: ${String(slot.hour).padStart(2, "0")}:00 • Día: ${
+          weekdayShort[slot.day]
         }`
-      : `Hora: ${String((slot as any).hour).padStart(2, "0")}:00 • Fecha: ${
-          (slot as any).dateISO
+      : `Hora: ${String(slot.hour).padStart(2, "0")}:00 • Fecha: ${
+          slot.dateISO
         }`
     : "";
+
+  const handleCreate = () => {
+    if (!slot) return;
+    const duration =
+      parseTimeToMinutes(endTime) - parseTimeToMinutes(startTime);
+    if (duration <= 0) return;
+
+    const startHour = parseInt(startTime.split(":")[0], 10);
+
+    const payload =
+      "day" in slot
+        ? {
+            kind: "template" as const,
+            day: slot.day,
+            hour: startHour,
+            name,
+            type,
+            coach,
+            zone,
+            duration,
+            capacity,
+          }
+        : {
+            kind: "week" as const,
+            dateISO: slot.dateISO,
+            hour: startHour,
+            name,
+            type,
+            coach,
+            zone,
+            duration,
+            capacity,
+          };
+
+    onCreateOne(payload);
+    onOpenChange(false);
+  };
+
+  const timeOptions = getTimeOptions();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,6 +176,7 @@ export function QuickAddModal({
         </DialogHeader>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Type */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Tipo</Label>
             <Select
@@ -130,6 +199,7 @@ export function QuickAddModal({
             </Select>
           </div>
 
+          {/* Name */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Nombre</Label>
             <Input
@@ -140,6 +210,7 @@ export function QuickAddModal({
             />
           </div>
 
+          {/* Coach */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Coach</Label>
             <Input
@@ -150,6 +221,7 @@ export function QuickAddModal({
             />
           </div>
 
+          {/* Zone */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Zona</Label>
             <Input
@@ -160,18 +232,41 @@ export function QuickAddModal({
             />
           </div>
 
+          {/* Start Time */}
           <div className="space-y-1">
-            <Label className="text-xs sm:text-sm">Duración (min)</Label>
-            <Input
-              className="h-9 text-sm"
-              type="number"
-              min={15}
-              step={15}
-              value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value || "0", 10))}
-            />
+            <Label className="text-xs sm:text-sm">Hora de inicio</Label>
+            <Select value={startTime} onValueChange={(v) => setStartTime(v)}>
+              <SelectTrigger className="h-9 text-sm w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((time) => (
+                  <SelectItem key={time} value={time}>
+                    {time}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* End Time */}
+          <div className="space-y-1">
+            <Label className="text-xs sm:text-sm">Hora de fin</Label>
+            <Select value={endTime} onValueChange={(v) => setEndTime(v)}>
+              <SelectTrigger className="h-9 text-sm w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((time) => (
+                  <SelectItem key={time} value={time}>
+                    {time}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Capacity */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Capacidad</Label>
             <Input
@@ -192,35 +287,7 @@ export function QuickAddModal({
           </DialogClose>
           <Button
             className="h-9 text-sm w-full sm:w-auto"
-            onClick={() => {
-              if (!slot) return;
-              if ("day" in (slot as any)) {
-                onCreateOne({
-                  kind: "template",
-                  day: (slot as any).day,
-                  hour: (slot as any).hour,
-                  name,
-                  type,
-                  coach,
-                  zone,
-                  duration,
-                  capacity,
-                });
-              } else {
-                onCreateOne({
-                  kind: "week",
-                  dateISO: (slot as any).dateISO,
-                  hour: (slot as any).hour,
-                  name,
-                  type,
-                  coach,
-                  zone,
-                  duration,
-                  capacity,
-                });
-              }
-              onOpenChange(false);
-            }}
+            onClick={handleCreate}
           >
             Crear
           </Button>

@@ -220,7 +220,6 @@ export default function ClassesSettingsView() {
         <TabsContent value="defaultSchedule" className="w-full">
           <StructureBoard
             isSmall={isSmall}
-            hours={hours}
             templateRows={templateRows}
             setTemplateRows={setTemplateRows}
             startHour={startHour}

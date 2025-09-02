@@ -46,8 +46,6 @@ import { toast } from "sonner";
 
 /* --------- Structure Board (no dates) --------- */
 export function StructureBoard({
-  isSmall,
-  hours,
   templateRows,
   setTemplateRows,
   startHour,
@@ -56,11 +54,9 @@ export function StructureBoard({
   setEndHour,
   createOneTemplate,
   seriesCreateStructure,
-
   saveEditTemplate,
 }: {
   isSmall: boolean;
-  hours: number[];
   templateRows: TemplateRow[];
   setTemplateRows: React.Dispatch<React.SetStateAction<TemplateRow[]>>;
   startHour: number;
@@ -93,7 +89,6 @@ export function StructureBoard({
 }) {
   const queryClient = useQueryClient();
 
-  const [activeItem, setActiveItem] = useState<any | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickSlot, setQuickSlot] = useState<{
     day: number;
@@ -101,64 +96,11 @@ export function StructureBoard({
   } | null>(null);
   const [seriesOpen, setSeriesOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [editing, setEditing] = useState<TemplateRow | null>(null);
+  const [editing] = useState<TemplateRow | null>(null);
 
   const openQuickAdd = (day: number, hour: number) => {
     setQuickSlot({ day, hour });
     setQuickOpen(true);
-  };
-
-  const handleDragStart = (e: DragStartEvent) =>
-    setActiveItem(e.active.data.current || null);
-
-  const handleDragCancel = () => setActiveItem(null);
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    const { over, active } = e;
-    setActiveItem(null);
-    if (!over) return;
-
-    // over.id is "tpl_<day>_<hour>" — extract the last two parts
-    const parts = String(over.id).split("_"); // ["tpl", "<day>", "<hour>"]
-    const day = parseInt(parts[parts.length - 2], 10);
-    const hour = parseInt(parts[parts.length - 1], 10);
-    if (Number.isNaN(day) || Number.isNaN(hour)) return;
-
-    const data = active.data.current as any;
-    const fromPalette = !data.instanceId && !!data.id && !data.templateRowId;
-
-    if (fromPalette) {
-      const tpl = classPalette.find((t) => t.id === data.id);
-      if (!tpl) return;
-      createOneTemplate({
-        day,
-        hour,
-        name: tpl.name,
-        type: tpl.type,
-        coach: tpl.coach || "",
-        zone: tpl.zone || "",
-        duration: tpl.duration || 60,
-        capacity: tpl.capacity || 16,
-      });
-    } else if (data.templateRowId) {
-      // move existing row
-      const id = data.templateRowId as string;
-      setTemplateRows((prev) =>
-        prev.map((r) =>
-          r.id === id
-            ? {
-                ...r,
-                dayOfWeek: day,
-                startTime: `${hh(hour)}:00`,
-                endTime: `${hh(
-                  hour +
-                    Math.max(1, parseHour(r.endTime) - parseHour(r.startTime))
-                )}:00`,
-              }
-            : r
-        )
-      );
-    }
   };
 
   const { data: scheduleData } = useQuery(scheduleQueryOptions());
@@ -233,212 +175,527 @@ export function StructureBoard({
     );
   };
 
-  return (
-    <DndContext
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-0">
-        {/* LEFT */}
-        <div className="flex flex-col bg-white">
-          <div className="border-b px-3 py-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <label className="hidden sm:inline text-xs text-gray-600 pt-2">
-                    Desde
-                  </label>
-                  <Select
-                    value={String(startHour)}
-                    onValueChange={(v) => setStartHour(parseInt(v, 10))}
-                  >
-                    <SelectTrigger className="h-8 sm:h-9 w-[100px]">
-                      <SelectValue placeholder="Desde" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 }).map((_, h) => (
-                        <SelectItem key={`s-${h}`} value={String(h)}>{`${hh(
-                          h
-                        )}:00`}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+  function generateTimeSlots(start: number, end: number): string[] {
+    const slots: string[] = [];
+    for (let h = start; h < end; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const hour = String(h).padStart(2, "0");
+        const minute = String(m).padStart(2, "0");
+        slots.push(`${hour}:${minute}`);
+      }
+    }
+    return slots;
+  }
 
-                <div className="flex items-center gap-2">
-                  <label className="hidden sm:inline text-xs text-gray-600 pt-2">
-                    Hasta
-                  </label>
-                  <Select
-                    value={String(endHour)}
-                    onValueChange={(v) => setEndHour(parseInt(v, 10))}
-                  >
-                    <SelectTrigger className="h-8 sm:h-9 w-[100px]">
-                      <SelectValue placeholder="Hasta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 - startHour }).map((_, i) => {
-                        const h = i + startHour + 1;
-                        return (
-                          <SelectItem key={`e-${h}`} value={String(h)}>{`${hh(
+  const timeSlots = generateTimeSlots(startHour, endHour); // e.g., 09:00 to 21:00
+
+  const SLOT_PX = 20; // 15-minute slot = 20px
+  const TRACK_GUTTER_RIGHT_PX = 35; // Space to the right for the time label (matches your UI)
+
+  const [hover, setHover] = useState<{
+    dayStr: string;
+    topPx: number;
+    label: string;
+  } | null>(null);
+
+  function getHourFromOffset(y: number): number {
+    const minutesOffset = Math.floor(y / SLOT_PX) * 15;
+    const absoluteMinutes = startHour * 60 + minutesOffset;
+    const hour = Math.floor(absoluteMinutes / 60);
+    return hour; // return as integer, e.g., 9, 14
+  }
+
+  // constants
+  const COL_GAP_PX = 3; // gap between columns inside a cluster
+  const MAX_VISIBLE_COLS = 3; // collapse clusters beyond this (optional)
+  const PIXELS_PER_MINUTE = SLOT_PX / 15; // if SLOT_PX = height of a 15-min slot
+
+  // collapse state for “+N more”
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // util: build a key per cluster per day
+  function clusterKey(dayStr: string, clusterId: number) {
+    return `${dayStr}:${clusterId}`;
+  }
+
+  // transform your rows to the shape expected by layoutOverlaps
+  function toRawDayEvents(rows: typeof templateRows, day: number) {
+    return (
+      rows
+        .filter((r) => r.dayOfWeek === day)
+        .map((r) => {
+          const s = parseHour(r.startTime) * 60; // minutes from 00:00
+          const e = parseHour(r.endTime) * 60;
+          return {
+            cls: r,
+            id: r.id,
+            startMin: s,
+            endMin: e,
+          };
+        })
+        // clamp to current window (startHour..endHour) if you want to hide overflow:
+        .map((ev) => {
+          const windowStart = startHour * 60;
+          const windowEnd = endHour * 60;
+          const s = Math.max(windowStart, ev.startMin);
+          const e = Math.min(windowEnd, ev.endMin);
+          return e <= s ? null : { ...ev, startMin: s, endMin: e };
+        })
+        .filter(Boolean) as Array<{
+        cls: any;
+        id: string;
+        startMin: number;
+        endMin: number;
+      }>
+    );
+  }
+
+  // Event + layout types
+  type Evt = { cls: any; startMin: number; endMin: number };
+  type Pos = { col: number; cols: number; clusterId: number };
+  type ClusterMeta = {
+    id: number;
+    startMin: number;
+    endMin: number;
+    cols: number;
+  };
+
+  function layoutOverlaps(evts: Evt[]): {
+    positions: Map<Evt, Pos>;
+    clusters: ClusterMeta[];
+  } {
+    const sorted = [...evts].sort(
+      (a, b) => a.startMin - b.startMin || a.endMin - b.endMin
+    );
+
+    const clusterBuckets: Evt[][] = [];
+    let cluster: Evt[] = [];
+    let clusterEnd = -1;
+
+    for (const e of sorted) {
+      if (!cluster.length || e.startMin < clusterEnd) {
+        cluster.push(e);
+        clusterEnd = Math.max(clusterEnd, e.endMin);
+      } else {
+        clusterBuckets.push(cluster);
+        cluster = [e];
+        clusterEnd = e.endMin;
+      }
+    }
+    if (cluster.length) clusterBuckets.push(cluster);
+
+    const positions = new Map<Evt, Pos>();
+    const metas: ClusterMeta[] = [];
+
+    clusterBuckets.forEach((c, clusterId) => {
+      const colEnds: number[] = [];
+      const temp: { e: Evt; col: number }[] = [];
+
+      for (const e of c) {
+        let col = colEnds.findIndex((endMin) => e.startMin >= endMin);
+        if (col === -1) {
+          col = colEnds.length;
+          colEnds.push(e.endMin);
+        } else {
+          colEnds[col] = e.endMin;
+        }
+        temp.push({ e, col });
+      }
+
+      const cols = colEnds.length;
+      const startMin = c[0].startMin;
+      const endMin = Math.max(...c.map((x) => x.endMin));
+      metas.push({ id: clusterId, startMin, endMin, cols });
+
+      for (const { e, col } of temp) positions.set(e, { col, cols, clusterId });
+    });
+
+    return { positions, clusters: metas };
+  }
+
+  return (
+    <>
+      <TooltipProvider delayDuration={20}>
+        <div className="grid gap-0">
+          {/* LEFT */}
+          <div className="flex flex-col bg-white">
+            {/* Header */}
+            <div className="border-b px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <label className="hidden sm:inline text-xs text-gray-600 pt-2">
+                      Desde
+                    </label>
+                    <Select
+                      value={String(startHour)}
+                      onValueChange={(v) => setStartHour(parseInt(v, 10))}
+                    >
+                      <SelectTrigger className="h-8 sm:h-9 w-[100px]">
+                        <SelectValue placeholder="Desde" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }).map((_, h) => (
+                          <SelectItem key={`s-${h}`} value={String(h)}>{`${hh(
                             h
                           )}:00`}</SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* warning/note */}
+                  <div className="flex items-center gap-2">
+                    <label className="hidden sm:inline text-xs text-gray-600 pt-2">
+                      Hasta
+                    </label>
+                    <Select
+                      value={String(endHour)}
+                      onValueChange={(v) => setEndHour(parseInt(v, 10))}
+                    >
+                      <SelectTrigger className="h-8 sm:h-9 w-[100px]">
+                        <SelectValue placeholder="Hasta" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 - startHour }).map((_, i) => {
+                          const h = i + startHour + 1;
+                          return (
+                            <SelectItem key={`e-${h}`} value={String(h)}>{`${hh(
+                              h
+                            )}:00`}</SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                  <Button
-                    className="w-auto"
-                    onClick={() => setSeriesOpen(true)}
-                  >
-                    Programar series
-                  </Button>
-                  <Button variant="outline" onClick={saveChanges}>
-                    Guardar Cambios
-                  </Button>
-                  <div className="text-xs text-amber-600 font-medium">
-                    ⚠️ Recuerda pulsar &quot;Guardar cambios&quot;
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* warning/note */}
+
+                    <Button
+                      className="w-auto"
+                      onClick={() => setSeriesOpen(true)}
+                    >
+                      Programar series
+                    </Button>
+                    <Button variant="outline" onClick={saveChanges}>
+                      Guardar Cambios
+                    </Button>
+                    <div className="text-xs text-amber-600 font-medium">
+                      ⚠️ Recuerda pulsar &quot;Guardar cambios&quot;
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* grid */}
-          <div className="flex-1 overflow-auto px-3 pb-3">
-            <div className="pt-3">
-              <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 min-w-[900px] lg:min-w-0">
-                <div />
-                {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                  <DayHeader
-                    key={`hdr-${d}`}
-                    label={
-                      ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"][d]
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-
-            {hours.map((h) => (
-              <div
-                key={`row-${h}`}
-                className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 mb-2 min-w-[900px] lg:min-w-0"
-              >
-                <div className="border rounded-md bg-white flex items-start justify-center pt-2 text-[11px] text-gray-500">{`${hh(
-                  h
-                )}:00`}</div>
-                {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-                  const cellId = `tpl_${d}_${h}`;
-                  const here = templateRows.filter(
-                    (r) => r.dayOfWeek === d && parseHour(r.startTime) === h
-                  );
-                  return (
-                    <DroppableCell
-                      key={cellId}
-                      id={cellId}
-                      onEmptyClick={() => openQuickAdd(d, h)}
+            {/* Calendar */}
+            <div className="flex-1 overflow-auto px-3 pb-3 border border-black">
+              <div className="pt-3">
+                {/* Header Row */}
+                <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 min-w-[900px] lg:min-w-0">
+                  <div /> {/* Empty top-left */}
+                  {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                    <div
+                      key={`hdr-${d}`}
+                      className="text-sm font-medium text-center text-gray-700"
                     >
-                      <div className="flex flex-col gap-1 min-w-0">
-                        {here.map((r) => (
-                          <DraggableClass
-                            key={r.id}
-                            cls={{
-                              templateRowId: r.id,
-                              id: r.id,
-                              name: r.name,
-                              type: r.type,
-                              capacity: r.capacity,
-                              enrolled: 0, // 👈 since structure has no enrolled yet
-                            }}
-                            fullWidth
-                            onOpenEdit={() => {
-                              setEditing(r);
-                              setEditOpen(true);
-                            }}
-                            onDelete={() =>
-                              setTemplateRows((prev) =>
-                                prev.filter((x) => x.id !== r.id)
-                              )
-                            }
-                          />
-                        ))}
+                      {["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"][d]}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Body */}
+                <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 mt-2 min-w-[900px] lg:min-w-0">
+                  {/* Hour column */}
+                  <div className="relative">
+                    {timeSlots.map((time, i) => (
+                      <div
+                        key={`label-${time}`}
+                        className="absolute left-0 right-0 text-[11px] text-gray-500 pr-1 text-right"
+                        style={{
+                          top: i * SLOT_PX,
+                          height: SLOT_PX,
+                        }}
+                      >
+                        {time.endsWith(":00") ? time : ""}
                       </div>
-                    </DroppableCell>
-                  );
-                })}
+                    ))}
+                    {/* Fill height */}
+                    <div style={{ height: timeSlots.length * SLOT_PX }} />
+                  </div>
+
+                  {/* Day columns */}
+                  {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+                    const dayStr = `day-${d}`;
+
+                    // 1) build raw events for the day in minutes
+                    const rawDayEvents = toRawDayEvents(templateRows, d);
+
+                    // 2) compute lane positions & clusters
+                    const { positions, clusters } =
+                      layoutOverlaps(rawDayEvents);
+
+                    // column height in px (minutes * px/min)
+                    const columnHeightPx =
+                      (endHour - startHour) * 60 * PIXELS_PER_MINUTE;
+
+                    return (
+                      <div
+                        key={dayStr}
+                        className="relative bg-white border rounded-md overflow-hidden"
+                        style={{ height: columnHeightPx }}
+                        onMouseLeave={() => setHover(null)}
+                        onMouseMove={(e) => {
+                          const bounds =
+                            e.currentTarget.getBoundingClientRect();
+                          const y = e.clientY - bounds.top;
+                          const index = Math.floor(y / SLOT_PX);
+                          const time = timeSlots[index];
+                          if (!time) return;
+                          setHover({
+                            dayStr,
+                            topPx: index * SLOT_PX,
+                            label: time,
+                          });
+                        }}
+                        onClick={(e) => {
+                          const bounds =
+                            e.currentTarget.getBoundingClientRect();
+                          const y = e.clientY - bounds.top;
+                          const hour = getHourFromOffset(y);
+                          openQuickAdd(d, hour);
+                        }}
+                      >
+                        {/* Hour delimiter lines */}
+                        {Array.from({ length: endHour - startHour + 1 }).map(
+                          (_, i) => (
+                            <div
+                              key={`hline-${i}`}
+                              className="absolute left-0 right-0 border-t border-gray-300/30"
+                              style={{ top: i * 60 * PIXELS_PER_MINUTE }}
+                            />
+                          )
+                        )}
+
+                        {/* Events track (RIGHT gutter kept) */}
+                        <div
+                          className="absolute inset-y-0 z-10"
+                          style={{ left: 0, right: TRACK_GUTTER_RIGHT_PX }}
+                        >
+                          {/* +N more aggregators for dense clusters (optional) */}
+                          {clusters.map((c) => {
+                            const key = clusterKey(dayStr, c.id);
+                            const collapsed =
+                              !expanded[key] && c.cols > MAX_VISIBLE_COLS;
+                            if (!collapsed) return null;
+
+                            const top =
+                              (c.startMin - startHour * 60) * PIXELS_PER_MINUTE;
+                            const overflow = c.cols - MAX_VISIBLE_COLS;
+
+                            return (
+                              <button
+                                key={`more-${dayStr}-${c.id}`}
+                                className="absolute right-1 z-20 text-[10px] px-1.5 py-0.5 rounded bg-white/90 border shadow hover:bg-white"
+                                style={{ top: top + 4, height: 20 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpanded((s) => ({ ...s, [key]: true }));
+                                }}
+                                title="Mostrar todos los solapados"
+                              >
+                                +{overflow} más
+                              </button>
+                            );
+                          })}
+
+                          {/* Events (side-by-side in lanes) */}
+                          {rawDayEvents.map((ev) => {
+                            const pos = positions.get(ev)!;
+
+                            const clusterK = clusterKey(dayStr, pos.clusterId);
+                            const collapsed =
+                              !expanded[clusterK] &&
+                              pos.cols > MAX_VISIBLE_COLS;
+
+                            const visibleCols = collapsed
+                              ? MAX_VISIBLE_COLS
+                              : pos.cols;
+                            const colInView = collapsed
+                              ? pos.col % MAX_VISIBLE_COLS
+                              : pos.col;
+
+                            const top =
+                              (ev.startMin - startHour * 60) *
+                              PIXELS_PER_MINUTE;
+                            const height = Math.max(
+                              SLOT_PX,
+                              (ev.endMin - ev.startMin) * PIXELS_PER_MINUTE
+                            );
+
+                            const left = `calc(${
+                              (colInView / visibleCols) * 100
+                            }% + ${colInView * COL_GAP_PX}px)`;
+                            const width = `calc(${100 / visibleCols}% - ${
+                              (COL_GAP_PX * (visibleCols - 1)) / visibleCols
+                            }px)`;
+
+                            const color =
+                              typeColors[ev.cls.type] ||
+                              "bg-gray-200 text-gray-900";
+
+                            return (
+                              <Tooltip key={ev.cls.id}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={`absolute rounded shadow-sm ring-1 ring-black/5 border-l-4 border-black/10 ${color} cursor-pointer overflow-hidden`}
+                                    style={{ top, height, left, width }}
+                                    onClick={() => {}}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={() => {}}
+                                    title="" // prevent native title tooltip
+                                  >
+                                    {/* compact content in the chip */}
+                                    <div className="px-2 py-1">
+                                      <div className="font-semibold text-xs truncate">
+                                        {ev.cls.name ?? ev.cls.type}
+                                      </div>
+                                      <div className="text-[10px] opacity-80 truncate">
+                                        {ev.cls.startTime}–{ev.cls.endTime}
+                                      </div>
+                                      {ev.cls.coach && (
+                                        <div className="text-[10px] opacity-80 truncate">
+                                          {ev.cls.coach}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+
+                                <TooltipContent
+                                  side="right"
+                                  align="start"
+                                  sideOffset={6}
+                                  className="px-2 py-1.5 text-xs max-w-[220px]"
+                                >
+                                  <div className="space-y-0.5">
+                                    <div className="font-semibold">
+                                      {ev.cls.name ?? ev.cls.type}
+                                    </div>
+                                    <div className="opacity-80">
+                                      {ev.cls.startTime}–{ev.cls.endTime}
+                                    </div>
+                                    {ev.cls.coach && (
+                                      <div className="opacity-80">
+                                        <strong>Coach:</strong> {ev.cls.coach}
+                                      </div>
+                                    )}
+                                    {typeof ev.cls.capacity === "number" && (
+                                      <div className="opacity-80">
+                                        <strong>Capacidad:</strong>{" "}
+                                        {ev.cls.capacity}
+                                        {typeof ev.cls.booked === "number"
+                                          ? ` (${ev.cls.booked} inscritos)`
+                                          : ""}
+                                      </div>
+                                    )}
+                                    {ev.cls.zone && (
+                                      <div className="opacity-80">
+                                        <strong>Zona:</strong> {ev.cls.zone}
+                                      </div>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+
+                        {/* Hover band + label (unchanged) */}
+                        {hover?.dayStr === dayStr && (
+                          <>
+                            <div
+                              className="pointer-events-none absolute left-0 right-0 z-20"
+                              style={{
+                                top: hover.topPx,
+                                height: SLOT_PX,
+                                borderRadius: 8,
+                              }}
+                            />
+                            <div
+                              className="pointer-events-none absolute z-30 flex items-center justify-center text-[10px] font-medium text-blue-900/80"
+                              style={{
+                                top: hover.topPx,
+                                height: SLOT_PX,
+                                right: 0,
+                                width: TRACK_GUTTER_RIGHT_PX,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {hover.label}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT palette */}
-        <div className="border-l bg-white flex flex-col">
-          <div className="px-5 py-2 border-b bg-white">
-            <div className="text-sm font-semibold">Clases disponibles</div>
-            <div className="text-xs text-gray-500">
-              {isSmall
-                ? "Toca para ver"
-                : "Arrastra con el asa ▮▮ al calendario"}
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-3">
-            <div className="flex flex-col space-y-2">
-              {classPalette.map((c) =>
-                isSmall ? (
-                  <PaletteItemStatic key={c.id} cls={c} />
-                ) : (
-                  <DraggableClass
-                    key={c.id}
-                    cls={c}
-                    isPalette
-                    disabled={false}
-                  />
-                )
-              )}
+
+          {/* RIGHT palette */}
+          {/*   <div className="border-l bg-white flex flex-col">
+            <div className="px-5 py-2 border-b bg-white">
+              <div className="text-sm font-semibold">Clases disponibles</div>
+              <div className="text-xs text-gray-500">
+                {isSmall
+                  ? "Toca para ver"
+                  : "Arrastra con el asa ▮▮ al calendario"}
+              </div>
             </div>
-          </div>
+            <div className="flex-1 overflow-auto p-3">
+              <div className="flex flex-col space-y-2">
+                {classPalette.map((c) =>
+                  isSmall ? (
+                    <PaletteItemStatic key={c.id} cls={c} />
+                  ) : (
+                    <DraggableClass
+                      key={c.id}
+                      cls={c}
+                      isPalette
+                      disabled={false}
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          </div> */}
         </div>
-      </div>
 
-      {activeItem && (
-        <DragOverlay
-          adjustScale={false}
-          dropAnimation={null}
-          // prevent the overlay from eating clicks and staying above selects
-          style={{ pointerEvents: "none", zIndex: 40 }}
-        >
-          <BubbleOverlay cls={activeItem} />
-        </DragOverlay>
-      )}
-
-      <QuickAddModal
-        open={quickOpen}
-        onOpenChange={setQuickOpen}
-        slot={quickSlot}
-        onCreateOne={(p) => {
-          if ("day" in p) createOneTemplate(p);
-        }}
-      />
-      <SeriesModal
-        open={seriesOpen}
-        onOpenChange={setSeriesOpen}
-        context="structure"
-        onCreate={seriesCreateStructure}
-      />
-      <EditTemplateModal
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        row={editing}
-        onSave={saveEditTemplate}
-      />
-    </DndContext>
+        <QuickAddModal
+          open={quickOpen}
+          onOpenChange={setQuickOpen}
+          slot={quickSlot}
+          onCreateOne={(p) => {
+            if ("day" in p) createOneTemplate(p);
+          }}
+        />
+        <SeriesModal
+          open={seriesOpen}
+          onOpenChange={setSeriesOpen}
+          context="structure"
+          onCreate={seriesCreateStructure}
+        />
+        <EditTemplateModal
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          row={editing}
+          onSave={saveEditTemplate}
+        />
+      </TooltipProvider>
+    </>
   );
 }
 
@@ -450,6 +707,13 @@ const iso = (d: Date) => {
 };
 
 import { useRef } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { typeColors } from "@/components/types/types";
 /* --------- Week Board (dated) --------- */
 export function WeekBoard({
   isSmall,
