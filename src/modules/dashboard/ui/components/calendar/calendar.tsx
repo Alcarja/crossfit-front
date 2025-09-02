@@ -56,7 +56,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { fromZonedTime } from "date-fns-tz";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchSelectDropdown } from "@/components/web/searchSelectDropdown";
-import { Input } from "@/components/ui/input";
 
 type Class = {
   event: {
@@ -884,7 +883,31 @@ export default function Calendar() {
                     <FormItem>
                       <FormLabel>Start time</FormLabel>
                       <FormControl>
-                        <Input type="time" step={900} {...field} />
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          defaultValue={field.value}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select time" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 96 }, (_, i) => {
+                              const hours = Math.floor((i * 15) / 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const minutes = ((i * 15) % 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const time = `${hours}:${minutes}`;
+                              return (
+                                <SelectItem key={time} value={time}>
+                                  {time}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -899,13 +922,31 @@ export default function Calendar() {
                     <FormItem>
                       <FormLabel>End time</FormLabel>
                       <FormControl>
-                        <Input
-                          type="time"
-                          step={900}
-                          min="09:00"
-                          max="21:00"
-                          {...field}
-                        />
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          defaultValue={field.value}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select time" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 96 }, (_, i) => {
+                              const hours = Math.floor((i * 15) / 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const minutes = ((i * 15) % 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const time = `${hours}:${minutes}`;
+                              return (
+                                <SelectItem key={time} value={time}>
+                                  {time}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1044,6 +1085,7 @@ export default function Calendar() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Start time */}
+
                 <FormField
                   control={updateClassForm.control}
                   name="startTime"
@@ -1051,34 +1093,68 @@ export default function Calendar() {
                     <FormItem>
                       <FormLabel>Start time</FormLabel>
                       <FormControl>
-                        <Input
-                          type="time"
-                          step={900}
-                          min="09:00"
-                          max="21:00"
-                          {...field}
-                        />
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          defaultValue={field.value}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select time" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 96 }, (_, i) => {
+                              const hours = Math.floor((i * 15) / 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const minutes = ((i * 15) % 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const time = `${hours}:${minutes}`;
+                              return (
+                                <SelectItem key={time} value={time}>
+                                  {time}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                {/* End time */}
                 <FormField
                   control={updateClassForm.control}
                   name="endTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>End time</FormLabel>
+                      <FormLabel>Start time</FormLabel>
                       <FormControl>
-                        <Input
-                          type="time"
-                          step={900}
-                          min="09:00"
-                          max="21:00"
-                          {...field}
-                        />
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          defaultValue={field.value}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select time" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 96 }, (_, i) => {
+                              const hours = Math.floor((i * 15) / 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const minutes = ((i * 15) % 60)
+                                .toString()
+                                .padStart(2, "0");
+                              const time = `${hours}:${minutes}`;
+                              return (
+                                <SelectItem key={time} value={time}>
+                                  {time}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

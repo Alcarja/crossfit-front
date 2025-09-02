@@ -25,7 +25,7 @@ const SLOT_PX = SLOT_MINUTES * PIXELS_PER_MINUTE;
 
 // Layout + UX constants
 const COL_GAP_PX = 2; // gap between overlapping bubbles
-const TRACK_GUTTER_RIGHT_PX = 35; // clickable gutter on RIGHT only
+const TRACK_GUTTER_RIGHT_PX = 45; // clickable gutter on RIGHT only
 const MAX_VISIBLE_COLS = 3; // collapse dense clusters to this many columns
 
 // Hover band state
@@ -120,7 +120,6 @@ export default function WeekView({
   const start = startOfWeek(date, { weekStartsOn: 1 });
   const end = endOfWeek(date, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  const now = new Date();
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const weekDays = days.map((d) =>
@@ -133,6 +132,9 @@ export default function WeekView({
   const columnHeightPx = HOURS_RANGE.length * 60 * PIXELS_PER_MINUTE;
   const totalMin = HOURS_RANGE.length * 60;
 
+  const mobileGridTemplate = "60px repeat(7, 310px)"; // Time gutter + 7 fixed day columns
+  const desktopGridTemplate = "60px repeat(7, minmax(100px, 1fr))"; // Responsive on desktop
+
   return (
     <TooltipProvider delayDuration={20}>
       <div className="space-y-4">
@@ -142,10 +144,19 @@ export default function WeekView({
         </div>
 
         {/* Card wrapper */}
-        <div className="overflow-x-auto w-full">
-          <div className="w-auto min-w-[1600px] rounded-xl border border-border/60 bg-white shadow-sm">
+        <div className="overflow-x-auto w-full border border-muted-60 rounded-md">
+          <div className="min-w-[1040px] sm:min-w-full">
             {/* Header row */}
-            <div className="grid grid-cols-[60px_repeat(7,minmax(100px,1fr))] text-sm bg-muted/60">
+            <div
+              className="grid text-sm bg-muted/60"
+              style={{
+                gridTemplateColumns:
+                  window.innerWidth < 640
+                    ? mobileGridTemplate
+                    : desktopGridTemplate,
+              }}
+            >
+              {" "}
               <div className="p-2" />
               {weekDays.map((day, i) => (
                 <div
@@ -159,9 +170,15 @@ export default function WeekView({
 
             {/* Body grid */}
             <div
-              className="grid grid-cols-[60px_repeat(7,minmax(100px,1fr))] border-t border-border/60 text-sm"
+              className="grid border-t border-border/60 text-sm"
               role="grid"
               aria-label="Week calendar"
+              style={{
+                gridTemplateColumns:
+                  window.innerWidth < 640
+                    ? mobileGridTemplate
+                    : desktopGridTemplate,
+              }}
             >
               {/* Time gutter */}
               <div className="relative flex flex-col items-end pr-3 pt-1 text-[11px] text-muted-foreground bg-gradient-to-b from-background to-muted/20">
@@ -269,10 +286,6 @@ export default function WeekView({
 
                 const { positions, clusters } = layoutOverlaps(rawDayEvents);
 
-                const isToday = format(now, "yyyy-MM-dd") === dayStr;
-                const nowMin = (now.getHours() - 9) * 60 + now.getMinutes();
-                const showNow = isToday && nowMin >= 0 && nowMin <= totalMin;
-
                 return (
                   <div
                     key={dayStr}
@@ -285,34 +298,26 @@ export default function WeekView({
                     aria-label={dayStr}
                   >
                     {/* Hour delimiter lines */}
-                    <div className="pointer-events-none absolute inset-0 z-0">
-                      {HOURS_RANGE.slice(1).map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute left-0 right-0 border-t border-border/35"
-                          style={{ top: i * 60 * PIXELS_PER_MINUTE }}
-                        />
-                      ))}
+                    <div
+                      className="pointer-events-none absolute inset-0 z-0"
+                      style={{ height: columnHeightPx }}
+                    >
+                      {Array.from({ length: HOURS_RANGE.length }).map(
+                        (_, i) => (
+                          <div
+                            key={i}
+                            className="absolute left-0 right-0 border-t border-border/70"
+                            style={{ top: i * 60 * PIXELS_PER_MINUTE }}
+                          />
+                        )
+                      )}
                     </div>
-
-                    {/* Current time line */}
-                    {showNow && (
-                      <div
-                        className="pointer-events-none absolute left-0 right-0 z-30"
-                        style={{ top: nowMin * PIXELS_PER_MINUTE }}
-                      >
-                        <div className="h-0 border-t-2 border-red-500/80" />
-                      </div>
-                    )}
 
                     {/* Events track (RIGHT gutter kept) */}
                     <div
                       className="absolute inset-y-0 z-10"
                       style={{ left: 0, right: TRACK_GUTTER_RIGHT_PX }}
                     >
-                      {/* soft track bg for clarity */}
-                      <div className="absolute inset-0 rounded-lg bg-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,.5)]" />
-
                       {/* +N more aggregators for dense clusters */}
                       {clusters.map((c) => {
                         const key = clusterKey(dayStr, c.id);
@@ -439,9 +444,9 @@ export default function WeekView({
                               side="right"
                               align="start"
                               sideOffset={4}
-                              className="max-w-[200px] px-2 py-1.5 text-xs"
+                              className="max-w-[180px] px-2 py-1.5 text-xs"
                             >
-                              <div className="space-y-0.5">
+                              <div className="space-y-0.2">
                                 <div className="font-semibold text-sm leading-tight">
                                   {ev.cls.type}
                                 </div>
@@ -487,8 +492,6 @@ export default function WeekView({
                       className="pointer-events-none absolute inset-y-0 right-0 z-0"
                       style={{
                         width: TRACK_GUTTER_RIGHT_PX,
-                        background:
-                          "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0) 100%)",
                       }}
                     />
 
@@ -496,7 +499,7 @@ export default function WeekView({
                     {hover?.dayStr === dayStr && (
                       <>
                         <div
-                          className="pointer-events-none absolute left-0 right-0 z-20 bg-blue-100/60 backdrop-blur-[1px]"
+                          className="pointer-events-none absolute left-0 right-0 z-20"
                           style={{
                             top: hover.topPx,
                             height: SLOT_PX,
