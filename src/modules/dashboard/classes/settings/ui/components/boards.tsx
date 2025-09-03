@@ -581,11 +581,17 @@ export function StructureBoard({
                                       <div className="text-[10px] opacity-80 truncate">
                                         {ev.cls.startTime}–{ev.cls.endTime}
                                       </div>
+
                                       {ev.cls.coach && (
                                         <div className="text-[10px] opacity-80 truncate">
                                           {ev.cls.coach}
                                         </div>
                                       )}
+                                    </div>
+                                    <div className="text-[10px] opacity-80 truncate pl-2">
+                                      <span className="font-bold">
+                                        0 / {ev.cls.capacity}
+                                      </span>
                                     </div>
                                   </div>
                                 </TooltipTrigger>
@@ -600,6 +606,7 @@ export function StructureBoard({
                                     <div className="font-semibold">
                                       {ev.cls.name ?? ev.cls.type}
                                     </div>
+
                                     <div className="opacity-80">
                                       {ev.cls.startTime}–{ev.cls.endTime}
                                     </div>
@@ -780,6 +787,7 @@ export function WeekBoard({
   // ---------- fetch existing week ----------
   const mondayISO = isoFn(selectedDate);
   const { data: weekResp } = useGetWeek(mondayISO);
+
   useEffect(() => {
     const payload =
       (weekResp as any)?.instances ?? (weekResp as any)?.data?.instances;
@@ -866,6 +874,7 @@ export function WeekBoard({
     topPx: number;
     label: string;
   } | null>(null);
+
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   function getTimeFromOffset(y: number): string {
@@ -976,6 +985,7 @@ export function WeekBoard({
     setQuickSlot({ dateISO, startTime });
     setQuickOpen(true);
   }
+
   function openEdit(row: WeekInstance) {
     setEditing(row);
     setEditOpen(true);
@@ -1227,89 +1237,97 @@ export function WeekBoard({
                             "bg-gray-200 text-gray-900";
 
                           return (
-                            <Tooltip key={ev.cls.id}>
-                              <TooltipTrigger asChild>
-                                <div
-                                  className={`absolute rounded shadow-sm ring-1 ring-black/5 border-l-4 border-black/10 ${color} cursor-pointer overflow-hidden`}
-                                  style={{ top, height, left, width }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openEdit(ev.cls as WeekInstance);
-                                  }}
-                                  role="button"
-                                  tabIndex={0}
-                                  onKeyDown={() => {}}
-                                  title=""
-                                >
-                                  {/* trash always visible */}
-                                  <button
-                                    className="absolute top-0.5 right-0.5 z-20 p-1 rounded hover:bg-black/10 focus:outline-none"
-                                    aria-label="Eliminar clase"
+                            <>
+                              <Tooltip key={ev.cls.id}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={`absolute rounded shadow-sm ring-1 ring-black/5 border-l-4 border-black/10 ${color} cursor-pointer overflow-hidden`}
+                                    style={{ top, height, left, width }}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setWeeksByKey((prev) => ({
-                                        ...prev,
-                                        [wkKey]: (prev[wkKey] ?? []).filter(
-                                          (r) => r.id !== ev.cls.id
-                                        ),
-                                      }));
+                                      openEdit(ev.cls as WeekInstance);
                                     }}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={() => {}}
+                                    title=""
                                   >
-                                    <Trash2 className="h-3.5 w-3.5 opacity-70" />
-                                  </button>
+                                    {/* trash always visible */}
 
-                                  {/* content */}
-                                  <div className="px-2 py-1">
-                                    <div className="font-semibold text-xs truncate">
+                                    <button
+                                      className="absolute top-0.5 right-0.5 z-20 p-1 rounded hover:bg-black/10 focus:outline-none"
+                                      aria-label="Eliminar clase sin inscritos"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setWeeksByKey((prev) => ({
+                                          ...prev,
+                                          [wkKey]: (prev[wkKey] ?? []).filter(
+                                            (r) => r.id !== ev.cls.id
+                                          ),
+                                        }));
+                                      }}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5 opacity-70" />
+                                    </button>
+
+                                    {/* content */}
+                                    <div className="px-2 py-1">
+                                      <div className="font-semibold text-xs truncate">
+                                        {ev.cls.name ?? ev.cls.type}
+                                      </div>
+                                      <div className="text-[10px] opacity-80 truncate">
+                                        {ev.cls.startTime}–{ev.cls.endTime}
+                                      </div>
+                                      {ev.cls.coach && (
+                                        <div className="text-[10px] opacity-80 truncate">
+                                          {ev.cls.coach}
+                                        </div>
+                                      )}
+                                      <div className="text-[10px] opacity-80 truncate">
+                                        <span className="font-bold">
+                                          {ev.cls.enrolled} / {ev.cls.capacity}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+
+                                <TooltipContent
+                                  side="right"
+                                  align="start"
+                                  sideOffset={6}
+                                  className="px-2 py-1.5 text-xs max-w-[220px]"
+                                >
+                                  <div className="space-y-0.5">
+                                    <div className="font-semibold">
                                       {ev.cls.name ?? ev.cls.type}
                                     </div>
-                                    <div className="text-[10px] opacity-80 truncate">
+                                    <div className="opacity-80">
                                       {ev.cls.startTime}–{ev.cls.endTime}
                                     </div>
                                     {ev.cls.coach && (
-                                      <div className="text-[10px] opacity-80 truncate">
-                                        {ev.cls.coach}
+                                      <div className="opacity-80">
+                                        <strong>Coach:</strong> {ev.cls.coach}
+                                      </div>
+                                    )}
+                                    {typeof ev.cls.capacity === "number" && (
+                                      <div className="opacity-80">
+                                        <strong>Capacidad:</strong>{" "}
+                                        {ev.cls.capacity}
+                                        {typeof ev.cls.enrolled === "number"
+                                          ? ` (${ev.cls.enrolled} inscritos)`
+                                          : ""}
+                                      </div>
+                                    )}
+                                    {ev.cls.zone && (
+                                      <div className="opacity-80">
+                                        <strong>Zona:</strong> {ev.cls.zone}
                                       </div>
                                     )}
                                   </div>
-                                </div>
-                              </TooltipTrigger>
-
-                              <TooltipContent
-                                side="right"
-                                align="start"
-                                sideOffset={6}
-                                className="px-2 py-1.5 text-xs max-w-[220px]"
-                              >
-                                <div className="space-y-0.5">
-                                  <div className="font-semibold">
-                                    {ev.cls.name ?? ev.cls.type}
-                                  </div>
-                                  <div className="opacity-80">
-                                    {ev.cls.startTime}–{ev.cls.endTime}
-                                  </div>
-                                  {ev.cls.coach && (
-                                    <div className="opacity-80">
-                                      <strong>Coach:</strong> {ev.cls.coach}
-                                    </div>
-                                  )}
-                                  {typeof ev.cls.capacity === "number" && (
-                                    <div className="opacity-80">
-                                      <strong>Capacidad:</strong>{" "}
-                                      {ev.cls.capacity}
-                                      {typeof ev.cls.enrolled === "number"
-                                        ? ` (${ev.cls.enrolled} inscritos)`
-                                        : ""}
-                                    </div>
-                                  )}
-                                  {ev.cls.zone && (
-                                    <div className="opacity-80">
-                                      <strong>Zona:</strong> {ev.cls.zone}
-                                    </div>
-                                  )}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
+                                </TooltipContent>
+                              </Tooltip>
+                            </>
                           );
                         })}
                       </div>

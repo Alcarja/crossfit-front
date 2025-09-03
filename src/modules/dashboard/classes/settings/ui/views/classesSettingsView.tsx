@@ -64,8 +64,6 @@ export default function ClassesSettingsView() {
       zone: p.zone || undefined,
     };
 
-    console.log("Row", row);
-
     setTemplateRows((prev) => [...prev, row]);
   };
 
@@ -173,6 +171,7 @@ export default function ClassesSettingsView() {
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
+
   //Copies the classes from the schedule and adds them to the calendar
   const generateWeekFromStructure = () => {
     const todayISO = isoLocal(new Date());
