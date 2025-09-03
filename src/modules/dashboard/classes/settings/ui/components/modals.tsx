@@ -15,7 +15,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -24,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import clsx from "clsx";
-import { durationFromTimes, hh, parseHour, weekdayShort } from "./utils";
+import { durationFromTimes, hh, minutesToTime, weekdayShort } from "./utils";
 import { typeColors } from "./constants";
 import { TemplateRow, WeekInstance } from "./types";
 
@@ -38,20 +37,18 @@ const types = [
   "Kids",
 ];
 
-function getTimeOptions() {
-  return Array.from({ length: 96 }, (_, i) => {
-    const hours = Math.floor((i * 15) / 60)
-      .toString()
-      .padStart(2, "0");
-    const minutes = ((i * 15) % 60).toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+const getTimeOptions = () =>
+  Array.from({ length: 96 }, (_, i) => {
+    const mins = i * 15;
+    const h = String(Math.floor(mins / 60)).padStart(2, "0");
+    const m = String(mins % 60).padStart(2, "0");
+    return `${h}:${m}`;
   });
-}
 
-function parseTimeToMinutes(time: string) {
-  const [h, m] = time.split(":").map(Number);
+const parseTimeToMinutes = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
-}
+};
 
 /* ---------- Quick Add (shared) ---------- */
 export function QuickAddModal({
@@ -62,32 +59,36 @@ export function QuickAddModal({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  // ⬇️ slot now carries minute-precision start time
   slot:
-    | { day: number; hour: number }
-    | { dateISO: string; hour: number }
+    | { day: number; startTime: string }
+    | { dateISO: string; startTime: string }
     | null;
+  // ⬇️ onCreateOne also minute-precision; no hour/minute ints
   onCreateOne: (
     p:
       | {
           kind: "template";
           day: number;
-          hour: number;
+          startTime: string; // "HH:mm"
+          endTime: string; // "HH:mm"
           name: string;
           type: string;
           coach: string;
           zone: string;
-          duration: number;
+          duration: number; // minutes
           capacity: number;
         }
       | {
           kind: "week";
           dateISO: string;
-          hour: number;
+          startTime: string; // "HH:mm"
+          endTime: string; // "HH:mm"
           name: string;
           type: string;
           coach: string;
           zone: string;
-          duration: number;
+          duration: number; // minutes
           capacity: number;
         }
   ) => void;
@@ -100,62 +101,66 @@ export function QuickAddModal({
   const [endTime, setEndTime] = useState("10:00");
   const [capacity, setCapacity] = useState(16);
 
+  // helpers
+  const minutesToTime = (mins: number) => {
+    const m = ((mins % 1440) + 1440) % 1440;
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+  };
+
   useEffect(() => {
     if (open && slot) {
-      const h = String(slot.hour).padStart(2, "0");
-      setStartTime(`${h}:00`);
-      setEndTime(`${String(slot.hour + 1).padStart(2, "0")}:00`);
+      const initial = slot.startTime ?? "09:00";
+      setStartTime(initial);
+      // default end = start + 60min
+      const startMin = parseTimeToMinutes(initial);
+      setEndTime(minutesToTime(startMin + 60));
+
       setType("WOD");
       setName("WOD");
       setCoach("");
       setZone("");
       setCapacity(16);
     }
-  }, [open, slot]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, slot?.startTime]);
 
-  const isTemplateSlot = slot && "day" in slot!;
+  const isTemplateSlot = !!slot && "day" in slot;
   const whenText = slot
     ? isTemplateSlot
-      ? `Hora: ${String(slot.hour).padStart(2, "0")}:00 • Día: ${
-          weekdayShort[slot.day]
+      ? `Hora: ${slot.startTime} • Día: ${
+          weekdayShort[(slot as { day: number }).day]
         }`
-      : `Hora: ${String(slot.hour).padStart(2, "0")}:00 • Fecha: ${
-          slot.dateISO
+      : `Hora: ${slot.startTime} • Fecha: ${
+          (slot as { dateISO: string }).dateISO
         }`
     : "";
 
   const handleCreate = () => {
     if (!slot) return;
+
+    const startMin = parseTimeToMinutes(startTime);
+    const endMin = parseTimeToMinutes(endTime);
     const duration =
-      parseTimeToMinutes(endTime) - parseTimeToMinutes(startTime);
+      endMin >= startMin ? endMin - startMin : endMin + 1440 - startMin;
     if (duration <= 0) return;
 
-    const startHour = parseInt(startTime.split(":")[0], 10);
+    const base = {
+      name,
+      type,
+      coach,
+      zone,
+      capacity,
+      startTime, // keep as "HH:mm"
+      endTime, // keep as "HH:mm"
+      duration, // minutes
+    };
 
     const payload =
       "day" in slot
-        ? {
-            kind: "template" as const,
-            day: slot.day,
-            hour: startHour,
-            name,
-            type,
-            coach,
-            zone,
-            duration,
-            capacity,
-          }
-        : {
-            kind: "week" as const,
-            dateISO: slot.dateISO,
-            hour: startHour,
-            name,
-            type,
-            coach,
-            zone,
-            duration,
-            capacity,
-          };
+        ? ({ kind: "template", day: slot.day, ...base } as const)
+        : ({ kind: "week", dateISO: slot.dateISO, ...base } as const);
 
     onCreateOne(payload);
     onOpenChange(false);
@@ -297,62 +302,111 @@ export function QuickAddModal({
   );
 }
 
-/* ---------- Series (shared) ---------- */
 export function SeriesModal({
   open,
   onOpenChange,
-  onCreate,
-  context,
+  context, // "structure" | "week" (only used for title/description)
+  onCreate, // EXACTLY the same shape as QuickAdd's onCreateOne
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   context: "structure" | "week";
-  onCreate: (p: {
-    type: string;
-    name: string;
-    coach: string;
-    zone: string;
-    duration: number;
-    capacity: number;
-    daysOfWeek: number[];
-    startHour: number;
-    endHour: number;
-  }) => void;
+  onCreate: (
+    p:
+      | {
+          kind: "template";
+          day: number;
+          hour: number;
+          name: string;
+          type: string;
+          coach: string;
+          zone: string;
+          duration: number;
+          capacity: number;
+        }
+      | {
+          kind: "week";
+          dateISO: string;
+          hour: number;
+          name: string;
+          type: string;
+          coach: string;
+          zone: string;
+          duration: number;
+          capacity: number;
+        }
+  ) => void;
 }) {
   const [type, setType] = useState("WOD");
   const [name, setName] = useState("WOD");
   const [coach, setCoach] = useState("");
   const [zone, setZone] = useState("");
-  const [duration, setDuration] = useState(60);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:15"); // example default spanning 75 min
   const [capacity, setCapacity] = useState(16);
-  const [startHour, setStartHour] = useState(9);
-  const [endHour, setEndHour] = useState(13);
-  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon–Fri
+
+  const timeOptions = getTimeOptions();
+
+  useEffect(() => {
+    if (!open) return;
+    // Reset like your QuickAdd
+    setType("WOD");
+    setName("WOD");
+    setCoach("");
+    setZone("");
+    setStartTime("09:00");
+    setEndTime("10:00");
+    setCapacity(16);
+    setDays([1, 2, 3, 4, 5]); // default Mon–Fri
+  }, [open]);
 
   const toggleDay = (d: number) =>
     setDays((prev) =>
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
     );
 
+  const handleCreate = () => {
+    const duration =
+      parseTimeToMinutes(endTime) - parseTimeToMinutes(startTime);
+    if (duration <= 0 || days.length === 0) return;
+
+    // EXACTLY like QuickAdd: take only the hour part for "hour"
+    const hour = parseInt(startTime.split(":")[0], 10);
+
+    // Emit ONE record per selected day with the SAME payload shape as QuickAdd
+    for (const day of days) {
+      onCreate({
+        kind: "template",
+        day,
+        hour,
+        name,
+        type,
+        coach,
+        zone,
+        duration,
+        capacity,
+      });
+    }
+
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-[620px] sm:max-w-lg p-4 sm:p-6 max-h-[85vh] overflow-auto">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[620px] sm:max-w-lg p-4 sm:p-6">
         <DialogHeader className="pb-3">
           <DialogTitle className="text-base sm:text-lg">
             Programar series (
             {context === "structure" ? "estructura" : "semana"})
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
-            Crea clases recurrentes{" "}
-            {context === "structure"
-              ? "en la plantilla semanal"
-              : "para la semana seleccionada"}
-            .
+            Crea múltiples clases con los mismos datos en varios días.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* type/name */}
+          {/* Tipo */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Tipo</Label>
             <Select
@@ -374,45 +428,75 @@ export function SeriesModal({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Nombre */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Nombre</Label>
             <Input
               className="h-9 text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre visible"
             />
           </div>
 
-          {/* coach/zone */}
+          {/* Coach */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Coach</Label>
             <Input
               className="h-9 text-sm"
               value={coach}
               onChange={(e) => setCoach(e.target.value)}
+              placeholder="Nombre del coach"
             />
           </div>
+
+          {/* Zona */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Zona</Label>
             <Input
               className="h-9 text-sm"
               value={zone}
               onChange={(e) => setZone(e.target.value)}
+              placeholder="Zona / espacio"
             />
           </div>
 
-          {/* duration/capacity */}
+          {/* Hora de inicio */}
           <div className="space-y-1">
-            <Label className="text-xs sm:text-sm">Duración (min)</Label>
-            <Input
-              className="h-9 text-sm"
-              type="number"
-              min={15}
-              step={15}
-              value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value || "0", 10))}
-            />
+            <Label className="text-xs sm:text-sm">Hora de inicio</Label>
+            <Select value={startTime} onValueChange={setStartTime}>
+              <SelectTrigger className="h-9 text-sm w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Hora de fin */}
+          <div className="space-y-1">
+            <Label className="text-xs sm:text-sm">Hora de fin</Label>
+            <Select value={endTime} onValueChange={setEndTime}>
+              <SelectTrigger className="h-9 text-sm w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Capacidad */}
           <div className="space-y-1">
             <Label className="text-xs sm:text-sm">Capacidad</Label>
             <Input
@@ -424,55 +508,28 @@ export function SeriesModal({
             />
           </div>
 
-          {/* start/end hours */}
-          <div className="space-y-1">
-            <Label className="text-xs sm:text-sm">Desde (hora)</Label>
-            <Input
-              className="h-9 text-sm"
-              type="number"
-              min={0}
-              max={23}
-              value={startHour}
-              onChange={(e) =>
-                setStartHour(parseInt(e.target.value || "0", 10))
-              }
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs sm:text-sm">Hasta (exclusiva)</Label>
-            <Input
-              className="h-9 text-sm"
-              type="number"
-              min={1}
-              max={24}
-              value={endHour}
-              onChange={(e) => setEndHour(parseInt(e.target.value || "0", 10))}
-            />
+          {/* Días */}
+          <div className="space-y-1 sm:col-span-2">
+            <Label className="text-xs sm:text-sm">Días</Label>
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                <label
+                  key={d}
+                  className="flex items-center gap-2 rounded border px-2 py-1 text-xs sm:text-sm"
+                >
+                  <Checkbox
+                    checked={days.includes(d)}
+                    onCheckedChange={() => toggleDay(d)}
+                    id={`day-${d}`}
+                  />
+                  <span>{weekdayShort[d]}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 
-        <Separator className="my-3" />
-
-        <div className="space-y-2">
-          <Label className="text-xs sm:text-sm">Días</Label>
-          <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-              <label
-                key={d}
-                className="flex items-center gap-2 rounded border px-2 py-1 text-xs sm:text-sm"
-              >
-                <Checkbox
-                  checked={days.includes(d)}
-                  onCheckedChange={() => toggleDay(d)}
-                  id={`day-${d}`}
-                />
-                <span>{weekdayShort[d]}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <DialogFooter className="mt-4 gap-2 sticky bottom-0 left-0 right-0 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t pt-3">
+        <DialogFooter className="mt-3 gap-2">
           <DialogClose asChild>
             <Button variant="outline" className="h-9 text-sm w-full sm:w-auto">
               Cancelar
@@ -480,20 +537,7 @@ export function SeriesModal({
           </DialogClose>
           <Button
             className="h-9 text-sm w-full sm:w-auto"
-            onClick={() => {
-              onCreate({
-                type,
-                name,
-                coach,
-                zone,
-                duration,
-                capacity,
-                daysOfWeek: days.sort(),
-                startHour,
-                endHour,
-              });
-              onOpenChange(false);
-            }}
+            onClick={handleCreate}
           >
             Crear
           </Button>
@@ -595,11 +639,18 @@ export function EditTemplateModal({
               step={15}
               value={duration}
               onChange={(e) => {
-                const mins = Math.max(15, parseInt(e.target.value || "0", 10));
-                const newEnd = `${hh(
-                  parseHour(local.startTime) + Math.ceil(mins / 60)
-                )}:00`;
-                setLocal({ ...local, endTime: newEnd });
+                const raw = e.target.value;
+                const mins = Math.max(
+                  15,
+                  Number.isFinite(+raw) ? parseInt(raw, 10) : 15
+                );
+
+                const startMin = parseTimeToMinutes(local.startTime); // "HH:mm" -> minutes
+                const newEnd = minutesToTime(startMin + mins); // add minutes precisely
+
+                setLocal((prev) => ({ ...prev, endTime: newEnd }));
+                // if you're controlling `duration` separately, keep it in sync:
+                // setDuration(mins);
               }}
             />
           </div>

@@ -20,7 +20,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { classPalette } from "./constants";
-import { hh, parseHour } from "./utils";
+import { hh, minutesToTime, parseTimeToMinutes } from "./utils";
 import {
   DraggableClass,
   PaletteItemStatic,
@@ -53,7 +53,6 @@ export function StructureBoard({
   setStartHour,
   setEndHour,
   createOneTemplate,
-  seriesCreateStructure,
   saveEditTemplate,
 }: {
   isSmall: boolean;
@@ -63,16 +62,19 @@ export function StructureBoard({
   endHour: number;
   setStartHour: (v: number) => void;
   setEndHour: (v: number) => void;
+
+  // ⬇️ minute-precision; no hour field
   createOneTemplate: (p: {
     day: number;
-    hour: number;
+    startTime: string; // "HH:mm"
+    duration: number; // minutes
     name: string;
     type: string;
     coach: string;
     zone: string;
-    duration: number;
     capacity: number;
   }) => void;
+
   seriesCreateStructure: (p: {
     type: string;
     name: string;
@@ -90,16 +92,18 @@ export function StructureBoard({
   const queryClient = useQueryClient();
 
   const [quickOpen, setQuickOpen] = useState(false);
-  const [quickSlot, setQuickSlot] = useState<{
-    day: number;
-    hour: number;
-  } | null>(null);
+
   const [seriesOpen, setSeriesOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing] = useState<TemplateRow | null>(null);
 
-  const openQuickAdd = (day: number, hour: number) => {
-    setQuickSlot({ day, hour });
+  const [quickSlot, setQuickSlot] = useState<{
+    day: number;
+    startTime: string;
+  } | null>(null);
+
+  const openQuickAdd = (day: number, startTime: string) => {
+    setQuickSlot({ day, startTime });
     setQuickOpen(true);
   };
 
@@ -112,9 +116,9 @@ export function StructureBoard({
           id: String(t.id),
           name: t.name,
           type: t.type,
-          dayOfWeek: t.dayOfWeek, // 0=Sunday…6=Saturday
-          startTime: t.startTime,
-          endTime: t.endTime,
+          dayOfWeek: t.dayOfWeek,
+          startTime: minutesToTime(parseTimeToMinutes(t.startTime)),
+          endTime: minutesToTime(parseTimeToMinutes(t.endTime)),
           capacity: t.capacity,
           coach: t.coachId ?? "",
           zone: t.zoneName ?? "",
@@ -126,32 +130,42 @@ export function StructureBoard({
   const createScheduleMutation = useCreateSchedule();
 
   const saveChanges = () => {
+    // 1) normalize + sort by (day, start minutes)
     const rows = templateRows
       .slice()
       .sort((a, b) =>
         a.dayOfWeek === b.dayOfWeek
-          ? parseHour(a.startTime) - parseHour(b.startTime)
+          ? parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime)
           : a.dayOfWeek - b.dayOfWeek
       )
-      .map((r) => ({
-        name: r.name,
-        type: r.type as
-          | "WOD"
-          | "Gymnastics"
-          | "Weightlifting"
-          | "Endurance"
-          | "Foundations"
-          | "Kids",
-        dayOfWeek: r.dayOfWeek,
-        startTime: r.startTime,
-        endTime: r.endTime,
-        capacity: r.capacity,
-        coachId: undefined, // TODO: map real coach id if you have it
-        zoneName: r.zone || undefined,
-        isActive: true,
-      }));
+      .map((r) => {
+        // API expects 0..6 (Sun..Sat). UI is 1..7 (Mon..Sun) -> convert: 7 -> 0
+        const apiDay = r.dayOfWeek % 7;
 
-    // call mutation with onSuccess
+        // ensure HH:mm padding (in case any row got "H:m")
+        const start = minutesToTime(parseTimeToMinutes(r.startTime));
+        const end = minutesToTime(parseTimeToMinutes(r.endTime));
+
+        return {
+          name: r.name,
+          type: r.type as
+            | "WOD"
+            | "Gymnastics"
+            | "Weightlifting"
+            | "Endurance"
+            | "Foundations"
+            | "Kids",
+          dayOfWeek: apiDay, // <-- converted
+          startTime: start, // "HH:mm"
+          endTime: end, // "HH:mm"
+          capacity: r.capacity,
+          coachId: undefined, // map to real id if you have it
+          zoneName: r.zone || undefined,
+          isActive: true,
+        };
+      });
+
+    // 2) send to API
     createScheduleMutation.mutate(
       {
         settings: {
@@ -198,13 +212,6 @@ export function StructureBoard({
     label: string;
   } | null>(null);
 
-  function getHourFromOffset(y: number): number {
-    const minutesOffset = Math.floor(y / SLOT_PX) * 15;
-    const absoluteMinutes = startHour * 60 + minutesOffset;
-    const hour = Math.floor(absoluteMinutes / 60);
-    return hour; // return as integer, e.g., 9, 14
-  }
-
   // constants
   const COL_GAP_PX = 3; // gap between columns inside a cluster
   const MAX_VISIBLE_COLS = 3; // collapse clusters beyond this (optional)
@@ -220,34 +227,27 @@ export function StructureBoard({
 
   // transform your rows to the shape expected by layoutOverlaps
   function toRawDayEvents(rows: typeof templateRows, day: number) {
-    return (
-      rows
-        .filter((r) => r.dayOfWeek === day)
-        .map((r) => {
-          const s = parseHour(r.startTime) * 60; // minutes from 00:00
-          const e = parseHour(r.endTime) * 60;
-          return {
-            cls: r,
-            id: r.id,
-            startMin: s,
-            endMin: e,
-          };
-        })
-        // clamp to current window (startHour..endHour) if you want to hide overflow:
-        .map((ev) => {
-          const windowStart = startHour * 60;
-          const windowEnd = endHour * 60;
-          const s = Math.max(windowStart, ev.startMin);
-          const e = Math.min(windowEnd, ev.endMin);
-          return e <= s ? null : { ...ev, startMin: s, endMin: e };
-        })
-        .filter(Boolean) as Array<{
-        cls: any;
-        id: string;
-        startMin: number;
-        endMin: number;
-      }>
-    );
+    return rows
+      .filter((r) => r.dayOfWeek === day)
+      .map((r) => ({
+        cls: r,
+        id: r.id,
+        startMin: parseTimeToMinutes(r.startTime),
+        endMin: parseTimeToMinutes(r.endTime),
+      }))
+      .map((ev) => {
+        const windowStart = startHour * 60;
+        const windowEnd = endHour * 60;
+        const s = Math.max(windowStart, ev.startMin);
+        const e = Math.min(windowEnd, ev.endMin);
+        return e <= s ? null : { ...ev, startMin: s, endMin: e };
+      })
+      .filter(Boolean) as Array<{
+      cls: any;
+      id: string;
+      startMin: number;
+      endMin: number;
+    }>;
   }
 
   // Event + layout types
@@ -311,6 +311,12 @@ export function StructureBoard({
     });
 
     return { positions, clusters: metas };
+  }
+
+  function getTimeFromOffset(y: number): string {
+    const minutesOffset = Math.floor(y / SLOT_PX) * 15; // snaps to 15 min
+    const absoluteMinutes = startHour * 60 + minutesOffset;
+    return minutesToTime(absoluteMinutes); // "HH:mm"
   }
 
   return (
@@ -389,7 +395,7 @@ export function StructureBoard({
             </div>
 
             {/* Calendar */}
-            <div className="flex-1 overflow-auto px-3 pb-3 border border-black">
+            <div className="flex-1 overflow-auto px-3 pb-3">
               <div className="pt-3">
                 {/* Header Row */}
                 <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 min-w-[900px] lg:min-w-0">
@@ -462,8 +468,8 @@ export function StructureBoard({
                           const bounds =
                             e.currentTarget.getBoundingClientRect();
                           const y = e.clientY - bounds.top;
-                          const hour = getHourFromOffset(y);
-                          openQuickAdd(d, hour);
+                          const startTimeStr = getTimeFromOffset(y); // e.g., "10:15"
+                          openQuickAdd(d, startTimeStr);
                         }}
                       >
                         {/* Hour delimiter lines */}
@@ -682,11 +688,14 @@ export function StructureBoard({
             if ("day" in p) createOneTemplate(p);
           }}
         />
+
         <SeriesModal
           open={seriesOpen}
           onOpenChange={setSeriesOpen}
           context="structure"
-          onCreate={seriesCreateStructure}
+          onCreate={(p) => {
+            if ("day" in p) createOneTemplate(p); // SAME path as QuickAdd
+          }}
         />
         <EditTemplateModal
           open={editOpen}
@@ -870,6 +879,8 @@ export function WeekBoard({
       capacity: c.capacity ?? 0,
       enrolled: c.enrolled ?? 0,
     }));
+
+    console.log("Mapped", mapped);
 
     setWeeksByKey((prev) => ({ ...prev, [wkKey]: mapped }));
   }, [weekResp, setWeeksByKey, wkKey]);
@@ -1200,11 +1211,16 @@ export function WeekBoard({
       <QuickAddModal
         open={quickOpen}
         onOpenChange={setQuickOpen}
-        slot={quickSlot}
+        slot={quickSlot} // now has { day, startTime }
         onCreateOne={(p) => {
-          if ("dateISO" in p) createOneWeekInstance(p);
+          if ("dateISO" in p) {
+            createOneWeekInstance(p); // existing week path
+          } else if ("day" in p) {
+            createOneTemplate(p); // NEW: template path
+          }
         }}
       />
+
       <SeriesModal
         open={seriesOpen}
         onOpenChange={setSeriesOpen}

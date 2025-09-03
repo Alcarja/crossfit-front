@@ -9,7 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import useMediaQuery from "../components/useMediaQuery";
 import { DEFAULT_END, DEFAULT_START } from "../components/constants";
-import { hh, iso, weekKeyFromDate } from "../components/utils";
+import {
+  hh,
+  iso,
+  minutesToTime,
+  parseTimeToMinutes,
+  weekKeyFromDate,
+} from "../components/utils";
 import { TemplateRow, WeekInstance } from "../components/types";
 import { StructureBoard, WeekBoard } from "../components/boards";
 
@@ -26,33 +32,35 @@ export default function ClassesSettingsView() {
   /* ===== Structure state ===== */
   const [templateRows, setTemplateRows] = useState<TemplateRow[]>([]);
 
-  //Create a single class for the schedule tab
+  //Create a single class for the schedule tab --> This one is working perfectly
   const createOneTemplate = (p: {
     day: number;
-    hour: number;
+    startTime: string; // <-- accept "HH:mm"
+    duration: number; // minutes
     name: string;
     type: string;
     coach: string;
     zone: string;
-    duration: number;
     capacity: number;
   }) => {
-    const start = `${hh(p.hour)}:00`; //Formats the time to HH:00
-    const end = `${hh(p.hour + Math.max(1, Math.ceil(p.duration / 60)))}:00`; //Calculates the end hour
+    const startMin = parseTimeToMinutes(p.startTime);
+    const endMin = startMin + p.duration;
 
-    //Builds the class bubble
     const row: TemplateRow = {
-      id: `tpl-${uuidv4()}`, //Unique id for the drag and drop
+      id: `tpl-${uuidv4()}`,
       name: p.name,
       type: p.type,
       dayOfWeek: p.day,
-      startTime: start,
-      endTime: end,
+      startTime: minutesToTime(startMin), // keeps minutes
+      endTime: minutesToTime(endMin), // start + duration
       capacity: p.capacity,
       coach: p.coach || undefined,
       zone: p.zone || undefined,
     };
-    setTemplateRows((prev) => [...prev, row]); //Saves it to the local list of classes
+
+    console.log("Row", row);
+
+    setTemplateRows((prev) => [...prev, row]);
   };
 
   //Saves changes to an existing class
