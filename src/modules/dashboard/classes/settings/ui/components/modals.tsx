@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -23,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import clsx from "clsx";
-import { durationFromTimes, hh, minutesToTime, weekdayShort } from "./utils";
+import { durationFromTimes, weekdayShort } from "./utils";
 import { typeColors } from "./constants";
 import { TemplateRow, WeekInstance } from "./types";
 
@@ -45,9 +44,20 @@ const getTimeOptions = () =>
     return `${h}:${m}`;
   });
 
-const parseTimeToMinutes = (t: string) => {
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
+export const parseTimeToMinutes = (t: string) => {
+  if (typeof t !== "string") {
+    throw new Error(
+      `parseTimeToMinutes: time is ${String(t)} (expected "HH:mm")`
+    );
+  }
+  const m = /^(\d{1,2}):([0-5]\d)$/.exec(t);
+  if (!m)
+    throw new Error(
+      `parseTimeToMinutes: invalid time "${t}" (expected "HH:mm")`
+    );
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h * 60 + min;
 };
 
 /* ---------- Quick Add (shared) ---------- */
@@ -302,6 +312,17 @@ export function QuickAddModal({
   );
 }
 
+type SingleClassPayload = {
+  day: number; // 1..7 (Mon..Sun in your UI)
+  startTime: string; // "HH:mm"
+  duration: number; // minutes
+  name: string;
+  type: string;
+  coach: string;
+  zone: string;
+  capacity: number;
+};
+
 export function SeriesModal({
   open,
   onOpenChange,
@@ -311,31 +332,7 @@ export function SeriesModal({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   context: "structure" | "week";
-  onCreate: (
-    p:
-      | {
-          kind: "template";
-          day: number;
-          hour: number;
-          name: string;
-          type: string;
-          coach: string;
-          zone: string;
-          duration: number;
-          capacity: number;
-        }
-      | {
-          kind: "week";
-          dateISO: string;
-          hour: number;
-          name: string;
-          type: string;
-          coach: string;
-          zone: string;
-          duration: number;
-          capacity: number;
-        }
-  ) => void;
+  onCreate: (p: SingleClassPayload) => void;
 }) {
   const [type, setType] = useState("WOD");
   const [name, setName] = useState("WOD");
@@ -367,28 +364,36 @@ export function SeriesModal({
     );
 
   const handleCreate = () => {
-    const duration =
-      parseTimeToMinutes(endTime) - parseTimeToMinutes(startTime);
-    if (duration <= 0 || days.length === 0) return;
-
-    // EXACTLY like QuickAdd: take only the hour part for "hour"
-    const hour = parseInt(startTime.split(":")[0], 10);
-
-    // Emit ONE record per selected day with the SAME payload shape as QuickAdd
-    for (const day of days) {
-      onCreate({
-        kind: "template",
-        day,
-        hour,
-        name,
-        type,
-        coach,
-        zone,
-        duration,
-        capacity,
-      });
+    // guard: days selected
+    if (days.length === 0) {
+      console.warn("Select at least one day");
+      return;
     }
 
+    // duration (supports crossing midnight)
+    const s = parseTimeToMinutes(startTime);
+    const e = parseTimeToMinutes(endTime);
+    const duration = e >= s ? e - s : e + 1440 - s;
+    if (duration <= 0) {
+      console.error("Invalid duration", { startTime, endTime, duration });
+      return;
+    }
+
+    const base = {
+      startTime, // "HH:mm"
+      duration, // minutes
+      name,
+      type,
+      coach,
+      zone,
+      capacity,
+    };
+
+    // emit one class per selected day with the SAME shape as single class
+    const payloads = days.map((day) => ({ day, ...base }));
+    console.table(payloads); // sanity check in dev tools
+
+    payloads.forEach(onCreate); // parent handles computing endTime, etc.
     onOpenChange(false);
   };
 
@@ -560,13 +565,32 @@ export function EditTemplateModal({
   onSave: (r: TemplateRow) => void;
 }) {
   const [local, setLocal] = useState<TemplateRow | null>(row);
+
   useEffect(() => {
     if (open) setLocal(row);
   }, [open, row]);
+
   if (!open || !local) return null;
+
+  // If you already have getTimeOptions() elsewhere, use that and delete this helper.
+  const getTimeOptions = (step = 15) => {
+    const out: string[] = [];
+    for (let m = 0; m < 24 * 60; m += step) {
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      out.push(`${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`);
+    }
+    return out;
+  };
+
+  const timeOptions = getTimeOptions();
 
   const colorClass =
     typeColors[local.type as keyof typeof typeColors] ?? typeColors.Default;
+
+  if (!open || !local) return null;
+
+  // minute-precision duration (supports crossing midnight)
   const duration = durationFromTimes(local.startTime, local.endTime);
 
   return (
@@ -583,18 +607,19 @@ export function EditTemplateModal({
           <div className="font-medium">{local.name}</div>
           <div>
             • {weekdayShort[local.dayOfWeek]} • {local.startTime}–
-            {local.endTime}
+            {local.endTime} ({duration} min)
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+          {/* Tipo */}
           <div className="space-y-1">
             <Label>Tipo</Label>
             <Select
               value={local.type}
               onValueChange={(v) => setLocal({ ...local, type: v, name: v })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -607,6 +632,7 @@ export function EditTemplateModal({
             </Select>
           </div>
 
+          {/* Nombre */}
           <div className="space-y-1">
             <Label>Nombre</Label>
             <Input
@@ -615,6 +641,7 @@ export function EditTemplateModal({
             />
           </div>
 
+          {/* Coach */}
           <div className="space-y-1">
             <Label>Coach</Label>
             <Input
@@ -623,6 +650,7 @@ export function EditTemplateModal({
             />
           </div>
 
+          {/* Zona */}
           <div className="space-y-1">
             <Label>Zona</Label>
             <Input
@@ -631,30 +659,47 @@ export function EditTemplateModal({
             />
           </div>
 
+          {/* Hora de inicio (15 min) */}
           <div className="space-y-1">
-            <Label>Duración (min)</Label>
-            <Input
-              type="number"
-              min={15}
-              step={15}
-              value={duration}
-              onChange={(e) => {
-                const raw = e.target.value;
-                const mins = Math.max(
-                  15,
-                  Number.isFinite(+raw) ? parseInt(raw, 10) : 15
-                );
-
-                const startMin = parseTimeToMinutes(local.startTime); // "HH:mm" -> minutes
-                const newEnd = minutesToTime(startMin + mins); // add minutes precisely
-
-                setLocal((prev) => ({ ...prev, endTime: newEnd }));
-                // if you're controlling `duration` separately, keep it in sync:
-                // setDuration(mins);
-              }}
-            />
+            <Label>Hora de inicio</Label>
+            <Select
+              value={local.startTime}
+              onValueChange={(v) => setLocal({ ...local, startTime: v })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((t) => (
+                  <SelectItem key={`start-${t}`} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* Hora de fin (15 min) */}
+          <div className="space-y-1">
+            <Label>Hora de fin</Label>
+            <Select
+              value={local.endTime}
+              onValueChange={(v) => setLocal({ ...local, endTime: v })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((t) => (
+                  <SelectItem key={`end-${t}`} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Capacidad */}
           <div className="space-y-1">
             <Label>Capacidad</Label>
             <Input
@@ -677,7 +722,11 @@ export function EditTemplateModal({
           </DialogClose>
           <Button
             onClick={() => {
-              if (local) onSave(local);
+              if (!local) return;
+              // Optional sanity: ensure "HH:mm" format
+              // local.startTime = minutesToTime(parseTimeToMinutes(local.startTime));
+              // local.endTime = minutesToTime(parseTimeToMinutes(local.endTime));
+              onSave(local);
               onOpenChange(false);
             }}
           >
@@ -702,14 +751,45 @@ export function EditWeekModal({
   onSave: (r: WeekInstance) => void;
 }) {
   const [local, setLocal] = useState<WeekInstance | null>(inst);
+
   useEffect(() => {
     if (open) setLocal(inst);
   }, [open, inst]);
+
   if (!open || !local) return null;
+
+  // ---- helpers (same minute-precision utils you use elsewhere) ----
+  const parseTimeToMinutes = (t: string) => {
+    const [h, m = "0"] = String(t).split(":");
+    return Number(h) * 60 + Number(m);
+  };
+  const minutesToTime = (mins: number) => {
+    const m = ((mins % 1440) + 1440) % 1440; // wrap around 24h
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+  };
+  const durationFromTimes = (start: string, end: string) => {
+    const s = parseTimeToMinutes(start);
+    const e = parseTimeToMinutes(end);
+    return e >= s ? e - s : e + 1440 - s; // support crossing midnight
+  };
+  const getTimeOptions = () => {
+    const out: string[] = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+      }
+    }
+    return out;
+  };
+
+  const timeOptions = getTimeOptions(); // always recompute
+  const duration = durationFromTimes(local.startTime, local.endTime);
 
   const colorClass =
     typeColors[local.type as keyof typeof typeColors] ?? typeColors.Default;
-  const duration = durationFromTimes(local.startTime, local.endTime);
+
   const types = [
     "WOD",
     "Gymnastics",
@@ -741,6 +821,7 @@ export function EditWeekModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+          {/* Tipo */}
           <div className="space-y-1">
             <Label>Tipo</Label>
             <Select
@@ -760,6 +841,7 @@ export function EditWeekModal({
             </Select>
           </div>
 
+          {/* Nombre */}
           <div className="space-y-1">
             <Label>Nombre</Label>
             <Input
@@ -768,6 +850,7 @@ export function EditWeekModal({
             />
           </div>
 
+          {/* Coach */}
           <div className="space-y-1">
             <Label>Coach</Label>
             <Input
@@ -776,6 +859,7 @@ export function EditWeekModal({
             />
           </div>
 
+          {/* Zona */}
           <div className="space-y-1">
             <Label>Zona</Label>
             <Input
@@ -784,23 +868,56 @@ export function EditWeekModal({
             />
           </div>
 
+          {/* Hora de inicio (15 min) */}
           <div className="space-y-1">
-            <Label>Duración (min)</Label>
-            <Input
-              type="number"
-              min={15}
-              step={15}
-              value={duration}
-              onChange={(e) => {
-                const mins = Math.max(15, parseInt(e.target.value || "0", 10));
-                const newEnd = `${hh(
-                  parseHour(local.startTime) + Math.ceil(mins / 60)
-                )}:00`;
-                setLocal({ ...local, endTime: newEnd });
+            <Label>Hora de inicio</Label>
+            <Select
+              value={local.startTime}
+              onValueChange={(v) => {
+                const prevDur =
+                  durationFromTimes(local.startTime, local.endTime) || 60;
+                const s = parseTimeToMinutes(v);
+                const newEnd = minutesToTime(s + prevDur);
+                setLocal({ ...local, startTime: v, endTime: newEnd });
               }}
-            />
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((t) => (
+                  <SelectItem key={`start-${t}`} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* Hora de fin (15 min) */}
+          <div className="space-y-1">
+            <Label>Hora de fin</Label>
+            <Select
+              value={local.endTime}
+              onValueChange={(v) => setLocal({ ...local, endTime: v })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeOptions.map((t) => (
+                  <SelectItem key={`end-${t}`} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Duración: {duration} min
+            </p>
+          </div>
+
+          {/* Capacidad */}
           <div className="space-y-1">
             <Label>Capacidad</Label>
             <Input

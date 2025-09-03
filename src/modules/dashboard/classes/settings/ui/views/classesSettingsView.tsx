@@ -19,15 +19,21 @@ import {
 import { TemplateRow, WeekInstance } from "../components/types";
 import { StructureBoard, WeekBoard } from "../components/boards";
 
+type CreateWeekInstanceArgs = {
+  dateISO: string;
+  startTime: string; // "HH:mm"
+  duration: number; // minutes
+  name: string;
+  type: string;
+  coach: string;
+  zone: string;
+  capacity: number;
+};
+
 export default function ClassesSettingsView() {
   const isSmall = useMediaQuery("(max-width: 1024px)");
   const [startHour, setStartHour] = useState<number>(DEFAULT_START);
   const [endHour, setEndHour] = useState<number>(DEFAULT_END);
-  const hours = useMemo(
-    () =>
-      Array.from({ length: endHour - startHour }).map((_, i) => i + startHour),
-    [startHour, endHour]
-  );
 
   /* ===== Structure state ===== */
   const [templateRows, setTemplateRows] = useState<TemplateRow[]>([]);
@@ -129,30 +135,23 @@ export default function ClassesSettingsView() {
   const weekInstances = weeksByKey[wkKey] ?? [];
 
   //Create a single class for the calendar tab
-  const createOneWeekInstance = (p: {
-    dateISO: string;
-    hour: number;
-    name: string;
-    type: string;
-    coach: string;
-    zone: string;
-    duration: number;
-    capacity: number;
-  }) => {
-    const start = `${hh(p.hour)}:00`;
-    const end = `${hh(p.hour + Math.max(1, Math.ceil(p.duration / 60)))}:00`;
+  const createOneWeekInstance = (p: CreateWeekInstanceArgs) => {
+    const startMin = parseTimeToMinutes(p.startTime);
+    const endTime = minutesToTime(startMin + p.duration);
+
     const inst: WeekInstance = {
       id: `inst-${uuidv4()}`,
       date: p.dateISO,
       name: p.name,
       type: p.type,
-      startTime: start,
-      endTime: end,
+      startTime: p.startTime,
+      endTime,
       capacity: p.capacity,
       enrolled: 0,
       coach: p.coach || undefined,
       zone: p.zone || undefined,
     };
+
     setWeeksByKey((prev) => ({
       ...prev,
       [wkKey]: [...(prev[wkKey] ?? []), inst],
@@ -244,7 +243,6 @@ export default function ClassesSettingsView() {
         <TabsContent value="schedule" className="w-full">
           <WeekBoard
             isSmall={isSmall}
-            hours={hours}
             days={days}
             weekLabel={weekLabel}
             startHour={startHour}
@@ -256,36 +254,34 @@ export default function ClassesSettingsView() {
             wkKey={wkKey}
             generateWeekFromStructure={generateWeekFromStructure}
             seriesCreateWeek={(p) => {
-              const base: WeekInstance[] = [];
-              p.daysOfWeek.forEach((dow: any) => {
-                const date = iso(addDays(weekStart, dow - 1));
-                for (let h = p.startHour; h < p.endHour; h++) {
-                  base.push({
-                    id: `inst-${uuidv4()}`,
-                    date,
-                    name: p.name,
-                    type: p.type,
-                    startTime: `${hh(h)}:00`,
-                    endTime: `${hh(
-                      h + Math.max(1, Math.ceil(p.duration / 60))
-                    )}:00`,
-                    capacity: p.capacity,
-                    enrolled: 0,
-                    coach: p.coach || undefined,
-                    zone: p.zone || undefined,
-                  });
-                }
-              });
+              // p: { day, startTime, duration, name, type, coach, zone, capacity }
+              const date = iso(addDays(weekStart, p.day - 1));
+              const startMin = parseTimeToMinutes(p.startTime);
+              const endTime = minutesToTime(startMin + p.duration);
+
+              const inst: WeekInstance = {
+                id: `inst-${uuidv4()}`,
+                date,
+                name: p.name,
+                type: p.type,
+                startTime: p.startTime,
+                endTime,
+                capacity: p.capacity,
+                enrolled: 0,
+                coach: p.coach || "",
+                zone: p.zone || "",
+              };
+
               setWeeksByKey((prev) => ({
                 ...prev,
-                [wkKey]: [...(prev[wkKey] ?? []), ...base],
+                [wkKey]: [...(prev[wkKey] ?? []), inst],
               }));
             }}
             createOneWeekInstance={createOneWeekInstance}
-            openEditWeek={() => {}}
             saveEditWeek={saveEditWeek}
             selectedDate={selectedDate}
             setSelectedDate={(fn: any) => setSelectedDate((d) => fn(d))}
+            isoFn={iso}
           />
         </TabsContent>
       </Tabs>

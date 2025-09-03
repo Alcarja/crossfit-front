@@ -4,8 +4,19 @@ export const hh = (n: number) => String(n).padStart(2, "0");
 
 // --- Minute-aware helpers ---
 export const parseTimeToMinutes = (time: string): number => {
-  const [h, m = "0"] = time.split(":");
-  return Number(h) * 60 + Number(m);
+  if (typeof time !== "string") {
+    throw new Error(
+      `parseTimeToMinutes: expected "HH:mm", got ${String(time)}`
+    );
+  }
+  const m = /^(\d{1,2}):([0-5]\d)$/.exec(time.trim());
+  if (!m)
+    throw new Error(
+      `parseTimeToMinutes: invalid time "${time}" (expected "HH:mm")`
+    );
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h * 60 + min;
 };
 
 export const minutesToTime = (mins: number): string => {
@@ -42,3 +53,6 @@ export const weekdayShort = [
   "Sáb",
   "Dom",
 ];
+
+//From the backend sunday comes back as 0, but the front uses it as 7. This changes it from 1 to 7
+export const apiDayToUi = (api: number) => ((api + 6) % 7) + 1; // 0..6 -> 1..7

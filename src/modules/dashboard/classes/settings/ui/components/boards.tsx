@@ -3,12 +3,7 @@
 
 import { format, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import {
-  DndContext,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
+
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -17,16 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
-import { classPalette } from "./constants";
-import { hh, minutesToTime, parseTimeToMinutes } from "./utils";
-import {
-  DraggableClass,
-  PaletteItemStatic,
-  BubbleOverlay,
-} from "./draggableClass";
-import { DayHeader, DroppableCell } from "./droppableCell";
+import { apiDayToUi, hh, minutesToTime, parseTimeToMinutes } from "./utils";
+
 import {
   QuickAddModal,
   SeriesModal,
@@ -34,7 +23,7 @@ import {
   EditWeekModal,
 } from "./modals";
 import type { TemplateRow, WeekInstance } from "./types";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   scheduleQueryOptions,
   useCreateSchedule,
@@ -95,7 +84,7 @@ export function StructureBoard({
 
   const [seriesOpen, setSeriesOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [editing] = useState<TemplateRow | null>(null);
+  const [editing, setEditing] = useState<TemplateRow | null>(null);
 
   const [quickSlot, setQuickSlot] = useState<{
     day: number;
@@ -107,6 +96,11 @@ export function StructureBoard({
     setQuickOpen(true);
   };
 
+  function openEdit(row: TemplateRow) {
+    setEditing(row);
+    setEditOpen(true);
+  }
+
   const { data: scheduleData } = useQuery(scheduleQueryOptions());
 
   useEffect(() => {
@@ -116,7 +110,7 @@ export function StructureBoard({
           id: String(t.id),
           name: t.name,
           type: t.type,
-          dayOfWeek: t.dayOfWeek,
+          dayOfWeek: apiDayToUi(Number(t.dayOfWeek)), // <-- convert 0->7
           startTime: minutesToTime(parseTimeToMinutes(t.startTime)),
           endTime: minutesToTime(parseTimeToMinutes(t.endTime)),
           capacity: t.capacity,
@@ -556,12 +550,29 @@ export function StructureBoard({
                                   <div
                                     className={`absolute rounded shadow-sm ring-1 ring-black/5 border-l-4 border-black/10 ${color} cursor-pointer overflow-hidden`}
                                     style={{ top, height, left, width }}
-                                    onClick={() => {}}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // prevent opening QuickAdd
+                                      openEdit(ev.cls as TemplateRow);
+                                    }}
                                     role="button"
                                     tabIndex={0}
                                     onKeyDown={() => {}}
-                                    title="" // prevent native title tooltip
+                                    title=""
                                   >
+                                    {/* trash always visible */}
+                                    <button
+                                      className="absolute top-0.5 right-0.5 z-20 p-1 rounded hover:bg-black/10 focus:outline-none"
+                                      aria-label="Eliminar clase"
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // don't open edit
+                                        setTemplateRows((prev) =>
+                                          prev.filter((r) => r.id !== ev.cls.id)
+                                        );
+                                      }}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5 opacity-70" />
+                                    </button>
+
                                     {/* compact content in the chip */}
                                     <div className="px-2 py-1">
                                       <div className="font-semibold text-xs truncate">
@@ -650,34 +661,6 @@ export function StructureBoard({
               </div>
             </div>
           </div>
-
-          {/* RIGHT palette */}
-          {/*   <div className="border-l bg-white flex flex-col">
-            <div className="px-5 py-2 border-b bg-white">
-              <div className="text-sm font-semibold">Clases disponibles</div>
-              <div className="text-xs text-gray-500">
-                {isSmall
-                  ? "Toca para ver"
-                  : "Arrastra con el asa ▮▮ al calendario"}
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto p-3">
-              <div className="flex flex-col space-y-2">
-                {classPalette.map((c) =>
-                  isSmall ? (
-                    <PaletteItemStatic key={c.id} cls={c} />
-                  ) : (
-                    <DraggableClass
-                      key={c.id}
-                      cls={c}
-                      isPalette
-                      disabled={false}
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          </div> */}
         </div>
 
         <QuickAddModal
@@ -697,6 +680,7 @@ export function StructureBoard({
             if ("day" in p) createOneTemplate(p); // SAME path as QuickAdd
           }}
         />
+
         <EditTemplateModal
           open={editOpen}
           onOpenChange={setEditOpen}
@@ -708,14 +692,6 @@ export function StructureBoard({
   );
 }
 
-const iso = (d: Date) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
-
-import { useRef } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -723,10 +699,30 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { typeColors } from "@/components/types/types";
+
+export function isoFn(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Start-of-week (Monday) for a date, in local time. */
+export function startOfWeekMonday(d: Date): Date {
+  const out = new Date(d);
+  const dow = out.getDay(); // 0=Sun..6=Sat
+  const diff = (dow === 0 ? -6 : 1) - dow; // move to Monday
+  out.setDate(out.getDate() + diff);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+/** Local YYYY-MM-DD for the Monday of the week containing `d`. */
+export function isoMonday(d: Date): string {
+  return isoFn(startOfWeekMonday(d));
+}
 /* --------- Week Board (dated) --------- */
 export function WeekBoard({
-  isSmall,
-  hours,
   days,
   weekLabel,
   startHour,
@@ -737,15 +733,12 @@ export function WeekBoard({
   setWeeksByKey,
   wkKey,
   generateWeekFromStructure,
-  seriesCreateWeek,
-  createOneWeekInstance,
+  createOneWeekInstance, // ⬅️ minute-precision
   saveEditWeek,
   selectedDate,
   setSelectedDate,
-  isoFn = iso,
 }: {
   isSmall: boolean;
-  hours: number[];
   days: Date[];
   weekLabel: string;
   startHour: number;
@@ -759,116 +752,41 @@ export function WeekBoard({
   wkKey: string;
   generateWeekFromStructure: () => void;
   seriesCreateWeek: (p: {
-    type: string;
+    day: number; // 1..7 (Mon..Sun) if you reuse SeriesModal with days
+    startTime: string; // "HH:mm"
+    duration: number; // minutes
     name: string;
+    type: string;
     coach: string;
     zone: string;
-    duration: number;
     capacity: number;
-    daysOfWeek: number[];
-    startHour: number;
-    endHour: number;
   }) => void;
   createOneWeekInstance: (p: {
     dateISO: string;
-    hour: number;
+    startTime: string; // "HH:mm"
+    endTime?: string; // optional; you can compute from duration
     name: string;
     type: string;
     coach: string;
     zone: string;
-    duration: number;
+    duration: number; // minutes
     capacity: number;
   }) => void;
-  openEditWeek: (id: string) => void;
   saveEditWeek: (r: WeekInstance) => void;
   selectedDate: Date;
   setSelectedDate: (fn: (d: Date) => Date) => void;
   isoFn?: (d: Date) => string;
 }) {
-  const initialIdsRef = useRef<Record<string, string[]>>({});
-
-  const [activeItem, setActiveItem] = useState<any | null>(null);
-  const [quickOpen, setQuickOpen] = useState(false);
-  const [quickSlot, setQuickSlot] = useState<{
-    dateISO: string;
-    hour: number;
-  } | null>(null);
-  const [seriesOpen, setSeriesOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editing, setEditing] = useState<WeekInstance | null>(null);
-
-  const openQuickAdd = (dateISO: string, hour: number) => {
-    setQuickSlot({ dateISO, hour });
-    setQuickOpen(true);
-  };
-
-  const handleDragStart = (e: DragStartEvent) =>
-    setActiveItem(e.active.data.current || null);
-  const handleDragCancel = () => setActiveItem(null);
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    const { over, active } = e;
-    setActiveItem(null);
-    if (!over) return;
-    const [dateISO, hourStr] = String(over.id).split("_");
-    const hour = parseInt(hourStr, 10);
-    const data = active.data.current as any;
-    const fromPalette = !data.instanceId && !!data.id && !data.weekInstanceId;
-
-    if (fromPalette) {
-      const tpl = classPalette.find((t) => t.id === data.id);
-      if (!tpl) return;
-      createOneWeekInstance({
-        dateISO,
-        hour,
-        name: tpl.name,
-        type: tpl.type,
-        coach: tpl.coach || "",
-        zone: tpl.zone || "",
-        duration: tpl.duration || 60,
-        capacity: tpl.capacity || 16,
-      });
-    } else if (data.weekInstanceId) {
-      const instId = data.weekInstanceId as string;
-      setWeeksByKey((prev) => ({
-        ...prev,
-        [wkKey]: (prev[wkKey] ?? []).map((it) =>
-          it.id === instId
-            ? { ...it, date: dateISO, startTime: `${hh(hour)}:00` }
-            : it
-        ),
-      }));
-    }
-  };
-
-  //const mondayISO = selectedDate.toISOString().slice(0, 10);
+  // ---------- fetch existing week ----------
   const mondayISO = isoFn(selectedDate);
-
-  // ---- Load week if it exists ----
   const { data: weekResp } = useGetWeek(mondayISO);
-
-  useEffect(() => {
-    console.log("Week resp", weekResp);
-  }, [weekResp]);
-
   useEffect(() => {
     const payload =
       (weekResp as any)?.instances ?? (weekResp as any)?.data?.instances;
     if (!payload) return;
 
-    // baseline ids per date (only persisted rows have id)
-    initialIdsRef.current = payload.reduce(
-      (acc: Record<string, string[]>, c: any) => {
-        const d = c.date; // "YYYY-MM-DD"
-        (acc[d] ||= []).push(String(c.id));
-        return acc;
-      },
-      {}
-    );
-
-    // your existing mapping:
     const mapped: WeekInstance[] = payload.map((c: any) => ({
-      id: String(c.id), // keep server id
+      id: String(c.id),
       date: c.date,
       startTime: c.startTime,
       endTime: c.endTime,
@@ -880,52 +798,26 @@ export function WeekBoard({
       enrolled: c.enrolled ?? 0,
     }));
 
-    console.log("Mapped", mapped);
-
     setWeeksByKey((prev) => ({ ...prev, [wkKey]: mapped }));
   }, [weekResp, setWeeksByKey, wkKey]);
 
-  // ---- Mutations ----
+  // ---------- save week ----------
   const saveWeekMutation = useSaveWeek();
-  const queryClient = useQueryClient();
-
-  const addMinutes = (hhmm: string, mins: number) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    const d = new Date(0, 0, 1, h, m + mins, 0);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(
-      d.getMinutes()
-    ).padStart(2, "0")}`;
-  };
-
-  const isoLocal = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
-
-  const isServerId = (id: string) => !!id && !id.startsWith("inst-");
-
-  const handleSaveWeek = () => {
-    const mondayISO = isoFn(selectedDate); // Monday of selected week (YYYY-MM-DD)
-    const weekDates = days.map((d) => isoFn(d)); // all 7 dates in the grid
-    const todayISO = isoLocal(new Date());
-
-    // Keep this: backend's fallback diff (if used) only deletes today+
-    const affectedDates = weekDates.filter((d) => d >= todayISO);
-
+  function addMinutes(hhmm: string, mins: number) {
+    const base = parseTimeToMinutes(hhmm);
+    return minutesToTime(base + mins);
+  }
+  function handleSaveWeek() {
+    const weekDates = days.map((d) => isoFn(d));
     const toHHMMSS = (s: string) => (s.length === 5 ? `${s}:00` : s);
 
-    // Include DB id as string when present; omit for new (inst-xxx) rows
     const classes = weekInstances
       .filter((it) => weekDates.includes(it.date))
       .map((it) => ({
-        id: isServerId(it.id) ? it.id : undefined,
+        id: it.id && !it.id.startsWith("inst-") ? it.id : undefined,
         dateISO: it.date,
         startTime: toHHMMSS(it.startTime),
-        endTime: toHHMMSS(
-          it.endTime ?? addMinutes(it.startTime, (it as any).duration ?? 60)
-        ),
+        endTime: toHHMMSS(it.endTime ?? addMinutes(it.startTime, 60)),
         name: it.name,
         type: it.type,
         zoneName: it.zone ?? null,
@@ -933,70 +825,170 @@ export function WeekBoard({
         capacity: it.capacity,
       }));
 
-    // Build current ids per date (ONLY server rows with real ids)
-    const currentIdsByDate = weekInstances.reduce(
-      (acc: Record<string, Set<string>>, it) => {
-        if (!weekDates.includes(it.date)) return acc;
-        if (isServerId(it.id)) {
-          (acc[it.date] ||= new Set()).add(it.id); // keep as string
-        }
-        return acc;
-      },
-      {}
-    );
-
-    // ✅ EXPLICIT deletions must consider ALL week days (past + today + future)
-    const deletionDates = weekDates;
-
-    // deletedIds = baseline ids - current ids, over ALL week dates
-    const deletedIds: string[] = [];
-    for (const date of deletionDates) {
-      const before = new Set(initialIdsRef.current[date] ?? []); // baseline strings
-      const now = currentIdsByDate[date] ?? new Set<string>();
-      for (const id of before) {
-        if (!now.has(id)) deletedIds.push(id);
-      }
-    }
-
     saveWeekMutation.mutate(
-      { startDate: mondayISO, affectedDates, classes, deletedIds },
       {
-        onSuccess: () => {
-          toast.success("Semana guardada!");
-          queryClient.invalidateQueries({ queryKey: ["week", mondayISO] });
-
-          // refresh baseline after success to the new current set
-          initialIdsRef.current = Object.fromEntries(
-            weekDates.map((d) => [
-              d,
-              Array.from(currentIdsByDate[d] ?? new Set()),
-            ])
-          );
-        },
-        onError: (e: any) => {
-          if (e?.status === 409 || e?.code === "DUPLICATE_CLASS_SAME_HOUR") {
-            toast.error(
-              "No puedes registrar la misma clase dos veces en la misma hora"
-            );
-            return;
-          }
+        startDate: mondayISO,
+        affectedDates: weekDates,
+        classes,
+        deletedIds: [],
+      },
+      {
+        onSuccess: () => toast.success("Semana guardada!"),
+        onError: (e: any) =>
           toast.error(
             e?.data?.error ?? e?.message ?? "Error al guardar la semana"
-          );
-        },
+          ),
       }
     );
+  }
+
+  // ---------- minute grid (same as StructureBoard) ----------
+  const SLOT_PX = 20; // 15-min slot = 20px
+  const PIXELS_PER_MINUTE = SLOT_PX / 15;
+  const TRACK_GUTTER_RIGHT_PX = 35;
+  const COL_GAP_PX = 3;
+  const MAX_VISIBLE_COLS = 3;
+
+  const timeSlots = useMemo(() => {
+    const slots: string[] = [];
+    for (let h = startHour; h < endHour; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        slots.push(
+          `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+        );
+      }
+    }
+    return slots;
+  }, [startHour, endHour]);
+
+  const [hover, setHover] = useState<{
+    dayStr: string;
+    topPx: number;
+    label: string;
+  } | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  function getTimeFromOffset(y: number): string {
+    const minutesOffset = Math.floor(y / SLOT_PX) * 15;
+    const absoluteMinutes = startHour * 60 + minutesOffset;
+    return minutesToTime(absoluteMinutes);
+  }
+
+  function clusterKey(dayStr: string, clusterId: number) {
+    return `${dayStr}:${clusterId}`;
+  }
+
+  type Evt = { cls: any; startMin: number; endMin: number };
+  type Pos = { col: number; cols: number; clusterId: number };
+  type ClusterMeta = {
+    id: number;
+    startMin: number;
+    endMin: number;
+    cols: number;
   };
 
+  function layoutOverlaps(evts: Evt[]): {
+    positions: Map<Evt, Pos>;
+    clusters: ClusterMeta[];
+  } {
+    const sorted = [...evts].sort(
+      (a, b) => a.startMin - b.startMin || a.endMin - b.endMin
+    );
+    const clusterBuckets: Evt[][] = [];
+    let cluster: Evt[] = [];
+    let clusterEnd = -1;
+
+    for (const e of sorted) {
+      if (!cluster.length || e.startMin < clusterEnd) {
+        cluster.push(e);
+        clusterEnd = Math.max(clusterEnd, e.endMin);
+      } else {
+        clusterBuckets.push(cluster);
+        cluster = [e];
+        clusterEnd = e.endMin;
+      }
+    }
+    if (cluster.length) clusterBuckets.push(cluster);
+
+    const positions = new Map<Evt, Pos>();
+    const metas: ClusterMeta[] = [];
+
+    clusterBuckets.forEach((c, clusterId) => {
+      const colEnds: number[] = [];
+      const temp: { e: Evt; col: number }[] = [];
+
+      for (const e of c) {
+        let col = colEnds.findIndex((endMin) => e.startMin >= endMin);
+        if (col === -1) {
+          col = colEnds.length;
+          colEnds.push(e.endMin);
+        } else {
+          colEnds[col] = e.endMin;
+        }
+        temp.push({ e, col });
+      }
+
+      const cols = colEnds.length;
+      const startMin = c[0].startMin;
+      const endMin = Math.max(...c.map((x) => x.endMin));
+      metas.push({ id: clusterId, startMin, endMin, cols });
+
+      for (const { e, col } of temp) positions.set(e, { col, cols, clusterId });
+    });
+
+    return { positions, clusters: metas };
+  }
+
+  function toRawDayEvents(instances: WeekInstance[], dateISO: string) {
+    return instances
+      .filter((r) => r.date === dateISO)
+      .map((r) => {
+        const s = parseTimeToMinutes(r.startTime);
+        const e = parseTimeToMinutes(r.endTime);
+        return { cls: r, id: r.id, startMin: s, endMin: e };
+      })
+      .map((ev) => {
+        const windowStart = startHour * 60;
+        const windowEnd = endHour * 60;
+        const s = Math.max(windowStart, ev.startMin);
+        const e = Math.min(windowEnd, ev.endMin);
+        return e <= s ? null : { ...ev, startMin: s, endMin: e };
+      })
+      .filter(Boolean) as Array<{
+      cls: any;
+      id: string;
+      startMin: number;
+      endMin: number;
+    }>;
+  }
+
+  // ---------- quick add & edit ----------
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickSlot, setQuickSlot] = useState<{
+    dateISO: string;
+    startTime: string;
+  } | null>(null);
+  const [seriesOpen, setSeriesOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<WeekInstance | null>(null);
+
+  function openQuickAdd(dateISO: string, startTime: string) {
+    setQuickSlot({ dateISO, startTime });
+    setQuickOpen(true);
+  }
+  function openEdit(row: WeekInstance) {
+    setEditing(row);
+    setEditOpen(true);
+  }
+
+  const columnHeightPx = (endHour - startHour) * 60 * PIXELS_PER_MINUTE;
+
   return (
-    <DndContext
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-0">
+    <TooltipProvider delayDuration={20}>
+      <div className="grid">
         {/* LEFT */}
         <div className="flex flex-col bg-white">
+          {/* Header */}
           <div className="border-b px-3 py-2">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -1081,7 +1073,6 @@ export function WeekBoard({
                 <Button variant="outline" onClick={() => setSeriesOpen(true)}>
                   Programar series
                 </Button>
-
                 <Button
                   className="w-auto"
                   variant="default"
@@ -1093,130 +1084,279 @@ export function WeekBoard({
             </div>
           </div>
 
-          {/* grid */}
+          {/* Minute grid like StructureBoard */}
           <div className="flex-1 overflow-auto px-3 pb-3">
             <div className="pt-3">
+              {/* Header Row */}
               <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 min-w-[900px] lg:min-w-0">
                 <div />
                 {days.map((d) => (
-                  <DayHeader
+                  <div
                     key={d.toISOString()}
-                    label={`${format(d, "EEE", { locale: es })} ${format(
-                      d,
-                      "d",
-                      { locale: es }
-                    )}`}
-                    isTodayFlag={isToday(d)}
-                  />
+                    className="text-sm font-medium text-center text-gray-700"
+                  >
+                    {format(d, "EEE d", { locale: es })}
+                  </div>
                 ))}
               </div>
-            </div>
 
-            {hours.map((h) => (
-              <div
-                key={`wrow-${h}`}
-                className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 mb-2 min-w-[900px] lg:min-w-0"
-              >
-                <div className="border rounded-md bg-white flex items-start justify-center pt-2 text-[11px] text-gray-500">{`${hh(
-                  h
-                )}:00`}</div>
+              {/* Body */}
+              <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-2 mt-2 min-w-[900px] lg:min-w-0">
+                {/* Hour labels */}
+                <div className="relative">
+                  {timeSlots.map((time, i) => (
+                    <div
+                      key={`label-${time}`}
+                      className="absolute left-0 right-0 text-[11px] text-gray-500 pr-1 text-right"
+                      style={{ top: i * SLOT_PX, height: SLOT_PX }}
+                    >
+                      {time.endsWith(":00") ? time : ""}
+                    </div>
+                  ))}
+                  <div style={{ height: timeSlots.length * SLOT_PX }} />
+                </div>
+
+                {/* Day columns */}
                 {days.map((day) => {
                   const dayISO = isoFn(day);
-                  const cellId = `${dayISO}_${h}`;
-                  const here = weekInstances.filter(
-                    (r) => r.date === dayISO && parseHour(r.startTime) === h
-                  );
+                  const dayStr = `day-${dayISO}`;
+                  const rawDayEvents = toRawDayEvents(weekInstances, dayISO);
+                  const { positions, clusters } = layoutOverlaps(rawDayEvents);
+
                   return (
-                    <DroppableCell
-                      key={cellId}
-                      id={cellId}
-                      isTodayCol={isToday(day)}
-                      onEmptyClick={() => openQuickAdd(dayISO, h)}
+                    <div
+                      key={dayISO}
+                      className={`relative bg-white border rounded-md overflow-hidden ${
+                        isToday(day) ? "ring-1 ring-blue-300" : ""
+                      }`}
+                      style={{ height: columnHeightPx }}
+                      onMouseLeave={() => setHover(null)}
+                      onMouseMove={(e) => {
+                        const bounds = e.currentTarget.getBoundingClientRect();
+                        const y = e.clientY - bounds.top;
+                        const index = Math.floor(y / SLOT_PX);
+                        const time = timeSlots[index];
+                        if (!time) return;
+                        setHover({
+                          dayStr,
+                          topPx: index * SLOT_PX,
+                          label: time,
+                        });
+                      }}
+                      onClick={(e) => {
+                        const bounds = e.currentTarget.getBoundingClientRect();
+                        const y = e.clientY - bounds.top;
+                        const startTimeStr = getTimeFromOffset(y);
+                        openQuickAdd(dayISO, startTimeStr);
+                      }}
                     >
-                      <div className="flex flex-col gap-1 min-w-0">
-                        {here.map((r) => (
-                          <DraggableClass
-                            key={r.id}
-                            cls={{
-                              weekInstanceId: r.id,
-                              id: r.id,
-                              name: r.name,
-                              type: r.type,
-                              capacity: r.capacity,
-                              enrolled: r.enrolled,
-                            }}
-                            fullWidth
-                            onOpenEdit={() => {
-                              setEditing(r);
-                              setEditOpen(true);
-                            }}
-                            onDelete={() =>
-                              setWeeksByKey((prev) => ({
-                                ...prev,
-                                [wkKey]: (prev[wkKey] ?? []).filter(
-                                  (x) => x.id !== r.id
-                                ),
-                              }))
-                            }
+                      {/* Hour lines */}
+                      {Array.from({ length: endHour - startHour + 1 }).map(
+                        (_, i) => (
+                          <div
+                            key={`hline-${i}`}
+                            className="absolute left-0 right-0 border-t border-gray-300/30"
+                            style={{ top: i * 60 * PIXELS_PER_MINUTE }}
                           />
-                        ))}
+                        )
+                      )}
+
+                      {/* Track for events */}
+                      <div
+                        className="absolute inset-y-0 z-10"
+                        style={{ left: 0, right: TRACK_GUTTER_RIGHT_PX }}
+                      >
+                        {/* +N more */}
+                        {clusters.map((c) => {
+                          const key = clusterKey(dayStr, c.id);
+                          const collapsed =
+                            !expanded[key] && c.cols > MAX_VISIBLE_COLS;
+                          if (!collapsed) return null;
+
+                          const top =
+                            (c.startMin - startHour * 60) * PIXELS_PER_MINUTE;
+                          const overflow = c.cols - MAX_VISIBLE_COLS;
+
+                          return (
+                            <button
+                              key={`more-${dayStr}-${c.id}`}
+                              className="absolute right-1 z-20 text-[10px] px-1.5 py-0.5 rounded bg-white/90 border shadow hover:bg-white"
+                              style={{ top: top + 4, height: 20 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpanded((s) => ({ ...s, [key]: true }));
+                              }}
+                              title="Mostrar todos los solapados"
+                            >
+                              +{overflow} más
+                            </button>
+                          );
+                        })}
+
+                        {/* Events */}
+                        {rawDayEvents.map((ev) => {
+                          const pos = positions.get(ev)!;
+
+                          const clusterK = clusterKey(dayStr, pos.clusterId);
+                          const collapsed =
+                            !expanded[clusterK] && pos.cols > MAX_VISIBLE_COLS;
+
+                          const visibleCols = collapsed
+                            ? MAX_VISIBLE_COLS
+                            : pos.cols;
+                          const colInView = collapsed
+                            ? pos.col % MAX_VISIBLE_COLS
+                            : pos.col;
+
+                          const top =
+                            (ev.startMin - startHour * 60) * PIXELS_PER_MINUTE;
+                          const height = Math.max(
+                            SLOT_PX,
+                            (ev.endMin - ev.startMin) * PIXELS_PER_MINUTE
+                          );
+
+                          const left = `calc(${
+                            (colInView / visibleCols) * 100
+                          }% + ${colInView * COL_GAP_PX}px)`;
+                          const width = `calc(${100 / visibleCols}% - ${
+                            (COL_GAP_PX * (visibleCols - 1)) / visibleCols
+                          }px)`;
+
+                          const color =
+                            typeColors[ev.cls.type] ||
+                            "bg-gray-200 text-gray-900";
+
+                          return (
+                            <Tooltip key={ev.cls.id}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`absolute rounded shadow-sm ring-1 ring-black/5 border-l-4 border-black/10 ${color} cursor-pointer overflow-hidden`}
+                                  style={{ top, height, left, width }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEdit(ev.cls as WeekInstance);
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={() => {}}
+                                  title=""
+                                >
+                                  {/* trash always visible */}
+                                  <button
+                                    className="absolute top-0.5 right-0.5 z-20 p-1 rounded hover:bg-black/10 focus:outline-none"
+                                    aria-label="Eliminar clase"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setWeeksByKey((prev) => ({
+                                        ...prev,
+                                        [wkKey]: (prev[wkKey] ?? []).filter(
+                                          (r) => r.id !== ev.cls.id
+                                        ),
+                                      }));
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 opacity-70" />
+                                  </button>
+
+                                  {/* content */}
+                                  <div className="px-2 py-1">
+                                    <div className="font-semibold text-xs truncate">
+                                      {ev.cls.name ?? ev.cls.type}
+                                    </div>
+                                    <div className="text-[10px] opacity-80 truncate">
+                                      {ev.cls.startTime}–{ev.cls.endTime}
+                                    </div>
+                                    {ev.cls.coach && (
+                                      <div className="text-[10px] opacity-80 truncate">
+                                        {ev.cls.coach}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </TooltipTrigger>
+
+                              <TooltipContent
+                                side="right"
+                                align="start"
+                                sideOffset={6}
+                                className="px-2 py-1.5 text-xs max-w-[220px]"
+                              >
+                                <div className="space-y-0.5">
+                                  <div className="font-semibold">
+                                    {ev.cls.name ?? ev.cls.type}
+                                  </div>
+                                  <div className="opacity-80">
+                                    {ev.cls.startTime}–{ev.cls.endTime}
+                                  </div>
+                                  {ev.cls.coach && (
+                                    <div className="opacity-80">
+                                      <strong>Coach:</strong> {ev.cls.coach}
+                                    </div>
+                                  )}
+                                  {typeof ev.cls.capacity === "number" && (
+                                    <div className="opacity-80">
+                                      <strong>Capacidad:</strong>{" "}
+                                      {ev.cls.capacity}
+                                      {typeof ev.cls.enrolled === "number"
+                                        ? ` (${ev.cls.enrolled} inscritos)`
+                                        : ""}
+                                    </div>
+                                  )}
+                                  {ev.cls.zone && (
+                                    <div className="opacity-80">
+                                      <strong>Zona:</strong> {ev.cls.zone}
+                                    </div>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })}
                       </div>
-                    </DroppableCell>
+
+                      {/* Hover band + label */}
+                      {hover?.dayStr === dayStr && (
+                        <>
+                          <div
+                            className="pointer-events-none absolute left-0 right-0 z-20"
+                            style={{
+                              top: hover.topPx,
+                              height: SLOT_PX,
+                              borderRadius: 8,
+                            }}
+                          />
+                          <div
+                            className="pointer-events-none absolute z-30 flex items-center justify-center text-[10px] font-medium text-blue-900/80"
+                            style={{
+                              top: hover.topPx,
+                              height: SLOT_PX,
+                              right: 0,
+                              width: TRACK_GUTTER_RIGHT_PX,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {hover.label}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   );
                 })}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT palette */}
-        <div className="border-l bg-white flex flex-col">
-          <div className="px-5 py-2 border-b bg-white">
-            <div className="text-sm font-semibold">Clases disponibles</div>
-            <div className="text-xs text-gray-500">
-              {isSmall
-                ? "Toca para ver"
-                : "Arrastra con el asa ▮▮ al calendario"}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-auto p-3">
-            <div className="flex flex-col space-y-2">
-              {classPalette.map((c) =>
-                isSmall ? (
-                  <PaletteItemStatic key={c.id} cls={c} />
-                ) : (
-                  <DraggableClass
-                    key={c.id}
-                    cls={c}
-                    isPalette
-                    disabled={false}
-                  />
-                )
-              )}
             </div>
           </div>
         </div>
       </div>
 
-      <DragOverlay
-        adjustScale={false}
-        dropAnimation={null}
-        // ensure the overlay never blocks clicks; keep zIndex < Select (z-50) or remove it
-        style={{ pointerEvents: "none", zIndex: 40 }}
-      >
-        <BubbleOverlay cls={activeItem} />
-      </DragOverlay>
-
+      {/* Quick add uses minute-precision slot */}
       <QuickAddModal
         open={quickOpen}
         onOpenChange={setQuickOpen}
-        slot={quickSlot} // now has { day, startTime }
+        slot={quickSlot} // { dateISO, startTime }
         onCreateOne={(p) => {
           if ("dateISO" in p) {
-            createOneWeekInstance(p); // existing week path
-          } else if ("day" in p) {
-            createOneTemplate(p); // NEW: template path
+            // payload already has startTime/endTime/duration
+            createOneWeekInstance(p);
           }
         }}
       />
@@ -1225,14 +1365,39 @@ export function WeekBoard({
         open={seriesOpen}
         onOpenChange={setSeriesOpen}
         context="week"
-        onCreate={seriesCreateWeek}
+        onCreate={(payload) => {
+          // payload: { day, startTime, duration, name, type, coach, zone, capacity }
+          // Map each selected weekday to the actual date of this week and emit createOneWeekInstance
+          const byDow: Record<number, Date> = {};
+          days.forEach((d) => {
+            // your UI likely uses 1..7 (Mon..Sun)
+            const dow = ((d.getDay() + 6) % 7) + 1; // JS Sun=0 -> 7, Mon=1 -> 1, ...
+            byDow[dow] = d;
+          });
+
+          const target = byDow[payload.day];
+          if (!target) return;
+
+          const dateISO = isoFn(target);
+          createOneWeekInstance({
+            dateISO,
+            startTime: payload.startTime,
+            duration: payload.duration,
+            name: payload.name,
+            type: payload.type,
+            coach: payload.coach,
+            zone: payload.zone,
+            capacity: payload.capacity,
+          });
+        }}
       />
+
       <EditWeekModal
         open={editOpen}
         onOpenChange={setEditOpen}
         inst={editing}
         onSave={saveEditWeek}
       />
-    </DndContext>
+    </TooltipProvider>
   );
 }
