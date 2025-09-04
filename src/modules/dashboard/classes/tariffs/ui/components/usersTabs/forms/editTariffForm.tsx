@@ -78,7 +78,8 @@ export function EditTariffForm({
   onDelete,
   onCancel,
 }: EditTariffFormProps) {
-  const selfId = editingTariff.userTariff.id;
+  console.log("Editing tariff", editingTariff);
+  const selfId = editingTariff?.tariff?.id;
 
   const safeDate = (v: string | Date | null | undefined) => {
     if (!v) return undefined;
@@ -86,10 +87,10 @@ export function EditTariffForm({
     return isValid(d) ? d : undefined;
   };
 
-  const defaultStartsOn = safeDate(editingTariff.userTariff.startsOn);
+  const defaultStartsOn = safeDate(editingTariff.tariff.startsOn);
   const defaultCustomExpiresOn =
-    safeDate(editingTariff.userTariff.customExpiresOn) ??
-    safeDate(editingTariff.userTariff.expiresOn);
+    safeDate(editingTariff.tariff.customExpiresOn) ??
+    safeDate(editingTariff.tariff.expiresOn);
 
   // Disable any day inside ranges EXCEPT this tariff’s own period
   const isDateBlocked = (date: Date) => {
@@ -111,10 +112,10 @@ export function EditTariffForm({
       customExpiresOn: defaultCustomExpiresOn ?? null,
       // stringify current value for the input
       remainingCredits:
-        editingTariff.userTariff.remainingCredits != null
-          ? String(editingTariff.userTariff.remainingCredits)
+        editingTariff.tariff.remainingCredits != null
+          ? String(editingTariff.tariff.remainingCredits)
           : "", // keep empty string instead of null
-      note: editingTariff.userTariff.note ?? "",
+      note: editingTariff.tariff.note ?? "",
     },
   });
 
@@ -129,14 +130,14 @@ export function EditTariffForm({
   useEffect(() => {
     reset({
       planId: Number(editingTariff.plan?.id),
-      startsOn: safeDate(editingTariff.userTariff.startsOn)!,
+      startsOn: safeDate(editingTariff.tariff.startsOn)!,
       customExpiresOn:
-        safeDate(editingTariff.userTariff.customExpiresOn) ??
-        safeDate(editingTariff.userTariff.expiresOn) ??
+        safeDate(editingTariff.tariff.customExpiresOn) ??
+        safeDate(editingTariff.tariff.expiresOn) ??
         null,
       remainingCredits:
-        editingTariff.userTariff.remainingCredits != null
-          ? String(editingTariff.userTariff.remainingCredits)
+        editingTariff.tariff.remainingCredits != null
+          ? String(editingTariff.tariff.remainingCredits)
           : "", // ✅ string/empty string      note: editingTariff.userTariff.note ?? "",
     });
   }, [editingTariff, reset]);

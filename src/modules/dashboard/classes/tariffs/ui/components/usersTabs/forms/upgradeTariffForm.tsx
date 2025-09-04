@@ -178,35 +178,41 @@ export function UpgradeTariffForm({
     },
   });
 
-  const hasCurrent = !!current;
+  console.log("Current", current);
 
-  //This gets the current plan
+  // current shape: { plan, tariff }
+  const hasCurrent = !!current?.tariff;
+
+  // ---- current plan (normalized from allPlans) ----
   const curPlanFull = useMemo(() => {
     const currentId = current?.plan?.id;
     if (!currentId) return current?.plan ?? {};
-    const found = allPlans.find((p) => String(p.id) === String(currentId));
+    const found = (allPlans || []).find(
+      (p: any) => String(p.id) === String(currentId)
+    );
     return found ?? current?.plan ?? {};
-  }, [allPlans, current?.plan]);
+  }, [allPlans, current?.plan?.id]);
 
   const curPriceCents = getPriceCents(curPlanFull);
 
   const curCap: number | null = curPlanFull?.creditQty ?? null;
   const curMaxDay: number | null = curPlanFull?.maxPerDay ?? null;
 
-  const remainingNow: number | null =
-    current?.userTariff?.remainingCredits ?? null;
+  const remainingNow: number | null = current?.tariff?.remainingCredits ?? null;
 
-  const startRaw = current?.userTariff?.startsOn
-    ? new Date(current.userTariff.startsOn)
+  const startRaw = current?.tariff?.startsOn
+    ? new Date(current.tariff.startsOn)
     : null;
-  const endRaw = current?.userTariff?.expiresOn
-    ? new Date(current.userTariff.expiresOn)
+  const endRaw = current?.tariff?.expiresOn
+    ? new Date(current.tariff.expiresOn)
     : null;
+
   const showRange = isValid(startRaw as any) && isValid(endRaw as any);
   const sameMonth =
     showRange &&
     (startRaw as Date).getMonth() === (endRaw as Date).getMonth() &&
     (startRaw as Date).getFullYear() === (endRaw as Date).getFullYear();
+
   const range = showRange
     ? sameMonth
       ? `${format(startRaw as Date, "d", { locale: es })}–${format(
@@ -221,7 +227,7 @@ export function UpgradeTariffForm({
         )}`
     : "—";
 
-  // Eligibility & sorting (unconditional useMemo)
+  // ---- eligibility & sorting ----
   const eligible = useMemo(() => {
     const isSuperiorPlan = (target: any) => {
       const tCap: number | null = target?.creditQty ?? null;
@@ -249,42 +255,43 @@ export function UpgradeTariffForm({
 
     return (allPlans || [])
       .filter((p: any) => p?.isActive)
-      .filter((p: any) => p?.id !== curPlanFull?.id) // ✅ use curPlanFull
+      .filter((p: any) => p?.id !== curPlanFull?.id)
       .filter((p: any) => isSuperiorPlan(p))
       .sort(sortPlans);
   }, [allPlans, curPlanFull?.id, curCap, curMaxDay]);
 
   const isAtMax = eligible.length === 0;
 
+  // ---- selections / pricing inputs ----
   const selectedToId = form.watch("toPlanId");
+  // IMPORTANT: watch commission fields into variables so useMemo re-runs when they change
+  const commissionPct = form.watch("commissionPct");
+  const commissionAmount = form.watch("commissionAmount");
 
   const toPlan = useMemo(
     () =>
       selectedToId
-        ? eligible.find((p: any) => String(p.id) === String(selectedToId))
+        ? eligible.find((p: any) => String(p.id) === String(selectedToId)) ??
+          null
         : null,
     [eligible, selectedToId]
   );
 
-  const toPriceCents = getPriceCents(toPlan); // ← normalized target price
+  const toPriceCents = getPriceCents(toPlan);
 
-  // Auto pricing (unconditional)
+  // ---- auto pricing (re-computes when commission fields change) ----
   const { baseDiffCents, commissionCents, totalCents } = useMemo(
     () =>
       computePricing({
         curPriceCents,
-        toPriceCents, // ← normalized
-        commissionPct: form.watch("commissionPct"),
-        commissionAmountStr: form.watch("commissionAmount"),
+        toPriceCents,
+        commissionPct, // use watched value
+        commissionAmountStr: commissionAmount, // use watched value
       }),
-    [
-      curPriceCents,
-      toPriceCents,
-      form.watch("commissionPct"),
-      form.watch("commissionAmount"),
-    ]
+    [curPriceCents, toPriceCents, commissionPct, commissionAmount]
   );
 
+  // ---- submit rules / messages ----
   const disableSubmit = !hasCurrent || isAtMax || !toPlan || baseDiffCents <= 0;
 
   const maxMsg =
@@ -292,9 +299,10 @@ export function UpgradeTariffForm({
       ? "Ya estás en el máximo de planes con créditos (el siguiente sería ilimitado con límites diarios iguales o inferiores)."
       : "Ya estás en el máximo de planes ilimitados (no hay uno con mayor reservas por día).";
 
+  // ---- ids from new shape ----
   const fromPlanId = Number(current?.plan?.id ?? 0);
-  const userId = Number(current?.user?.id ?? 0);
-  const userTariffId = Number(current?.userTariff?.id ?? 0);
+  const userId = Number(current?.tariff?.userId ?? 0);
+  const userTariffId = Number(current?.tariff?.id ?? 0);
 
   // if you need the selected target price inside submit, it's fine to compute on the fly
   const handleUpgradeSubmit = React.useCallback(

@@ -34,23 +34,6 @@ export const Navbar = () => {
           </Link>
         </div>
 
-        {/* Center: Navigation */}
-        {/*  <div className="flex justify-center">
-          <div className="hidden md:flex items-center space-x-6 bg-white border border-gray-200 rounded-md px-6 py-2 shadow-sm text-sm font-medium">
-            <Link href="/" passHref>
-              <button className="text-gray-700 hover:text-black transition-colors">
-                Home
-              </button>
-            </Link>
-            <div className="h-4 border-l border-gray-300" />
-            <Link href="/explore" passHref>
-              <button className="text-gray-700 hover:text-black transition-colors">
-                Explore
-              </button>
-            </Link>
-          </div>
-        </div> */}
-
         {/* Right: Auth / Dropdown / Mobile Toggle */}
         <div className="flex justify-end items-center gap-3 pr-2">
           {!user && (
@@ -107,7 +90,7 @@ export const Navbar = () => {
                 <DropdownMenuContent className="w-[160px]">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <Link href="/dashboard">
+                  <Link href="/dashboard/client">
                     <DropdownMenuItem>
                       <div className="flex items-center justify-between w-full">
                         <p>Dashboard</p>

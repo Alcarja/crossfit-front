@@ -36,7 +36,7 @@ export const LoginView = () => {
     onSuccess: (data) => {
       setUser(data); //Save user data to the authContext
       toast.success("Log in completado.");
-      window.location.href = "/dashboard";
+      window.location.href = "/dashboard/client";
     },
     onError: (err: any) => {
       const backendMessage = "CHIMPANCÉ, usuario o contraseña incorrectos";

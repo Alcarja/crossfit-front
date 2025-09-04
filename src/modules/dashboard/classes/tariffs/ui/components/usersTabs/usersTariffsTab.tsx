@@ -25,7 +25,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersQueryOptions } from "@/app/queries/users";
 import {
-  useAllActiveMonthlyUserTariffs,
+  useAllGroupedActiveOrFutureMonthlyUserTariffs,
   useAllMonthlyTariffs,
   useAssignMonthlyTariff,
   useUpdateUserMonthlyTariff,
@@ -142,8 +142,9 @@ const TariffsTab = () => {
 
   const { data: allUsers } = useQuery(usersQueryOptions());
   const { data: allMonthlyTariffs } = useAllMonthlyTariffs();
-  const { data: allActiveMonthlyUserTariffs } =
-    useAllActiveMonthlyUserTariffs();
+
+  const { data: allGroupedActiveMonthlyUserTariffs } =
+    useAllGroupedActiveOrFutureMonthlyUserTariffs();
 
   const selectedUserId = selectedUserTariffInfo?.user?.id;
 
@@ -161,37 +162,37 @@ const TariffsTab = () => {
     error: futureError,
   } = useUserFutureTariffs(selectedUserId);
 
-  //Current tariffs for the selected user
-  const userTariffs =
-    allActiveMonthlyUserTariffs?.results?.filter(
-      (t: any) => t.user.id === selectedUserId
-    ) ?? [];
+  const results = allGroupedActiveMonthlyUserTariffs?.results ?? [];
 
-  const today = new Date();
+  const selectedRow =
+    results.find((r: any) => r?.user?.id === selectedUserId) ?? null;
 
-  const currentTariff = userTariffs.find((t: any) => {
-    const start = new Date(t.userTariff.startsOn);
-    const end = new Date(t.userTariff.expiresOn);
-    return start <= today && end >= today;
+  const currentTariff = selectedRow?.active ?? null; // active window today
+
+  // Build table rows:
+  // - row id = results.user.id (as you requested)
+  // - show active info if it exists; otherwise future
+  const rows = results.map((r: any) => {
+    const primary = r.active ?? r.future ?? null; // prefer active, else future
+    return {
+      id: r.user?.id, // <-- from user
+      name: `${r.user?.name ?? ""} ${r.user?.lastName ?? ""}`.trim(),
+      email: r.user?.email ?? "",
+      plan: r.active?.plan?.name ?? r.future?.plan?.name ?? "—",
+      startsOn: primary?.tariff?.startsOn ?? null,
+      expires: primary?.tariff?.expiresOn ?? null,
+      status: primary?.tariff?.status ?? null, // optional, useful to display
+      tariffId: primary?.tariff?.id ?? null, // if you still need a tariff id
+      fullData: r,
+    };
   });
 
-  const rows =
-    allActiveMonthlyUserTariffs?.results?.map((r: any) => ({
-      id: r.userTariff.id,
-      name: `${r.user.name} ${r.user.lastName}`.trim(),
-      email: r.user.email,
-      plan: r.plan.name,
-      expires: r.userTariff.expiresOn,
-      fullData: r,
-    })) ?? [];
-
-  //Apply the filter to the table rows
-  const filteredRows = rows.filter((r: any) => {
-    const q = filter.toLowerCase();
+  const filteredRows = rows.filter((row: any) => {
+    const q = (filter ?? "").toLowerCase();
     return (
-      r.name.toLowerCase().includes(q) ||
-      r.email.toLowerCase().includes(q) ||
-      r.plan.toLowerCase().includes(q)
+      (row.name ?? "").toLowerCase().includes(q) ||
+      (row.email ?? "").toLowerCase().includes(q) ||
+      (row.plan ?? "").toLowerCase().includes(q)
     );
   });
 
@@ -201,6 +202,7 @@ const TariffsTab = () => {
 
   const start = (page - 1) * pageSize;
   const end = start + pageSize;
+
   const pageRows = filteredRows?.slice(start, end);
   const pageCount = Math.ceil(filteredRows?.length / pageSize);
 
@@ -278,7 +280,7 @@ const TariffsTab = () => {
           const uid = variables.userId;
 
           await queryClient.invalidateQueries({
-            queryKey: ["allActiveMonthlyUserTariffs"],
+            queryKey: ["allGroupedActiveMonthlyUserTariffs"],
           });
           await queryClient.invalidateQueries({
             queryKey: ["userTariffHistory", uid],
@@ -367,20 +369,26 @@ const TariffsTab = () => {
   }
 
   // booked ranges for the selected user (active + future)
-  function calculateBookedRangesForUser(userId?: number) {
+  function calculateBookedRangesForUser(userId: number) {
     if (!userId) return [];
-    const active =
-      allActiveMonthlyUserTariffs?.results?.filter(
-        (t: any) => t.user.id === userId
-      ) ?? [];
-    const future =
-      userFutureTariffs?.results?.filter((t: any) => t.user.id === userId) ??
-      [];
-    return [...active, ...future].map((t: any) => ({
-      id: t.userTariff.id, // <-- important
-      from: new Date(t.userTariff.startsOn),
-      to: new Date(t.userTariff.expiresOn),
-    }));
+
+    const row =
+      allGroupedActiveMonthlyUserTariffs?.results?.find(
+        (r: any) => r?.user?.id === userId
+      ) ?? null;
+
+    if (!row) return [];
+
+    const seen = new Set();
+    const tariffs = [row.active?.tariff, row.future?.tariff].filter(Boolean);
+
+    return tariffs
+      .filter((t) => t?.id && !seen.has(t.id) && (seen.add(t.id), true))
+      .map((t) => ({
+        id: t.id, // <-- important
+        from: new Date(t.startsOn),
+        to: new Date(t.expiresOn),
+      }));
   }
 
   const bookedRanges = calculateBookedRangesForUser(selectedUserId);
@@ -398,8 +406,8 @@ const TariffsTab = () => {
     note?: string | null;
     remainingCredits?: number | null;
   }) => {
-    const tariffId = Number(editingTariff.userTariff.id);
-    const userId = Number(editingTariff.userTariff.userId);
+    const tariffId = Number(editingTariff.tariff.id);
+    const userId = Number(editingTariff.tariff.userId);
 
     const payload = {
       tariffId,
@@ -421,7 +429,7 @@ const TariffsTab = () => {
           queryKey: ["userFutureTariffs", variables.userId],
         });
         queryClient.invalidateQueries({
-          queryKey: ["allActiveMonthlyUserTariffs"],
+          queryKey: ["allGroupedActiveMonthlyUserTariffs"],
         });
       },
       onError: (err) => console.error("❌ Error updating tariff:", err),
@@ -498,7 +506,7 @@ const TariffsTab = () => {
           const uid = meta.userId;
 
           await queryClient.invalidateQueries({
-            queryKey: ["allActiveMonthlyUserTariffs"],
+            queryKey: ["allGroupedActiveMonthlyUserTariffs"],
           });
           await queryClient.invalidateQueries({
             queryKey: ["userTariffHistory", uid],
@@ -1128,7 +1136,14 @@ const TariffsTab = () => {
 export default TariffsTab;
 
 export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
-  if (!tariff)
+  // Support BOTH shapes:
+  // - old: { userTariff, plan }
+  // - new: { tariff, plan }
+  const userTariff = tariff?.userTariff ?? tariff?.tariff ?? null;
+  const plan = tariff?.plan ?? null;
+
+  // If nothing usable, show the empty state
+  if (!userTariff || !userTariff.startsOn || !userTariff.expiresOn) {
     return (
       <Card className="border bg-muted/10">
         <CardContent className="p-3 text-xs text-muted-foreground">
@@ -1136,14 +1151,15 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
         </CardContent>
       </Card>
     );
+  }
 
-  const { plan, userTariff } = tariff;
+  const start = new Date(userTariff.startsOn);
+  const end = new Date(userTariff.expiresOn);
 
-  const start = new Date(userTariff?.startsOn);
-  const end = new Date(userTariff?.expiresOn);
   const sameMonth =
     start.getMonth() === end.getMonth() &&
     start.getFullYear() === end.getFullYear();
+
   const rangeText = sameMonth
     ? `${format(start, "d", { locale: es })}–${format(end, "d MMM", {
         locale: es,
@@ -1151,16 +1167,16 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
     : `${format(start, "d MMM", { locale: es })} – ${format(end, "d MMM", {
         locale: es,
       })}`;
+
   const credits =
     userTariff?.remainingCredits != null
       ? `${userTariff.remainingCredits}`
       : "∞";
 
-  const maxPerDay = plan?.maxPerDay as number | undefined;
-  const price = plan?.price as number | undefined;
-  const tariffId = userTariff?.id as number | undefined;
+  const maxPerDay = plan?.maxPerDay;
+  const price = plan?.price;
+  const tariffId = userTariff?.id;
 
-  //Payment state
   const isPaymentIncomplete =
     userTariff?.status === "pending" ||
     userTariff?.billingStatus === "processing";
@@ -1168,7 +1184,6 @@ export const CurrentTariffCard = ({ tariff, onEdit, onUpgrade }: any) => {
   const isPaymentComplete =
     userTariff?.status === "active" && userTariff?.billingStatus === "paid";
 
-  // (optional) show provisional limit in tooltip if you store it
   const provisionalUntilText = userTariff?.provisionalAccessUntil
     ? format(new Date(userTariff.provisionalAccessUntil), "dd MMM yyyy", {
         locale: es,
@@ -1438,31 +1453,28 @@ export function FutureTariffsList({
 
   const items = [...tariffs].sort(
     (a, b) =>
-      new Date(a.userTariff.startsOn).getTime() -
-      new Date(b.userTariff.startsOn).getTime()
+      new Date(a.tariff.startsOn).getTime() -
+      new Date(b.tariff.startsOn).getTime()
   );
 
   return (
     <div className="space-y-2">
       {items.map((t) => {
         const isPaymentIncomplete =
-          t.userTariff?.status === "pending" ||
-          t.userTariff?.billingStatus === "processing";
+          t.tariff?.status === "pending" ||
+          t.tariff?.billingStatus === "processing";
 
         const isPaymentComplete =
-          t.userTariff?.status === "active" &&
-          t.userTariff?.billingStatus === "paid";
+          t.tariff?.status === "active" && t.tariff?.billingStatus === "paid";
 
-        const provisionalUntilText = t.userTariff?.provisionalAccessUntil
-          ? format(
-              new Date(t.userTariff.provisionalAccessUntil),
-              "dd MMM yyyy",
-              { locale: es }
-            )
+        const provisionalUntilText = t.tariff?.provisionalAccessUntil
+          ? format(new Date(t.tariff.provisionalAccessUntil), "dd MMM yyyy", {
+              locale: es,
+            })
           : null;
 
         return (
-          <Accordion key={t.userTariff.id} type="single" collapsible>
+          <Accordion key={t.tariff.id} type="single" collapsible>
             <AccordionItem value="future-tariff">
               <AccordionTrigger className="px-4 py-2 text-xs hover:no-underline">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 w-full text-muted-foreground">
@@ -1509,27 +1521,27 @@ export function FutureTariffsList({
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="flex items-center gap-1">
                       <CalendarDays className="w-3 h-3 text-primary" />
-                      {format(new Date(t.userTariff.startsOn), "dd MMM", {
+                      {format(new Date(t.tariff.startsOn), "dd MMM", {
                         locale: es,
                       })}
                     </span>
 
                     <span className="flex items-center gap-1">
                       <Clock4 className="w-3 h-3 text-primary" />
-                      {format(new Date(t.userTariff.expiresOn), "dd MMM", {
+                      {format(new Date(t.tariff.expiresOn), "dd MMM", {
                         locale: es,
                       })}
                     </span>
 
                     <span className="flex items-center gap-1">
                       <Ticket className="w-3 h-3 text-primary" />
-                      {t.userTariff.remainingCredits ?? "Ilimitados"}
+                      {t.tariff.remainingCredits ?? "Ilimitados"}
                     </span>
 
-                    {t.userTariff.note && (
+                    {t.tairff?.note && (
                       <span className="flex items-center gap-1">
                         <StickyNote className="w-3 h-3 text-primary" />
-                        {t.userTariff.note}
+                        {t.tariff.note}
                       </span>
                     )}
                   </div>
@@ -1563,31 +1575,23 @@ export function FutureTariffsList({
                 <div className="space-y-1">
                   <div>
                     <strong>Inicio:</strong>{" "}
-                    {format(
-                      new Date(t.userTariff.startsOn),
-                      "dd 'de' MMMM yyyy",
-                      {
-                        locale: es,
-                      }
-                    )}
+                    {format(new Date(t.tariff.startsOn), "dd 'de' MMMM yyyy", {
+                      locale: es,
+                    })}
                   </div>
                   <div>
                     <strong>Expira:</strong>{" "}
-                    {format(
-                      new Date(t.userTariff.expiresOn),
-                      "dd 'de' MMMM yyyy",
-                      {
-                        locale: es,
-                      }
-                    )}
+                    {format(new Date(t.tariff.expiresOn), "dd 'de' MMMM yyyy", {
+                      locale: es,
+                    })}
                   </div>
                   <div>
                     <strong>Créditos:</strong>{" "}
-                    {t.userTariff.remainingCredits ?? "Ilimitados"}
+                    {t.tariff.remainingCredits ?? "Ilimitados"}
                   </div>
-                  {t.userTariff.note && (
+                  {t.tariff.note && (
                     <div>
-                      <strong>Nota:</strong> {t.userTariff.note}
+                      <strong>Nota:</strong> {t.tariff.note}
                     </div>
                   )}
                 </div>
