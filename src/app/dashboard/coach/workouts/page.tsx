@@ -1,4 +1,4 @@
-import WorkoutsView from "@/modules/dashboard/workouts/ui/views/workouts-view";
+import WorkoutsView from "@/modules/dashboard/coach/workouts/ui/views/workouts-view";
 
 const Page = () => {
   return <WorkoutsView />;

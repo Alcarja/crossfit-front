@@ -1,5 +1,21 @@
-/* eslint-disable @next/next/no-img-element */
+// app/components/Navbar.tsx
 "use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+
+import {
+  SearchIcon,
+  PlusCircleIcon,
+  HeartIcon,
+  User2Icon,
+  UserIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  Calendar,
+} from "lucide-react";
 
 import {
   DropdownMenu,
@@ -9,77 +25,65 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, User2Icon, LayoutDashboardIcon, LogOutIcon } from "lucide-react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/authContext";
+
+// --- optional: use media query internally if you don't already pass isMobile
+function useIsMobile(query = "(max-width: 767px)") {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const onChange = () => setIsMobile(m.matches);
+    onChange();
+    m.addEventListener?.("change", onChange);
+    return () => m.removeEventListener?.("change", onChange);
+  }, [query]);
+  return isMobile;
+}
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
-  //const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const isMobile = useIsMobile(); // or replace with your prop/logic
 
-  return (
-    <nav
-      className={cn(
-        "sticky top-0 z-50 w-full border-b-[1.5px] px-4 md:px-8 py-2 md:py-0 bg-white border-secondary"
-      )}
-    >
-      <div className="flex md:justify-between justify-end items-center h-16 w-full">
-        {/* Left: Logo (only visible on sm+) */}
-        <div className="hidden sm:flex items-center gap-2 pl-2">
-          <Link href="/">
-            <img src="/logo.png" alt="Logo" className="w-14 h-14" />
-          </Link>
-        </div>
+  // ---- Desktop / Tablet (Top Navbar) ----
+  if (!isMobile) {
+    return (
+      <nav
+        className={cn(
+          "sticky top-0 z-50 w-full border-b-[1.5px] px-4 md:px-8 py-2 md:py-0 bg-white border-secondary"
+        )}
+      >
+        <div className="flex md:justify-between justify-end items-center h-16 w-full">
+          {/* Left: Logo (only visible on sm+) */}
+          <div className="hidden sm:flex items-center gap-2 pl-2">
+            <Link href="/">
+              <img src="/logo.png" alt="Logo" className="w-14 h-14" />
+            </Link>
+          </div>
 
-        {/* Right: Auth / Dropdown / Mobile Toggle */}
-        <div className="flex justify-end items-center gap-3 pr-2">
-          {!user && (
-            <>
-              {/* Desktop Auth Buttons */}
-              <div className="hidden md:flex gap-2">
-                <Link href="/login">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    icon={<User2Icon className="size-4 text-red" />}
-                    className="w-[80px] md:w-auto"
-                  >
-                    Login
-                  </Button>
-                </Link>
-              </div>
+          {/* Right: Auth / Dropdown */}
+          <div className="flex justify-end items-center gap-3 pr-2">
+            {!user && (
+              <>
+                {/* Desktop Auth Buttons */}
+                <div className="hidden md:flex gap-2">
+                  <Link href="/login">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      icon={<User2Icon className="size-4 text-red" />}
+                      className="w-[80px] md:w-auto"
+                    >
+                      Login
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            )}
 
-              {/* Mobile Dropdown Avatar */}
-              <div className="md:hidden">
-                <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="" />
-                      <AvatarFallback>
-                        <User className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[160px]">
-                    <DropdownMenuLabel>Authentication</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <Link href="/login">
-                      <DropdownMenuItem>
-                        <User className="mr-2 h-4 w-4" />
-                        Login
-                      </DropdownMenuItem>
-                    </Link>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </>
-          )}
-
-          {user && (
-            <>
+            {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger>
                   <Avatar>
@@ -87,7 +91,7 @@ export const Navbar = () => {
                     <AvatarFallback>CN</AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[160px]">
+                <DropdownMenuContent className="w-[180px]">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <Link href="/dashboard/client">
@@ -106,39 +110,95 @@ export const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </>
+            )}
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  // ---- Mobile layout: top-left menu button + bottom floating bar ----
+  const tabs = [
+    { href: "/dashboard/client/my-classes", label: "Calendar", Icon: Calendar },
+    { href: "/search", label: "Search", Icon: SearchIcon },
+    { href: "/create", label: "New", Icon: PlusCircleIcon }, // center CTA
+    { href: "/favorites", label: "Saved", Icon: HeartIcon },
+    user
+      ? { href: "/dashboard/client", label: "Me", Icon: UserIcon }
+      : { href: "/login", label: "Login", Icon: User2Icon },
+  ];
+
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href) && href !== "/";
+
+  return (
+    <>
+      {/* tiny menu trigger (Sheet) in the top-left */}
+      {/* <div className="fixed top-6 left-4 z-[60] sm:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              className="size-10 rounded-full shadow-md"
+              variant="default"
+              aria-label="Open menu"
+            >
+              <ArrowDownLeftFromCircleIcon className="size-5" />
+            </Button>
+          </SheetTrigger>
+        </Sheet>
+      </div> */}
+
+      {/* bottom floating nav */}
+      <nav
+        className={cn(
+          "sm:hidden fixed inset-x-0 bottom-3 z-[60]", // ⬅️ lifted from bottom
+          "px-3 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1"
+        )}
+        aria-label="Mobile navigation"
+      >
+        <div
+          className={cn(
+            "mx-auto max-w-[600px]", // ⬅️ narrower
+            "rounded-xl border bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60",
+            "shadow-[0_6px_16px_rgba(0,0,0,0.1)]",
+            "px-2 py-1"
           )}
-
-          {/* Mobile Menu Toggle */}
-          {/*  <button
-            className="md:hidden ml-2"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button> */}
+        >
+          <ul className="grid grid-cols-5 items-end">
+            {tabs.map(({ href, label, Icon }) => {
+              const active = isActive(href);
+              const base =
+                "flex flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-lg transition";
+              return (
+                <li key={href} className="contents">
+                  <Link
+                    href={href}
+                    className={cn(
+                      base,
+                      active
+                        ? "text-red"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon
+                      className={cn(
+                        "size-4", // ⬅️ smaller icons
+                        "size-5",
+                        active && "scale-110"
+                      )}
+                    />
+                    <span className="text-[10px] leading-none">{label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile Dropdown Nav */}
-      {/*  {mobileMenuOpen && (
-        <div className="md:hidden mt-2 flex flex-col gap-4 border-t py-5">
-          <Link href="/posts">
-            <button className="w-full text-left text-muted-foreground hover:text-foreground transition">
-              Posts
-            </button>
-          </Link>
-          <Link href="/galleries">
-            <button className="w-full text-left text-muted-foreground hover:text-foreground transition">
-              Galleries
-            </button>
-          </Link>
-          <Link href="/votations">
-            <button className="w-full text-left text-muted-foreground hover:text-foreground transition">
-              Votations
-            </button>
-          </Link>
-        </div>
-      )} */}
-    </nav>
+      {/* Margin at the top so the content doesn't clash with the sidebar button */}
+      <div className="sm:hidden h-[60px]" aria-hidden />
+    </>
   );
 };

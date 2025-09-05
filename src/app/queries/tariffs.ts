@@ -13,7 +13,7 @@ import {
   updateUserMonthlyTariff,
   upgradeUserTariff,
 } from "../adapters/api";
-import { ClassType } from "@/modules/dashboard/classes/tariffs/ui/components/plansTab";
+import { ClassType } from "@/modules/dashboard/admin/classes/tariffs/ui/components/plansTab";
 
 export const useCreateMonthlyTariff = () =>
   useMutation({

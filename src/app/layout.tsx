@@ -34,7 +34,7 @@ export default function RootLayout({
         <ReactQueryProvider>
           <AuthProvider>
             <Navbar />
-            {children}
+            <div className="pb-[60px]">{children}</div>
             <Toaster />
           </AuthProvider>
         </ReactQueryProvider>

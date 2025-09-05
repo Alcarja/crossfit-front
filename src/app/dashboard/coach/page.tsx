@@ -1,4 +1,4 @@
-import DashboardView from "@/modules/dashboard/ui/views/dashboard-view";
+import DashboardView from "@/modules/dashboard/coach/calendar/ui/views/dashboard-view";
 
 const Page = async () => {
   return <DashboardView />;
