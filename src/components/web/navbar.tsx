@@ -133,25 +133,10 @@ export const Navbar = () => {
 
   return (
     <>
-      {/* tiny menu trigger (Sheet) in the top-left */}
-      {/* <div className="fixed top-6 left-4 z-[60] sm:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              className="size-10 rounded-full shadow-md"
-              variant="default"
-              aria-label="Open menu"
-            >
-              <ArrowDownLeftFromCircleIcon className="size-5" />
-            </Button>
-          </SheetTrigger>
-        </Sheet>
-      </div> */}
-
       {/* bottom floating nav */}
       <nav
         className={cn(
-          "sm:hidden fixed inset-x-0 bottom-3 z-[60]", // ⬅️ lifted from bottom
+          "sm:hidden fixed inset-x-0 bottom-3 z-[20]", // ⬅️ lifted from bottom
           "px-3 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1"
         )}
         aria-label="Mobile navigation"
