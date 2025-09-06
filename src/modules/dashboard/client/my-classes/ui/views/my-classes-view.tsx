@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   addMonths,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
   format,
-  isSameDay,
   isSameMonth,
   isToday,
   startOfMonth,
@@ -19,6 +18,26 @@ import { CalendarCheck, Tag } from "lucide-react";
 // import { enUS } from 'date-fns/locale';
 
 export const MyClassesView = () => {
+  //Gets the current month
+  const [currentMonth, setCurrentMonth] = useState<Date>(
+    startOfMonth(new Date())
+  );
+
+  //Stores the selected date, on first load it loads today
+  const [selectedDate, setSelectedDate] = useState<string>(
+    format(new Date(), "dd-MM-yyyy")
+  );
+  //Changes the selected date
+  const handleSelectDate = React.useCallback((d: Date) => {
+    const formatted: string = format(d, "dd-MM-yyyy"); // e.g. 20-08-2025
+    setSelectedDate(formatted);
+  }, []);
+
+  //Handles the change of the month
+  const handleChangeMonth = useCallback((m: Date) => {
+    setCurrentMonth(m);
+  }, []);
+
   return (
     <main className="h-auto w-full bg-white text-gray-900 md:py-6 md:px-9">
       {/* Header only in desktop */}
@@ -40,49 +59,79 @@ export const MyClassesView = () => {
       <div className="mx-auto w-full md:grid md:grid-cols-6 md:gap-6 p-4 sm:p-6">
         {/* Calendar (mobile: top ~half; desktop: left column) */}
         <section className="md:col-span-2">
-          <CalendarPanel />
+          <CalendarPanel
+            currentMonth={currentMonth}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate} //This passes back the select date function so the state in the parent can be changed from the child component
+            onChangeMonth={handleChangeMonth}
+          />
         </section>
 
         {/* Classes list (mobile: bottom ~half; desktop: right side) */}
         <section className="md:col-span-4 mt-6 md:mt-0">
-          <ClassesPanel />
+          <ClassesPanel selectedDate={selectedDate} />
         </section>
       </div>
     </main>
   );
 };
 
-function CalendarPanel() {
-  const [currentMonth, setCurrentMonth] = React.useState<Date>(
-    startOfMonth(new Date())
-  );
-  const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
+type CalendarPanelProps = {
+  currentMonth: Date;
+  selectedDate: string | null;
+  onSelectDate: (d: Date) => void;
+  onChangeMonth: (m: Date) => void;
+};
 
+export function CalendarPanel({
+  currentMonth,
+  selectedDate,
+  onSelectDate,
+  onChangeMonth,
+}: CalendarPanelProps) {
+  //Gets the name of the selected month
   const monthLabel = format(currentMonth, "MMMM yyyy");
 
+  //Gets the first day to show in the calendar grid
   const firstDayToShow = React.useMemo(
     () => startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
     [currentMonth]
   );
+
+  //Gets the last day to show in the calendar grid
   const lastDayToShow = React.useMemo(
     () => endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }),
     [currentMonth]
   );
 
+  //Gets the days in between to show in the calendar
   const days = React.useMemo(
     () => eachDayOfInterval({ start: firstDayToShow, end: lastDayToShow }),
     [firstDayToShow, lastDayToShow]
   );
 
-  const gotoPrev = () => setCurrentMonth(addMonths(currentMonth, -1));
-  const gotoNext = () => setCurrentMonth(addMonths(currentMonth, 1));
+  //Handles changing the month
+  const gotoPrev = React.useCallback(
+    () => onChangeMonth(addMonths(currentMonth, -1)),
+    [currentMonth, onChangeMonth]
+  );
 
+  const gotoNext = React.useCallback(
+    () => onChangeMonth(addMonths(currentMonth, 1)),
+    [currentMonth, onChangeMonth]
+  );
+
+  //Gets the names of the week days (Lun, Mar, Mier...)
   const weekdayLabels = React.useMemo(() => {
     const start = startOfWeek(new Date(), { weekStartsOn: 1 });
     return Array.from({ length: 7 }).map((_, i) =>
       format(addDaysSafe(start, i), "EEE")
     );
   }, []);
+
+  useEffect(() => {
+    console.log("Selected date", selectedDate);
+  }, [selectedDate]);
 
   return (
     <div className="rounded-2xl border border-gray-200 shadow-sm">
@@ -124,16 +173,16 @@ function CalendarPanel() {
         <div className="grid grid-cols-7 gap-y-1 text-sm sm:text-base md:min-h-[40vh] min-h-[20vh]">
           {days.map((day) => {
             const inMonth = isSameMonth(day, currentMonth);
-            const isSelected = selectedDate
-              ? isSameDay(day, selectedDate)
-              : false;
+            const selectedDay = selectedDate ?? ""; // formatted "dd-MM-yyyy" or ""
+            const dayKey = format(day, "dd-MM-yyyy");
+            const isSelected = selectedDay === dayKey;
             const today = isToday(day);
 
             return (
               <button
                 key={day.toISOString()}
                 type="button"
-                onClick={() => setSelectedDate(day)}
+                onClick={() => onSelectDate(day)}
                 className={[
                   "mx-auto flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full transition",
                   inMonth ? "text-gray-900" : "text-gray-400",
@@ -172,7 +221,7 @@ type Class = {
 const mockClasses: Class[] = [
   {
     id: 1,
-    date: "2025-09-05",
+    date: "07-09-2025",
     startTime: "09:00",
     endTime: "10:00",
     name: "Morning Yoga",
@@ -187,7 +236,7 @@ const mockClasses: Class[] = [
   },
   {
     id: 2,
-    date: "2025-09-05",
+    date: "07-09-2025",
     startTime: "11:00",
     endTime: "12:00",
     name: "HIIT Training",
@@ -202,7 +251,7 @@ const mockClasses: Class[] = [
   },
   {
     id: 3,
-    date: "2025-09-05",
+    date: "07-09-2025",
     startTime: "18:00",
     endTime: "19:30",
     name: "Evening Pilates",
@@ -217,15 +266,19 @@ const mockClasses: Class[] = [
   },
 ];
 
-function ClassesPanel() {
-  const today = format(new Date(), "yyyy-MM-dd");
-  const todayClasses = mockClasses.filter((c) => c.date === today);
+//Props for the component
+type ClassesPanelProps = {
+  selectedDate: string | null;
+};
 
-  useEffect(() => {
-    console.log("Today", today);
-  }, [today]);
+function ClassesPanel({ selectedDate }: ClassesPanelProps) {
+  // If selectedDate is not passed properly, fallback to today
+  const dateToUse = selectedDate ?? format(new Date(), "dd-MM-yyyy");
 
-  if (todayClasses.length === 0) {
+  //Filters all the classes recieved and gives you the ones for today. Later I will only bring the classes for the selected day instead of filteringe them
+  const classesForSelectedDay = mockClasses.filter((c) => c.date === dateToUse);
+
+  if (classesForSelectedDay.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 p-6 h-auto overflow-auto flex items-center justify-center text-gray-400">
         <span className="text-sm">No classes scheduled for today.</span>
@@ -235,7 +288,7 @@ function ClassesPanel() {
 
   return (
     <div className="divide-y">
-      {todayClasses.map((c) => (
+      {classesForSelectedDay.map((c) => (
         <div
           key={c.id}
           className="flex justify-between p-2 bg-white first:border-t last:border-b border-gray-200"
