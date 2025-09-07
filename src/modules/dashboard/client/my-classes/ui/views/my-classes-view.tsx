@@ -90,12 +90,14 @@ export const MyClassesView = () => {
 
   const selectedClass = classById;
 
-  const handleCancelReservation = () => {
-    console.log("Cancel reservation");
+  const handleCancelReservation = (userId: number, classId: number) => {
+    console.log("user id", userId);
+    console.log("class id", classId);
   };
 
-  const handleMakeReservation = () => {
-    console.log("Make reservation");
+  const handleMakeReservation = (userId: number, classId: number) => {
+    console.log("user id", userId);
+    console.log("class id", classId);
   };
 
   return (
@@ -251,7 +253,12 @@ export const MyClassesView = () => {
                   <Button
                     variant="delete"
                     className="w-full h-11 text-base font-semibold"
-                    onClick={() => handleCancelReservation()}
+                    onClick={() =>
+                      handleCancelReservation(
+                        userId!,
+                        classById?.classInformation?.id
+                      )
+                    }
                   >
                     {userStatus === "enrolled"
                       ? "Cancelar reserva"
@@ -262,7 +269,12 @@ export const MyClassesView = () => {
                 {showReserveButton && (
                   <Button
                     className="w-full h-11 text-base font-semibold bg-green-600 text-white hover:text-green-600 hover:border-green-600"
-                    onClick={() => handleMakeReservation()}
+                    onClick={() =>
+                      handleMakeReservation(
+                        userId!,
+                        classById?.classInformation?.id
+                      )
+                    }
                   >
                     Reservar
                   </Button>
