@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -21,54 +23,12 @@ import {
   DrawerHeader,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-
-const mockClasses: Class[] = [
-  {
-    id: 1,
-    date: "07-09-2025",
-    startTime: "09:00",
-    endTime: "10:00",
-    name: "Morning Yoga",
-    type: "yoga",
-    zoneName: "Studio A",
-    coachName: "Alice",
-    capacity: 15,
-    attendants: 3,
-    isCancelled: false,
-    isInscribed: true,
-    isWaitlist: false,
-  },
-  {
-    id: 2,
-    date: "07-09-2025",
-    startTime: "11:00",
-    endTime: "12:00",
-    name: "HIIT Training",
-    type: "hiit",
-    zoneName: "Main Hall",
-    coachName: "Bob",
-    capacity: 20,
-    attendants: 2,
-    isCancelled: false,
-    isInscribed: false,
-    isWaitlist: true,
-  },
-  {
-    id: 3,
-    date: "07-09-2025",
-    startTime: "18:00",
-    endTime: "19:30",
-    name: "Evening Pilates",
-    type: "pilates",
-    zoneName: "Studio B",
-    coachName: "Charlie",
-    capacity: 12,
-    attendants: 0,
-    isCancelled: true,
-    isInscribed: false,
-    isWaitlist: false,
-  },
-];
+import { useAuth } from "@/context/authContext";
+import { useQuery } from "@tanstack/react-query";
+import {
+  classesByDayQueryOptions,
+  useGetClassById,
+} from "@/app/queries/schedule";
 
 const attendees: Array<{ id: string; firstName: string; avatarUrl: string }> = [
   {
@@ -159,6 +119,12 @@ const attendees: Array<{ id: string; firstName: string; avatarUrl: string }> = [
 ];
 
 export const MyClassesView = () => {
+  const { user } = useAuth();
+
+  if (user) {
+    const userId = user.id;
+  }
+
   //const [classes, setClasses] = useState<any[]>([]); //Get the classes from the backend
   const [drawerOpen, setDrawerOpen] = useState(false); //Control the drawer state
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
@@ -170,11 +136,12 @@ export const MyClassesView = () => {
 
   //Stores the selected date, on first load it loads today
   const [selectedDate, setSelectedDate] = useState<string>(
-    format(new Date(), "dd-MM-yyyy")
+    format(new Date(), "yyyy-MM-dd") // The format that the back expects --> yyyy-MM-dd
   );
+
   //Changes the selected date
   const handleSelectDate = React.useCallback((d: Date) => {
-    const formatted: string = format(d, "dd-MM-yyyy"); // e.g. 20-08-2025
+    const formatted: string = format(d, "yyyy-MM-dd"); // The format that the back expects --> yyyy-MM-dd
     setSelectedDate(formatted);
   }, []);
 
@@ -183,9 +150,16 @@ export const MyClassesView = () => {
     setCurrentMonth(m);
   }, []);
 
-  const selectedClass = mockClasses[0];
+  // When a user clicks a class, it passes the id from the list of classes to here to get the info of the specific class
+  const { data: classById } = useQuery(useGetClassById(selectedClassId));
 
-  const showCancel = selectedClass.isInscribed && !selectedClass.isCancelled;
+  useEffect(() => {
+    console.log("Classes by id data", classById);
+  }, [classById]);
+
+  const selectedClass = classById;
+
+  const showCancel = true;
 
   return (
     <>
@@ -241,59 +215,94 @@ export const MyClassesView = () => {
                 {/* Row 0 — class type (top-left) */}
                 <div className="flex items-center">
                   <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">
-                    {selectedClass.type} - — ID #{selectedClass.id}
+                    {selectedClass?.classInformation?.type}
                   </span>
                 </div>
 
                 {/* Row 1 — time (emphasized) + cupo badge */}
                 <div className="flex items-baseline justify-between gap-3">
                   <div className="text-2xl font-bold leading-none">
-                    {selectedClass.startTime}
+                    {selectedClass?.classInformation?.startTime}
                     <span className="mx-2 text-base font-medium">–</span>
-                    {selectedClass.endTime}
+                    {selectedClass?.classInformation?.endTime}
                   </div>
 
                   <span
                     className={[
                       "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
-                      selectedClass.attendants >= selectedClass.capacity
+                      selectedClass?.aggregates?.enrolledCount >=
+                      selectedClass?.classInformation?.capacity
                         ? "bg-red-100 text-red-700"
                         : "bg-emerald-100 text-emerald-700",
                     ].join(" ")}
                   >
-                    Cupo: {selectedClass.attendants}/{selectedClass.capacity}
+                    Cupo: {selectedClass?.aggregates?.enrolledCount}/
+                    {selectedClass?.classInformation?.capacity}
                   </span>
                 </div>
 
                 {/* Row 2 — date (left) • zone/coach (right) */}
                 <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>{selectedClass.date}</span>
+                  <span>{selectedClass?.classInformation?.date}</span>
                   <span className="truncate">
-                    {selectedClass.zoneName
-                      ? `${selectedClass.zoneName} • `
+                    {selectedClass?.classInformation?.zoneName
+                      ? `${selectedClass?.classInformation?.zoneName} • `
                       : ""}
-                    {selectedClass.coachName}
+                    {selectedClass?.classInformation?.coachName}
                   </span>
                 </div>
               </DrawerHeader>
             </div>
 
             {/* MIDDLE (scrollable) */}
-            <div className="overflow-y-auto px-4 md:px-40 pt-5 pb-10">
+            <div className="overflow-y-auto px-4 md:px-40 pt-5 pb-10 h-full">
               {/* Avatars in centered rows of ~4–5 */}
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-6">
-                {attendees.map((a) => (
-                  <div key={a.id} className="flex w-20 flex-col items-center">
-                    <img
-                      src={a.avatarUrl}
-                      alt={a.firstName}
-                      className="h-12 w-12 rounded-full object-cover ring-1 ring-gray-200"
-                    />
-                    <span className="mt-1 text-xs text-gray-700 truncate w-full text-center">
-                      {a.firstName}
-                    </span>
+                {selectedClass?.classEnrollments?.length === 0 ? (
+                  <div className="text-gray-600 px-6 py-4 rounded-md text-md text-center">
+                    No users in this class yet
                   </div>
-                ))}
+                ) : (
+                  selectedClass?.classEnrollments?.map((a: any) => {
+                    const initials = a.userName?.slice(0, 2).toUpperCase();
+                    const bgColors = [
+                      "bg-red-500",
+                      "bg-blue-500",
+                      "bg-green-500",
+                      "bg-yellow-500",
+                      "bg-purple-500",
+                      "bg-pink-500",
+                      "bg-indigo-500",
+                    ];
+                    const colorIndex =
+                      a.userName?.charCodeAt(0) % bgColors.length;
+                    const bgColor = bgColors[colorIndex];
+
+                    return (
+                      <div
+                        key={a.id}
+                        className="flex w-20 flex-col items-center"
+                      >
+                        {a.avatarUrl ? (
+                          <img
+                            src={a.avatarUrl}
+                            alt={a.userName}
+                            className="h-12 w-12 rounded-full object-cover ring-1 ring-gray-200"
+                          />
+                        ) : (
+                          <div
+                            className={`h-12 w-12 rounded-full flex items-center justify-center text-white text-md font-medium ring-1 ring-gray-200 ${bgColor}`}
+                          >
+                            {initials}
+                          </div>
+                        )}
+                        <span className="mt-1 text-xs text-gray-700 truncate w-full text-center">
+                          {a.userName}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -478,8 +487,8 @@ export function CalendarPanel({
         <div className="grid grid-cols-7 gap-y-1 text-sm sm:text-base md:min-h-[40vh] min-h-[20vh]">
           {days.map((day) => {
             const inMonth = isSameMonth(day, currentMonth);
-            const selectedDay = selectedDate ?? ""; // formatted "dd-MM-yyyy" or ""
-            const dayKey = format(day, "dd-MM-yyyy");
+            const selectedDay = selectedDate ?? ""; // formatted "yyyy-MM-dd"
+            const dayKey = format(day, "yyyy-MM-dd");
             const isSelected = selectedDay === dayKey;
             const today = isToday(day);
 
@@ -508,35 +517,35 @@ export function CalendarPanel({
 }
 
 type Class = {
-  id: number;
-  date: string; // ISO date
-  startTime: string;
-  endTime: string;
-  name: string;
-  type: string;
-  zoneName?: string;
-  coachName?: string;
   capacity: number;
-  attendants: number;
-  isCancelled: boolean;
-  isInscribed: boolean;
-  isWaitlist: boolean;
+  coachId?: number;
+  date: string;
+  endTime: string;
+  enrolledCount: number;
+  id: number;
+  isCancelled?: boolean;
+  name?: string;
+  startTime: string;
+  type: string;
+  waitlistCount: number;
+  zoneName: string;
 };
 
 //Props for the component
 type ClassesPanelProps = {
-  selectedDate: string | null;
+  selectedDate: string;
   onSelectClassId: (id: number) => void;
 };
 
 function ClassesPanel({ selectedDate, onSelectClassId }: ClassesPanelProps) {
   // If selectedDate is not passed properly, fallback to today
-  const dateToUse = selectedDate ?? format(new Date(), "dd-MM-yyyy");
+  const dateToUse = selectedDate ?? format(new Date(), "yyyy-MM-dd");
 
-  //Filters all the classes recieved and gives you the ones for today. Later I will only bring the classes for the selected day instead of filteringe them
-  const classesForSelectedDay = mockClasses.filter((c) => c.date === dateToUse);
+  const { data: classesByDayData } = useQuery(
+    classesByDayQueryOptions(dateToUse)
+  );
 
-  if (classesForSelectedDay.length === 0) {
+  if (classesByDayData?.instances?.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 p-6 h-auto overflow-auto flex items-center justify-center text-gray-400">
         <span className="text-sm">No classes scheduled for today.</span>
@@ -546,7 +555,7 @@ function ClassesPanel({ selectedDate, onSelectClassId }: ClassesPanelProps) {
 
   return (
     <div className="divide-y">
-      {classesForSelectedDay.map((c) => (
+      {classesByDayData?.instances.map((c: Class) => (
         <div
           key={c.id}
           className="flex justify-between p-2 bg-white first:border-t last:border-b border-gray-200"
@@ -577,7 +586,7 @@ function ClassesPanel({ selectedDate, onSelectClassId }: ClassesPanelProps) {
                 {c.type}
               </span>
               <span className="text-sm font-regular text-gray-600">
-                {c.coachName} - {c.zoneName}
+                {c.coachId} - {c.zoneName}
               </span>
             </div>
           </div>
@@ -586,28 +595,7 @@ function ClassesPanel({ selectedDate, onSelectClassId }: ClassesPanelProps) {
           <div className="flex flex-col items-end sm:mt-0 gap-1">
             {/* Top: attendants / capacity */}
             <span className="text-sm font-semibold text-gray-900 pr-2">
-              {c.attendants}/{c.capacity}
-            </span>
-
-            <span
-              className={[
-                "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-                c.isCancelled
-                  ? "bg-red-50 text-red-500"
-                  : c.isWaitlist
-                  ? "bg-yellow-50 text-yellow-600"
-                  : c.isInscribed
-                  ? "bg-green-50 text-green-600"
-                  : "bg-gray-50 text-gray-500",
-              ].join(" ")}
-            >
-              {c.isCancelled
-                ? "Cancelled"
-                : c.isWaitlist
-                ? "Waitlist"
-                : c.isInscribed
-                ? "Confirmed"
-                : "Available"}
+              {c.enrolledCount}/{c.capacity}
             </span>
           </div>
         </div>

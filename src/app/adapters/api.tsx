@@ -286,6 +286,14 @@ export const getClassesByDay = async (date: string) => {
   });
 };
 
+export const getClassEnrollments = async (classId: number) => {
+  return await stpApi.get(`/api/schedule/get-enrollments/${classId}`);
+};
+
+export const getClassById = async (classId: number | null) => {
+  return await stpApi.get(`/api/schedule/get-class-by-id/${classId}`);
+};
+
 export const saveWeek = async (data: SaveWeekPayload) => {
   return await stpApi.put("/api/schedule/week", data);
 };
@@ -325,10 +333,6 @@ export const promoteFromWaitlist = (userId: number, classId: number) =>
 
 export const waitlistToCancel = (userId: number, classId: number) =>
   stpApi.put(`/api/schedule/waitlist-to-cancel/${classId}/${userId}`, {});
-
-export const getClassEnrollments = async (classId: number) => {
-  return await stpApi.get(`/api/schedule/get-enrollments/${classId}`);
-};
 
 //Tariffs
 export const createMonthlyTariff = async (data: {

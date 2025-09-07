@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createSchedule,
   enrollInClass,
+  getClassById,
   getClassEnrollments,
   getClassesByDay,
   getSchedule,
@@ -81,6 +82,15 @@ export const useGetClassEnrollments = (classId: number) => ({
   queryKey: ["classEnrollments", classId],
   queryFn: async () => {
     const res = await getClassEnrollments(classId);
+    return res;
+  },
+  enabled: !!classId, // only run if date is provided
+});
+
+export const useGetClassById = (classId: number | null) => ({
+  queryKey: ["classById", classId],
+  queryFn: async () => {
+    const res = await getClassById(classId);
     return res;
   },
   enabled: !!classId, // only run if date is provided
