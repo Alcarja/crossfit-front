@@ -280,9 +280,21 @@ export const getWeek = async (startDate: string) => {
   });
 };
 
-export const getClassesByDay = async (date: string) => {
+export const getClassesByDay = async (date: string, userId?: number) => {
   return await stpApi.get("/api/schedule/classes-by-day", {
-    params: { date }, // ?date=YYYY-MM-DD
+    params: {
+      date,
+      ...(userId ? { userId } : {}), // only include if defined
+    },
+  });
+};
+
+export const getUserReservationsByMonth = async (
+  userId: number,
+  month: string // format: "YYYY-MM"
+) => {
+  return await stpApi.get("/api/schedule/user-reservations-by-month", {
+    params: { userId, month },
   });
 };
 

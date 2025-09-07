@@ -28,102 +28,13 @@ import { useQuery } from "@tanstack/react-query";
 import {
   classesByDayQueryOptions,
   useGetClassById,
+  userReservationsByMonthQueryOptions,
 } from "@/app/queries/schedule";
-
-const attendees: Array<{ id: string; firstName: string; avatarUrl: string }> = [
-  {
-    id: "u1",
-    firstName: "Leo",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Leo",
-  },
-  {
-    id: "u2",
-    firstName: "Mia",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Mia",
-  },
-  {
-    id: "u3",
-    firstName: "Noah",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Noah",
-  },
-  {
-    id: "u4",
-    firstName: "Ava",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Ava",
-  },
-  {
-    id: "u5",
-    firstName: "Liam",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Liam",
-  },
-  {
-    id: "u6",
-    firstName: "Emma",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Emma",
-  },
-  {
-    id: "u7",
-    firstName: "Sofia",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Sofia",
-  },
-  {
-    id: "u8",
-    firstName: "Lucas",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Lucas",
-  },
-  {
-    id: "u9",
-    firstName: "Maya",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Maya",
-  },
-  {
-    id: "u10",
-    firstName: "Ethan",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Ethan",
-  },
-  {
-    id: "u11",
-    firstName: "Iris",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Iris",
-  },
-  {
-    id: "u12",
-    firstName: "Owen",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Owen",
-  },
-  {
-    id: "u13",
-    firstName: "Lucas",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Lucas",
-  },
-  {
-    id: "u14",
-    firstName: "Maya",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Maya",
-  },
-  {
-    id: "u15",
-    firstName: "Ethan",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Ethan",
-  },
-  {
-    id: "u16",
-    firstName: "Iris",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Iris",
-  },
-  {
-    id: "u17",
-    firstName: "Owen",
-    avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Owen",
-  },
-];
 
 export const MyClassesView = () => {
   const { user } = useAuth();
 
-  if (user) {
-    const userId = user.id;
-  }
+  const userId = user?.id ?? undefined;
 
   //const [classes, setClasses] = useState<any[]>([]); //Get the classes from the backend
   const [drawerOpen, setDrawerOpen] = useState(false); //Control the drawer state
@@ -153,13 +64,39 @@ export const MyClassesView = () => {
   // When a user clicks a class, it passes the id from the list of classes to here to get the info of the specific class
   const { data: classById } = useQuery(useGetClassById(selectedClassId));
 
-  useEffect(() => {
-    console.log("Classes by id data", classById);
-  }, [classById]);
+  //Gets the user enrollment in the selected class if it exists
+  const userEnrollment = classById?.classEnrollments?.find(
+    (e: any) => e.userId === userId
+  );
+
+  const userStatus = userEnrollment?.status; // "enrolled" | "waitlist" | "cancelled" | undefined
+
+  const showCancelButton =
+    userStatus === "enrolled" || userStatus === "waitlist";
+
+  const showReserveButton = !userEnrollment || userStatus === "cancelled";
+
+  //This gets all the classes for a given day. If you add the userId it tells you if the user is enrolled or in waitlist for that class
+  const { data: classesByDayData } = useQuery(
+    classesByDayQueryOptions(selectedDate, userId)
+  );
+
+  //Formats the month into yyyy-MM so the backend can use it
+  const formattedMonth = format(currentMonth, "yyyy-MM");
+
+  const { data: userReservations } = useQuery(
+    userReservationsByMonthQueryOptions(userId, formattedMonth)
+  );
 
   const selectedClass = classById;
 
-  const showCancel = true;
+  const handleCancelReservation = () => {
+    console.log("Cancel reservation");
+  };
+
+  const handleMakeReservation = () => {
+    console.log("Make reservation");
+  };
 
   return (
     <>
@@ -184,6 +121,7 @@ export const MyClassesView = () => {
           {/* Calendar (mobile: top ~half; desktop: left column) */}
           <section className="md:col-span-2">
             <CalendarPanel
+              userReservations={userReservations}
               currentMonth={currentMonth}
               selectedDate={selectedDate}
               onSelectDate={handleSelectDate} //This passes back the select date function so the state in the parent can be changed from the child component
@@ -194,7 +132,7 @@ export const MyClassesView = () => {
           {/* Classes list (mobile: bottom ~half; desktop: right side) */}
           <section className="md:col-span-4 mt-6 md:mt-0">
             <ClassesPanel
-              selectedDate={selectedDate}
+              classData={classesByDayData}
               onSelectClassId={(id) => {
                 setSelectedClassId(id);
                 setDrawerOpen(true); // trigger Sheet
@@ -309,18 +247,22 @@ export const MyClassesView = () => {
             {/* BOTTOM (sticky, shadcn buttons) */}
             <div className="shrink-0 sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="p-4 space-y-2">
-                {!showCancel ? (
+                {showCancelButton && (
                   <Button
                     variant="delete"
                     className="w-full h-11 text-base font-semibold"
-                    // onClick={() => ...}
+                    onClick={() => handleCancelReservation()}
                   >
-                    Cancelar reserva
+                    {userStatus === "enrolled"
+                      ? "Cancelar reserva"
+                      : "Cancelar de lista de espera"}
                   </Button>
-                ) : (
+                )}
+
+                {showReserveButton && (
                   <Button
                     className="w-full h-11 text-base font-semibold bg-green-600 text-white hover:text-green-600 hover:border-green-600"
-                    // onClick={() => ...}
+                    onClick={() => handleMakeReservation()}
                   >
                     Reservar
                   </Button>
@@ -347,6 +289,7 @@ type CalendarPanelProps = {
   selectedDate: string | null;
   onSelectDate: (d: Date) => void;
   onChangeMonth: (m: Date) => void;
+  userReservations: [];
 };
 
 export function CalendarPanel({
@@ -354,6 +297,7 @@ export function CalendarPanel({
   selectedDate,
   onSelectDate,
   onChangeMonth,
+  userReservations,
 }: CalendarPanelProps) {
   //Gets the name of the selected month
   const monthLabel = format(currentMonth, "MMMM yyyy");
@@ -396,8 +340,8 @@ export function CalendarPanel({
   }, []);
 
   useEffect(() => {
-    console.log("Selected date", selectedDate);
-  }, [selectedDate]);
+    console.log("user reservationssdfkjshdflksdhf", userReservations);
+  }, [userReservations]);
 
   // SWIPE CONTROLS FOR MOBILE
   const touchStartRef = React.useRef<{
@@ -487,27 +431,45 @@ export function CalendarPanel({
         <div className="grid grid-cols-7 gap-y-1 text-sm sm:text-base md:min-h-[40vh] min-h-[20vh]">
           {days.map((day) => {
             const inMonth = isSameMonth(day, currentMonth);
-            const selectedDay = selectedDate ?? ""; // formatted "yyyy-MM-dd"
+            const selectedDay = selectedDate ?? "";
             const dayKey = format(day, "yyyy-MM-dd");
             const isSelected = selectedDay === dayKey;
             const today = isToday(day);
 
+            // 🔍 Find reservation for the day
+            const reservation: any = userReservations?.find(
+              (r: any) => r.date === dayKey
+            );
+            const status = reservation?.status; // 'enrolled' | 'waitlist' | undefined
+
             return (
-              <button
+              <div
                 key={day.toISOString()}
-                type="button"
-                onClick={() => onSelectDate(day)}
-                className={[
-                  "mx-auto flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full transition",
-                  inMonth ? "text-gray-900" : "text-gray-400",
-                  today && !isSelected ? "ring-1 ring-gray-300" : "",
-                  isSelected ? "bg-gray-900 text-white" : "hover:bg-gray-100",
-                ].join(" ")}
-                aria-label={format(day, "PPP")}
-                aria-pressed={isSelected}
+                className="flex flex-col items-center"
               >
-                {format(day, "d")}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onSelectDate(day)}
+                  className={[
+                    "mx-auto flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full transition",
+                    inMonth ? "text-gray-900" : "text-gray-400",
+                    today && !isSelected ? "ring-1 ring-gray-300" : "",
+                    isSelected ? "bg-gray-900 text-white" : "hover:bg-gray-100",
+                  ].join(" ")}
+                  aria-label={format(day, "PPP")}
+                  aria-pressed={isSelected}
+                >
+                  {format(day, "d")}
+                </button>
+
+                {/* 🔵 Dot under the day */}
+                {status === "enrolled" && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1" />
+                )}
+                {status === "waitlist" && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1" />
+                )}
+              </div>
             );
           })}
         </div>
@@ -529,23 +491,21 @@ type Class = {
   type: string;
   waitlistCount: number;
   zoneName: string;
+  userStatus: string;
 };
 
 //Props for the component
 type ClassesPanelProps = {
-  selectedDate: string;
   onSelectClassId: (id: number) => void;
+  classData: { instances: Class[] }; // ClassData is an array of classes
 };
 
-function ClassesPanel({ selectedDate, onSelectClassId }: ClassesPanelProps) {
-  // If selectedDate is not passed properly, fallback to today
-  const dateToUse = selectedDate ?? format(new Date(), "yyyy-MM-dd");
+function ClassesPanel({ onSelectClassId, classData }: ClassesPanelProps) {
+  useEffect(() => {
+    console.log("Class data", classData);
+  }, [classData]);
 
-  const { data: classesByDayData } = useQuery(
-    classesByDayQueryOptions(dateToUse)
-  );
-
-  if (classesByDayData?.instances?.length === 0) {
+  if (classData?.instances?.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 p-6 h-auto overflow-auto flex items-center justify-center text-gray-400">
         <span className="text-sm">No classes scheduled for today.</span>
@@ -555,7 +515,7 @@ function ClassesPanel({ selectedDate, onSelectClassId }: ClassesPanelProps) {
 
   return (
     <div className="divide-y">
-      {classesByDayData?.instances.map((c: Class) => (
+      {classData?.instances.map((c: Class) => (
         <div
           key={c.id}
           className="flex justify-between p-2 bg-white first:border-t last:border-b border-gray-200"
@@ -597,6 +557,16 @@ function ClassesPanel({ selectedDate, onSelectClassId }: ClassesPanelProps) {
             <span className="text-sm font-semibold text-gray-900 pr-2">
               {c.enrolledCount}/{c.capacity}
             </span>
+            {c.userStatus === "enrolled" && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Enrolled
+              </span>
+            )}
+            {c.userStatus === "waitlist" && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                Waitlist
+              </span>
+            )}
           </div>
         </div>
       ))}

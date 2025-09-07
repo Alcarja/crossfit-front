@@ -6,6 +6,7 @@ import {
   getClassEnrollments,
   getClassesByDay,
   getSchedule,
+  getUserReservationsByMonth,
   getWeek,
   reinstateEnrollment,
   saveWeek,
@@ -35,13 +36,25 @@ export const useGetWeek = (startDate: string) =>
     enabled: !!startDate, // only fetch when startDate is set
   });
 
-export const classesByDayQueryOptions = (date: string) => ({
-  queryKey: ["day", date],
+export const classesByDayQueryOptions = (date: string, userId?: number) => ({
+  queryKey: ["day", date, userId], // include userId in key to cache per-user results
   queryFn: async () => {
-    const res = await getClassesByDay(date);
+    const res = await getClassesByDay(date, userId);
     return res;
   },
-  enabled: !!date, // only run if date is provided
+  enabled: !!date, // only fetch if date is provided
+});
+
+export const userReservationsByMonthQueryOptions = (
+  userId?: number,
+  month?: string // format: "YYYY-MM"
+) => ({
+  queryKey: ["user-reservations", userId, month],
+  queryFn: async () => {
+    const res = await getUserReservationsByMonth(userId!, month!);
+    return res;
+  },
+  enabled: !!userId && !!month, // only run if both are defined
 });
 
 export type SaveWeekPayload = {
