@@ -34,6 +34,7 @@ import {
 } from "@/app/queries/schedule";
 import { toast } from "sonner";
 import { typeColors } from "@/components/types/types";
+import { sendTemplateEmail } from "@/app/adapters/api";
 
 export const MyClassesView = () => {
   const { user } = useAuth();
@@ -206,6 +207,18 @@ export const MyClassesView = () => {
     (e: any) => String(e.status) === "enrolled"
   );
 
+  const sendEmail = async () => {
+    await sendTemplateEmail({
+      userId: 1,
+      template: "WAITLIST_PROMOTED",
+      params: {
+        className: "CrossFit WOD",
+        classTime: "Today 18:30",
+        ctaUrl: `/classes/abc123`,
+      },
+    });
+  };
+
   return (
     <>
       <main className="h-auto w-full bg-white text-gray-900 md:py-6 md:px-9">
@@ -247,6 +260,9 @@ export const MyClassesView = () => {
               }}
             />
           </section>
+          <div>
+            <Button onClick={() => sendEmail()}>test email</Button>
+          </div>
         </div>
       </main>
 

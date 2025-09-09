@@ -561,3 +561,26 @@ export const createNewPaymentForOrder = async (body: {
 }) => {
   return stpApi.post(`/api/payments/create-new-payment-for-order`, body);
 };
+
+//EMAILS
+export type EmailTemplate =
+  | "WAITLIST_PROMOTED"
+  | "VERIFY_EMAIL"
+  | "RESET_PASSWORD"
+  | "ADMIN_MESSAGE";
+
+type TemplateParamsMap = {
+  WAITLIST_PROMOTED: { className: string; classTime: string; ctaUrl: string };
+  VERIFY_EMAIL: { verifyUrl: string };
+  RESET_PASSWORD: { resetUrl: string };
+  ADMIN_MESSAGE: { message: string; ctaUrl: string };
+};
+
+export const sendTemplateEmail = <T extends EmailTemplate>(body: {
+  userId: number;
+  template: T;
+  params: TemplateParamsMap[T];
+  extraTags?: string[];
+}) => {
+  return stpApi.post(`/api/emails/send-template`, body);
+};
