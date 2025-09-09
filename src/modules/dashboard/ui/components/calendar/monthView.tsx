@@ -21,14 +21,30 @@ type Class = {
   isHalfHour?: boolean;
 };
 
-const typeColors: Record<string, string> = {
-  WOD: "bg-blue-200 text-blue-900",
-  Gymnastics: "bg-red-200 text-red-900",
-  Weightlifting: "bg-purple-200 text-purple-900",
-  Endurance: "bg-green-200 text-green-900",
-  Foundations: "bg-pink-200 text-pink-900",
-  Kids: "bg-yellow-200 text-yellow-900",
-};
+const colorPool = [
+  "bg-blue-200 text-blue-900",
+  "bg-red-200 text-red-900",
+  "bg-purple-200 text-purple-900",
+  "bg-green-200 text-green-900",
+  "bg-pink-200 text-pink-900",
+  "bg-yellow-200 text-yellow-900",
+  "bg-indigo-200 text-indigo-900",
+  "bg-teal-200 text-teal-900",
+  "bg-orange-200 text-orange-900",
+  "bg-emerald-200 text-emerald-900",
+  "bg-rose-200 text-rose-900",
+  "bg-lime-200 text-lime-900",
+];
+
+function getColorForCoach(name: string): string {
+  const cleanName = name.trim().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < cleanName.length; i++) {
+    hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colorPool.length;
+  return colorPool[index];
+}
 
 export default function MonthView({
   date,
@@ -110,7 +126,7 @@ export default function MonthView({
 
               <div className="space-y-1 text-xs overflow-hidden">
                 {visibleClasses.map((cls) => {
-                  const color = typeColors[cls.type] || typeColors.Default;
+                  const color = getColorForCoach(cls.coach || "unknown");
 
                   return (
                     <div
@@ -143,7 +159,7 @@ export default function MonthView({
                     </div>
 
                     {dayClasses.map((cls) => {
-                      const color = typeColors[cls.type] || typeColors.Default;
+                      const color = getColorForCoach(cls.coach || "unknown");
                       return (
                         <div
                           key={cls.id}

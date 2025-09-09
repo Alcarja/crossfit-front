@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import * as XLSX from "xlsx";
 
 import { useState } from "react";
@@ -51,6 +51,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/authContext";
 
 export interface User {
   id: number;
@@ -74,8 +75,21 @@ export interface Coach {
   lastName: string;
 }
 
+type ExpensePayload = {
+  coachId: number;
+  inventoryId: string;
+  quantity: number;
+  date: string;
+  customPrice?: number;
+};
+
 const ExpensesView = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    console.log("User", user?.role);
+  }, [user]);
 
   const currentDate = new Date();
   const currentMonth = String(currentDate.getMonth() + 1); // JS months are 0-based
@@ -164,15 +178,38 @@ const ExpensesView = () => {
   const createExpenseMutation = useCreateCoachExpenseMutation();
 
   const handleSubmitExpense = async () => {
+    if (!user) {
+      toast.error("User not found. Please log in again.");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    const payload = {
-      coachId: parseInt(selectedCoachForAddingExpense),
-      inventoryId: selectedInventoryId,
-      quantity,
-      date,
-      customPrice,
-    };
+    let payload: ExpensePayload;
+
+    if (user.role === "admin") {
+      if (!selectedCoachForAddingExpense) {
+        toast.error("Please select a coach.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      payload = {
+        coachId: parseInt(selectedCoachForAddingExpense),
+        inventoryId: selectedInventoryId,
+        quantity,
+        date,
+        customPrice,
+      };
+    } else {
+      payload = {
+        coachId: user.id,
+        inventoryId: selectedInventoryId,
+        quantity,
+        date,
+        customPrice,
+      };
+    }
 
     createExpenseMutation.mutate(payload, {
       onSuccess: () => {
@@ -300,6 +337,12 @@ const ExpensesView = () => {
     currentYear,
   ]);
 
+  //Constant to filter the bottom table
+  const visibleCoaches =
+    user?.role === "admin"
+      ? filteredData
+      : filteredData.filter((coach: any) => coach.id === user?.id);
+
   return (
     <div className="w-full h-auto md:p-12 p-6 space-y-8">
       {/* Page Header */}
@@ -415,30 +458,34 @@ const ExpensesView = () => {
       </div>
 
       {/* KPI Summary */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <Card className="md:flex-1 w-full">
-          <CardContent className="py-1 px-5">
-            <p className="text-sm text-muted-foreground">Total Coaches</p>
-            <p className="text-3xl font-semibold mt-1">{totals.totalCoaches}</p>
-          </CardContent>
-        </Card>
-        <Card className="md:flex-1 w-full">
-          <CardContent className="py-1 px-5">
-            <p className="text-sm text-muted-foreground">
-              Total Items Purchased
-            </p>
-            <p className="text-3xl font-semibold mt-1">{totals.totalItems}</p>
-          </CardContent>
-        </Card>
-        <Card className="md:flex-1 w-full">
-          <CardContent className="py-1 px-5">
-            <p className="text-sm text-muted-foreground">Total Expense</p>
-            <p className="text-3xl font-semibold mt-1">
-              {totals.totalAmount.toFixed(2)}€
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {user && user.role === "admin" && (
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <Card className="md:flex-1 w-full">
+            <CardContent className="py-1 px-5">
+              <p className="text-sm text-muted-foreground">Total Coaches</p>
+              <p className="text-3xl font-semibold mt-1">
+                {totals.totalCoaches}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="md:flex-1 w-full">
+            <CardContent className="py-1 px-5">
+              <p className="text-sm text-muted-foreground">
+                Total Items Purchased
+              </p>
+              <p className="text-3xl font-semibold mt-1">{totals.totalItems}</p>
+            </CardContent>
+          </Card>
+          <Card className="md:flex-1 w-full">
+            <CardContent className="py-1 px-5">
+              <p className="text-sm text-muted-foreground">Total Expense</p>
+              <p className="text-3xl font-semibold mt-1">
+                {totals.totalAmount.toFixed(2)}€
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Coaches Accordion */}
       <Card className="border-muted/50">
@@ -455,7 +502,7 @@ const ExpensesView = () => {
             </div>
           ) : (
             <Accordion type="multiple" className="w-full">
-              {filteredData.map((coach: any) => (
+              {visibleCoaches.map((coach: any) => (
                 <AccordionItem key={coach.name} value={coach.name}>
                   <AccordionTrigger className="hover:no-underline">
                     <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-left">
@@ -589,15 +636,18 @@ const ExpensesView = () => {
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <Label className="mb-1 block">Coach</Label>
-                <SearchSelectDropdown
-                  options={userOptions}
-                  value={selectedCoachForAddingExpense}
-                  onValueChange={setSelectedCoachForAddingExpense}
-                  placeholder="Search and select a coach"
-                />
-              </div>
+              {user && user.role === "admin" && (
+                <div className="md:col-span-2">
+                  <Label className="mb-1 block">Coach</Label>
+                  <SearchSelectDropdown
+                    options={userOptions}
+                    value={selectedCoachForAddingExpense}
+                    onValueChange={setSelectedCoachForAddingExpense}
+                    placeholder="Search and select a coach"
+                  />
+                </div>
+              )}
+
               <div className="md:col-span-2">
                 <Label className="mb-1 block">Inventory Item</Label>
                 <SearchSelectDropdown
