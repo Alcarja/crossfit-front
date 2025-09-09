@@ -15,7 +15,7 @@ const colorPool = [
   "bg-red-200 text-red-900",
   "bg-purple-200 text-purple-900",
   "bg-green-200 text-green-900",
-  "bg-pink-200 text-pink-900",
+  "bg-pink-300 text-pink-900",
   "bg-yellow-200 text-yellow-900",
   "bg-indigo-200 text-indigo-900",
   "bg-teal-200 text-teal-900",
@@ -25,14 +25,36 @@ const colorPool = [
   "bg-lime-200 text-lime-900",
 ];
 
-function getColorForCoach(name: string): string {
+// Runtime cache of assigned coach names → color
+const assignedColors = new Map<string, string>();
+
+export function getUniqueColorForCoach(name: string): string {
+  if (!name) return "bg-gray-200 text-gray-800";
+
+  // Use already-assigned color if available
+  if (assignedColors.has(name)) {
+    return assignedColors.get(name)!;
+  }
+
+  // Try to find an unused color
+  for (const color of colorPool) {
+    if (![...assignedColors.values()].includes(color)) {
+      assignedColors.set(name, color);
+      return color;
+    }
+  }
+
+  // Fallback: consistent hash if all colors used
   const cleanName = name.trim().toLowerCase();
   let hash = 0;
   for (let i = 0; i < cleanName.length; i++) {
     hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
   }
   const index = Math.abs(hash) % colorPool.length;
-  return colorPool[index];
+  const fallbackColor = colorPool[index];
+
+  assignedColors.set(name, fallbackColor);
+  return fallbackColor;
 }
 
 export default function WeekView({
@@ -126,7 +148,9 @@ export default function WeekView({
                       className="relative border-t border-l h-auto min-h-20 px-1 pt-0.5 pb-5 hover:bg-muted transition-colors"
                     >
                       {dayHourClasses.map((cls: any) => {
-                        const color = getColorForCoach(cls.coach || "unknown");
+                        const color = getUniqueColorForCoach(
+                          cls.coach || "unknown"
+                        );
 
                         return (
                           <div
