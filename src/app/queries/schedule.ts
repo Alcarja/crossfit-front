@@ -1,7 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  cancelEnrollmentClient,
   createSchedule,
   enrollInClass,
+  enrollInClassClient,
   getClassById,
   getClassEnrollments,
   getClassesByDay,
@@ -85,6 +87,12 @@ export const useEnrollInClass = () =>
       enrollInClass(data),
   });
 
+export const useEnrollInClassClient = () =>
+  useMutation({
+    mutationFn: (data: { userId: number; classId: number }) =>
+      enrollInClassClient(data),
+  });
+
 export const useReinstateEnrollment = () =>
   useMutation({
     mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
@@ -108,3 +116,9 @@ export const useGetClassById = (classId: number | null) => ({
   },
   enabled: !!classId, // only run if date is provided
 });
+
+export const useCancelEnrollmentClient = () =>
+  useMutation({
+    mutationFn: ({ userId, classId }: { userId: number; classId: number }) =>
+      cancelEnrollmentClient(userId, classId),
+  });

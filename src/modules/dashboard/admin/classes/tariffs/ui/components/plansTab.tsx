@@ -920,7 +920,7 @@ const PlansTab = () => {
                           <PopoverContent
                             align="center"
                             side="top"
-                            className="p-3 w-72"
+                            className="p-3 w-72 pointer-events-auto"
                           >
                             <div className="text-sm font-medium mb-2">
                               Límites semanales

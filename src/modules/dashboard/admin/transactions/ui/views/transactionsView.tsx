@@ -359,7 +359,10 @@ export const TransactionsView = () => {
                         <span>{formattedRange}</span>
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent
+                      className="w-auto p-0 pointer-events-auto"
+                      align="start"
+                    >
                       <Calendar
                         mode="range"
                         numberOfMonths={2}

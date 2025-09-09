@@ -227,7 +227,10 @@ export function EditTariffForm({
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent
+                  className="w-auto p-0 pointer-events-auto"
+                  align="start"
+                >
                   <Calendar
                     mode="single"
                     selected={field.value}
@@ -275,7 +278,10 @@ export function EditTariffForm({
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent
+                  className="w-auto p-0 pointer-events-auto"
+                  align="start"
+                >
                   <Calendar
                     mode="single"
                     selected={field.value ?? undefined}

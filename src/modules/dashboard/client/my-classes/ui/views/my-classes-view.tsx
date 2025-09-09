@@ -24,15 +24,20 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/authContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   classesByDayQueryOptions,
+  useCancelEnrollmentClient,
+  useEnrollInClassClient,
   useGetClassById,
   userReservationsByMonthQueryOptions,
 } from "@/app/queries/schedule";
+import { toast } from "sonner";
+import { typeColors } from "@/components/types/types";
 
 export const MyClassesView = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const userId = user?.id ?? undefined;
 
@@ -74,7 +79,10 @@ export const MyClassesView = () => {
   const showCancelButton =
     userStatus === "enrolled" || userStatus === "waitlist";
 
-  const showReserveButton = !userEnrollment || userStatus === "cancelled";
+  const showReserveButton =
+    !userEnrollment ||
+    userStatus === "cancelled" ||
+    userStatus === "cancelled_late";
 
   //This gets all the classes for a given day. If you add the userId it tells you if the user is enrolled or in waitlist for that class
   const { data: classesByDayData } = useQuery(
@@ -90,15 +98,113 @@ export const MyClassesView = () => {
 
   const selectedClass = classById;
 
-  const handleCancelReservation = (userId: number, classId: number) => {
+  const { mutateAsync: cancelEnrollmentClient, isPending: isCancelling } =
+    useCancelEnrollmentClient();
+
+  const handleCancelReservation = async (userId: number, classId: number) => {
     console.log("user id", userId);
     console.log("class id", classId);
+
+    try {
+      // call the mutation
+      await cancelEnrollmentClient({ userId, classId });
+
+      // invalidate the relevant caches (adjust selectedDate from your state)
+      await queryClient.invalidateQueries({
+        queryKey: classesByDayQueryOptions(selectedDate, userId).queryKey,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["classEnrollments", classId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["classById", classId],
+      });
+
+      const month = format(selectedDate, "yyyy-MM");
+      await queryClient.invalidateQueries({
+        queryKey: userReservationsByMonthQueryOptions(userId, month).queryKey,
+      });
+
+      // optional: user feedback
+      // const msg = res?.late
+      //   ? "Cancelación fuera de plazo (no se reembolsa el crédito)."
+      //   : res?.refunded
+      //   ? "Reserva cancelada y crédito reembolsado."
+      //   : "Reserva cancelada.";
+      // toast.success(msg);
+    } catch (err: any) {
+      // toast.error(err?.error ?? "No se pudo cancelar la reserva");
+      console.error(err);
+    }
   };
 
-  const handleMakeReservation = (userId: number, classId: number) => {
+  useEffect(() => {
+    console.log("Class by id", classById);
+  }, [classById]);
+
+  const { mutateAsync: enrollInClass, isPending } = useEnrollInClassClient(); // uses the client route
+
+  const handleMakeReservation = async (userId: number, classId: number) => {
     console.log("user id", userId);
     console.log("class id", classId);
+
+    if (!selectedClass) return;
+
+    if (!userId || Number.isNaN(userId)) {
+      console.error("Invalid user id");
+      toast.error("Usuario inválido");
+      return;
+    }
+
+    try {
+      await enrollInClass({ userId, classId });
+
+      await queryClient.invalidateQueries({
+        queryKey: classesByDayQueryOptions(selectedDate, userId).queryKey,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["classEnrollments", selectedClass.id],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: userReservationsByMonthQueryOptions(userId, formattedMonth)
+          .queryKey,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["classById", classId],
+      });
+
+      toast.success("Reserva confirmada");
+      setDrawerOpen(false);
+    } catch (err: any) {
+      // Map server codes to friendly messages
+      let message = "Reserva fallida";
+      if (err?.code === "BOOKING_WINDOW") {
+        const opens =
+          err?.opensAt &&
+          new Intl.DateTimeFormat(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }).format(new Date(err.opensAt));
+        message = `Las reservas se abren ${opens ? `el ${opens}` : "pronto"}.`;
+      } else if (err?.code === "NO_CREDITS") {
+        message = "No te quedan créditos.";
+      } else if (err?.code === "DUPLICATE_ENROLLMENT") {
+        message = "Ya tienes una reserva para esta hora.";
+      } else if (typeof err?.error === "string") {
+        message = err.error;
+      }
+
+      console.error("Enrollment failed:", err);
+      toast.error(message);
+    }
   };
+
+  const enrolled = (selectedClass?.classEnrollments ?? []).filter(
+    (e: any) => String(e.status) === "enrolled"
+  );
 
   return (
     <>
@@ -154,7 +260,23 @@ export const MyClassesView = () => {
               <DrawerHeader className="px-4 py-3 space-y-2">
                 {/* Row 0 — class type (top-left) */}
                 <div className="flex items-center">
-                  <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">
+                  <span
+                    className={
+                      "inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide " +
+                      ((t) => {
+                        if (!t) return "bg-gray-100 text-gray-700";
+                        const exact = typeColors[t];
+                        if (exact) return exact;
+                        const upper = typeColors[t.toUpperCase?.()] as
+                          | string
+                          | undefined;
+                        if (upper) return upper;
+                        const title =
+                          t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+                        return typeColors[title] ?? "bg-gray-100 text-gray-700";
+                      })(selectedClass?.classInformation?.type)
+                    }
+                  >
                     {selectedClass?.classInformation?.type}
                   </span>
                 </div>
@@ -198,12 +320,12 @@ export const MyClassesView = () => {
             <div className="overflow-y-auto px-4 md:px-40 pt-5 pb-10 h-full">
               {/* Avatars in centered rows of ~4–5 */}
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-6">
-                {selectedClass?.classEnrollments?.length === 0 ? (
+                {enrolled === 0 ? (
                   <div className="text-gray-600 px-6 py-4 rounded-md text-md text-center">
                     No users in this class yet
                   </div>
                 ) : (
-                  selectedClass?.classEnrollments?.map((a: any) => {
+                  enrolled?.map((a: any) => {
                     const initials = a.userName?.slice(0, 2).toUpperCase();
                     const bgColors = [
                       "bg-red-500",
@@ -253,6 +375,7 @@ export const MyClassesView = () => {
                   <Button
                     variant="delete"
                     className="w-full h-11 text-base font-semibold"
+                    disabled={isCancelling}
                     onClick={() =>
                       handleCancelReservation(
                         userId!,
@@ -275,8 +398,9 @@ export const MyClassesView = () => {
                         classById?.classInformation?.id
                       )
                     }
+                    disabled={isPending}
                   >
-                    Reservar
+                    {isPending ? "Reservando..." : "Reservar"}
                   </Button>
                 )}
 
@@ -517,6 +641,48 @@ function ClassesPanel({ onSelectClassId, classData }: ClassesPanelProps) {
     console.log("Class data", classData);
   }, [classData]);
 
+  const getNowInTz = (timeZone: string) => {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(now)
+      .reduce<Record<string, string>>((acc, p) => {
+        if (p.type !== "literal") acc[p.type] = p.value;
+        return acc;
+      }, {});
+    const yyyy = parts.year,
+      mm = parts.month,
+      dd = parts.day;
+    const HH = parts.hour,
+      MM = parts.minute;
+    return { date: `${yyyy}-${mm}-${dd}`, time: `${HH}:${MM}` };
+  };
+
+  const isInactive = (c: Class) => {
+    // Cancelled are always blocked
+    if (c.isCancelled) return true;
+
+    // Defensive defaults
+    const tz = c.zoneName || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const now = getNowInTz(tz);
+
+    // Future day -> active; past day -> inactive
+    if (c.date > now.date) return false;
+    if (c.date < now.date) return true;
+
+    // Same day: hide if class already ended (endTime <= now)
+    // Works for "HH:MM" or "HH:MM:SS" strings
+    const end = c.endTime.slice(0, 5); // "HH:MM"
+    return end <= now.time;
+  };
+
   if (classData?.instances?.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 p-6 h-auto overflow-auto flex items-center justify-center text-gray-400">
@@ -527,61 +693,87 @@ function ClassesPanel({ onSelectClassId, classData }: ClassesPanelProps) {
 
   return (
     <div className="divide-y">
-      {classData?.instances.map((c: Class) => (
-        <div
-          key={c.id}
-          className="flex justify-between p-2 bg-white first:border-t last:border-b border-gray-200"
-          onClick={() => onSelectClassId(c.id)} // <-- send id to parent
-        >
-          {/* left */}
-          <div className="flex gap-5">
-            {/* Time */}
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-gray-900">
-                {c.startTime}
-              </span>
-              <span className="text-sm font-medium text-gray-900">
-                {c.endTime}
-              </span>
+      {classData?.instances?.map((c: Class) => {
+        const inactive = isInactive(c);
+        const typeClass =
+          typeColors[c.type as keyof typeof typeColors] ??
+          "bg-gray-200 text-gray-900"; // fallback
+
+        return (
+          <div
+            key={c.id}
+            role="button"
+            aria-disabled={inactive}
+            title={inactive ? "This class is no longer available" : ""}
+            className={[
+              "flex justify-between p-2 first:border-t last:border-b border-gray-200 rounded-md transition",
+              inactive
+                ? "opacity-50 pointer-events-none cursor-not-allowed select-none"
+                : "bg-white hover:bg-gray-50 cursor-pointer",
+            ].join(" ")}
+            onClick={() => {
+              if (!inactive) onSelectClassId(c.id);
+            }}
+          >
+            {/* left */}
+            <div className="flex gap-5">
+              {/* Time */}
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-900">
+                  {c.startTime}
+                </span>
+                <span className="text-sm font-medium text-gray-900">
+                  {c.endTime}
+                </span>
+              </div>
+
+              {/* Badge (tiny placeholder) */}
+              <div className="flex items-center">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200">
+                  <Tag className="w-4 h-4 text-gray-600" />
+                </span>
+              </div>
+
+              {/* Class type */}
+              <div className="flex flex-col items-start gap-1">
+                {/* colored pill using your map */}
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${typeClass}`}
+                >
+                  {c.type}
+                </span>
+
+                <span className="text-sm font-regular text-gray-600">
+                  {c.coachId} - {c.zoneName}
+                </span>
+
+                {c.isCancelled && (
+                  <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    Cancelled
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Badge (tiny placeholder) */}
-            <div className="flex items-center">
-              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200">
-                <Tag className="w-4 h-4 text-gray-600" />
+            {/* right */}
+            <div className="flex flex-col items-end sm:mt-0 gap-1">
+              <span className="text-sm font-semibold text-gray-900 pr-2">
+                {c.enrolledCount}/{c.capacity}
               </span>
-            </div>
-
-            {/* Class type */}
-            <div className="flex flex-col items-start">
-              <span className="text-md font-regular text-gray-900 uppercase">
-                {c.type}
-              </span>
-              <span className="text-sm font-regular text-gray-600">
-                {c.coachId} - {c.zoneName}
-              </span>
+              {c.userStatus === "enrolled" && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Enrolled
+                </span>
+              )}
+              {c.userStatus === "waitlist" && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  Waitlist
+                </span>
+              )}
             </div>
           </div>
-
-          {/* right */}
-          <div className="flex flex-col items-end sm:mt-0 gap-1">
-            {/* Top: attendants / capacity */}
-            <span className="text-sm font-semibold text-gray-900 pr-2">
-              {c.enrolledCount}/{c.capacity}
-            </span>
-            {c.userStatus === "enrolled" && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Enrolled
-              </span>
-            )}
-            {c.userStatus === "waitlist" && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                Waitlist
-              </span>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

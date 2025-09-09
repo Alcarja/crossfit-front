@@ -244,10 +244,13 @@ export const ClientsView = () => {
     }));
 
   const cancellations = enrollments
-    .filter((e: any) => e.status === "cancelled")
+    .filter(
+      (e: any) => e.status === "cancelled" || e.status === "cancelled_late"
+    )
     .map((e: any) => ({
       id: e.user.id,
       name: `${e.user.name} ${e.user.lastName}`,
+      status: e.status as "cancelled" | "cancelled_late", // 👈 add this
     }));
 
   const useCancelEnrollment = () => {
@@ -499,7 +502,10 @@ export const ClientsView = () => {
                       <span>{format(selectedDate, "PPP")}</span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="p-0">
+                  <PopoverContent
+                    align="end"
+                    className="p-0 pointer-events-auto"
+                  >
                     <Calendar
                       mode="single"
                       selected={selectedDate}
@@ -715,7 +721,11 @@ function RosterList({
   kind,
   onAction,
 }: {
-  users: { id: number | string; name: string }[];
+  users: {
+    id: number | string;
+    name: string;
+    status?: "cancelled" | "cancelled_late";
+  }[]; //Bring status only for cancelled users
   kind: "attendee" | "waitlist" | "cancelled";
   onAction?: (
     userId: number | string,
@@ -730,12 +740,19 @@ function RosterList({
       | "delete-record"
   ) => void;
 }) {
-  const statusText =
-    kind === "attendee"
-      ? "Confirmed"
-      : kind === "waitlist"
-      ? "Waitlisted"
-      : "Cancelled";
+  const statusText = (u?: { status?: "cancelled" | "cancelled_late" }) => {
+    switch (kind) {
+      case "attendee":
+        return "Confirmed";
+      case "waitlist":
+        return "Waitlisted";
+      case "cancelled":
+      default:
+        return u?.status === "cancelled_late"
+          ? "Cancelled (late)"
+          : "Cancelled";
+    }
+  };
 
   return (
     <div className="rounded-xl border">
@@ -750,7 +767,7 @@ function RosterList({
               <div className="flex-1">
                 <div className="text-sm font-medium leading-none">{u.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {statusText}
+                  {statusText(u)}
                 </div>
               </div>
 
@@ -859,7 +876,7 @@ export const DateQuickPicker = ({
           Change date
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="p-0">
+      <PopoverContent align="end" className="p-0 pointer-events-auto">
         <Calendar
           mode="single"
           selected={selectedDate}

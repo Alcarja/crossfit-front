@@ -319,10 +319,28 @@ export const enrollInClass = async (data: {
     data
   );
 };
+export const enrollInClassClient = async (data: {
+  userId: number;
+  classId: number;
+}) => {
+  return await stpApi.post(
+    `/api/schedule/enroll-in-class-client/${data.classId}/${data.userId}`,
+    {}
+  );
+};
 
 export const cancelEnrollment = async (userId: number, classId: number) => {
   return await stpApi.delete(
     `/api/schedule/delete-enrollment/${classId}/${userId}`
+  );
+};
+
+export const cancelEnrollmentClient = async (
+  userId: number,
+  classId: number
+) => {
+  return await stpApi.delete(
+    `/api/schedule/cancel-enrollment-client/${classId}/${userId}`
   );
 };
 
