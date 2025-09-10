@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -12,7 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/authContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -29,7 +30,21 @@ import {
 } from "@/app/queries/users";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
-import { Loader } from "lucide-react";
+import { CalendarIcon, Loader, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export interface Category {
   id: number;
@@ -43,6 +58,12 @@ const formSchema = z.object({
   name: z.string().min(2).max(50),
   lastName: z.string().min(2).max(50),
   email: z.string().min(2).max(50),
+  phoneNumber: z.string().min(9),
+  birthDay: z.string(),
+  city: z.string(),
+  country: z.string(),
+  address: z.string(),
+  postalCode: z.string(),
   oldPassword: z.string().optional(),
   newPassword: z
     .string()
@@ -83,6 +104,38 @@ export const SettingsView = () => {
         }
   );
 
+  const [query, setQuery] = useState("");
+  const [role, setRole] = useState<string>("all");
+
+  const roles = useMemo(() => {
+    // Normalize: extract array of users depending on the shape
+    const usersArray = Array.isArray(userData)
+      ? userData
+      : userData?.user ?? [];
+
+    return Array.from(new Set(usersArray.map((u: any) => u.role))).sort();
+  }, [userData]);
+
+  const filteredUsers = useMemo(() => {
+    const usersArray = Array.isArray(userData)
+      ? userData
+      : userData?.user ?? [];
+
+    const q = query.trim().toLowerCase();
+
+    return usersArray.filter((u: any) => {
+      const matchesText =
+        q === "" ||
+        `${u.name} ${u.lastName}`.toLowerCase().includes(q) ||
+        u.name.toLowerCase().includes(q) ||
+        u.lastName.toLowerCase().includes(q);
+
+      const matchesRole = role === "all" || u.role === role;
+
+      return matchesText && matchesRole;
+    });
+  }, [userData, query, role]);
+
   const handleUpdateUser = () => {};
 
   const handleDeleteUser = () => {};
@@ -95,6 +148,11 @@ export const SettingsView = () => {
       name: "",
       lastName: "",
       email: "",
+      phoneNumber: "",
+      city: "",
+      country: "",
+      address: "",
+      postalCode: "",
     },
   });
 
@@ -105,6 +163,12 @@ export const SettingsView = () => {
         name: currentUser.name || "",
         lastName: currentUser.lastName || "",
         email: currentUser.email || "",
+        phoneNumber: currentUser.phoneNumber || "",
+        city: currentUser.city || "",
+        country: currentUser.country || "",
+        address: currentUser.address || "",
+        postalCode: currentUser.postalCode || "",
+        birthDay: currentUser.birthDay,
       });
     }
   }, [userData, form]);
@@ -149,18 +213,47 @@ export const SettingsView = () => {
           </header>
 
           <div className="rounded-xl border shadow-md bg-card p-6 space-y-6">
+            {/* Filters */}
             <div className="flex items-center justify-between border-b pb-4">
-              <div className="space-y-1">
-                <h3 className="text-lg font-medium">Filters</h3>
-                <p className="text-sm text-muted-foreground">
-                  Search or filter users by role, name, or date.
-                </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Search className="h-4 w-4" />
+                  <p className="text-sm">
+                    Search or filter users by role, name, or date.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  {/* Name / lastName text filter */}
+                  <Input
+                    placeholder="Buscar por nombre o apellido…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="sm:w-72"
+                  />
+
+                  {/* Role filter */}
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger className="sm:w-44">
+                      <SelectValue placeholder="Rol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los roles</SelectItem>
+                      {roles.map((r: any) => (
+                        <SelectItem key={r} value={r}>
+                          {r?.charAt(0).toUpperCase() +
+                            r?.slice(1).toLowerCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
             <div className="rounded-md border bg-background p-4 shadow-sm">
               {userData && userData.length > 0 ? (
-                <DataTable columns={columns} data={userData} />
+                <DataTable columns={columns} data={filteredUsers} />
               ) : (
                 <div className="text-center py-10 text-muted-foreground text-sm">
                   No user data available.
@@ -240,6 +333,124 @@ export const SettingsView = () => {
                       <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input placeholder="jane.doe@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="C/ Falsa 123..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Madrid" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Spain" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="postalCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Postal Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="123456" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="666666666" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="birthDay"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha de nacimiento</FormLabel>
+                      <FormControl>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="min-w-[200px] justify-start"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              <span>
+                                {field.value
+                                  ? format(new Date(field.value), "PPP")
+                                  : "Selecciona una fecha"}
+                              </span>
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="end"
+                            className="p-0 pointer-events-auto"
+                          >
+                            <Calendar
+                              mode="single"
+                              captionLayout="dropdown" // ⬅️ Enables year/month dropdowns
+                              fromYear={1900} // ⬅️ Earliest selectable year
+                              toYear={new Date().getFullYear()} // ⬅️ Latest year (this year)
+                              selected={
+                                field.value ? new Date(field.value) : undefined
+                              }
+                              onSelect={(date) => {
+                                if (date) {
+                                  field.onChange(format(date, "yyyy-MM-dd"));
+                                }
+                              }}
+                              className="rounded-md"
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

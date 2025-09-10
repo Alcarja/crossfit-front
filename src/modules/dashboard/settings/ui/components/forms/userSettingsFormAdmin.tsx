@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Loader, X } from "lucide-react";
+import { CalendarIcon, Loader, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,13 @@ import {
   userByIdQueryOptions,
 } from "@/app/queries/users";
 import { Card } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
 
 const passwordRegex =
   /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=<>?{}[\]~]).{6,50}$/;
@@ -32,6 +39,12 @@ const formSchema = z
     name: z.string().min(2).max(50),
     lastName: z.string().min(2).max(50),
     email: z.string().min(2).max(50),
+    phoneNumber: z.string().min(9),
+    birthDay: z.string(),
+    city: z.string(),
+    country: z.string(),
+    address: z.string(),
+    postalCode: z.string(),
     newPassword: z.string().optional(),
     repeatNewPassword: z.string().optional(),
   })
@@ -78,6 +91,11 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
       name: "",
       lastName: "",
       email: "",
+      phoneNumber: "",
+      city: "",
+      country: "",
+      address: "",
+      postalCode: "",
     },
   });
 
@@ -88,6 +106,12 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
         name: currentUser.name || "",
         lastName: currentUser.lastName || "",
         email: currentUser.email || "",
+        phoneNumber: currentUser.phoneNumber || "",
+        city: currentUser.city || "",
+        country: currentUser.country || "",
+        address: currentUser.address || "",
+        postalCode: currentUser.postalCode || "",
+        birthDay: currentUser.birthDay,
       });
     }
   }, [userData, form]);
@@ -185,6 +209,124 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input placeholder="jane.doe@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Input placeholder="C/ Falsa 123..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Madrid" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Spain" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="postalCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Postal Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="123456" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="666666666" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="birthDay"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fecha de nacimiento</FormLabel>
+                  <FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="min-w-[200px] justify-start"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <span>
+                            {field.value
+                              ? format(new Date(field.value), "PPP")
+                              : "Selecciona una fecha"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        className="p-0 pointer-events-auto"
+                      >
+                        <Calendar
+                          mode="single"
+                          captionLayout="dropdown" // ⬅️ Enables year/month dropdowns
+                          fromYear={1900} // ⬅️ Earliest selectable year
+                          toYear={new Date().getFullYear()} // ⬅️ Latest year (this year)
+                          selected={
+                            field.value ? new Date(field.value) : undefined
+                          }
+                          onSelect={(date) => {
+                            if (date) {
+                              field.onChange(format(date, "yyyy-MM-dd"));
+                            }
+                          }}
+                          className="rounded-md"
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

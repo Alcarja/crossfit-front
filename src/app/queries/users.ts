@@ -29,6 +29,12 @@ export const updateUserByIdMutationOptions = (userId: number) => ({
     email: string;
     oldPassword?: string;
     newPassword?: string;
+    country?: string;
+    city?: string;
+    postalCode?: string;
+    address?: string;
+    phoneNumber?: string;
+    birthDay?: string;
   }) => {
     return await updateUserById(userId, userData);
   },
@@ -42,6 +48,12 @@ export const updateUserByIdAdminMutationOptions = (userId: number) => ({
     email: string;
     newPassword?: string;
     repeatNewPassword?: string;
+    country?: string;
+    city?: string;
+    postalCode?: string;
+    address?: string;
+    phoneNumber?: string;
+    birthDay?: string;
   }) => {
     return await updateUserByIdAdmin(userId, userData);
   },

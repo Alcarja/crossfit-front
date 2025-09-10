@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import {
-  SearchIcon,
   PlusCircleIcon,
   HeartIcon,
   User2Icon,
@@ -94,7 +93,7 @@ export const Navbar = () => {
                 <DropdownMenuContent className="w-[180px]">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <Link href="/dashboard/client">
+                  <Link href="/dashboard/client/my-classes">
                     <DropdownMenuItem>
                       <div className="flex items-center justify-between w-full">
                         <p>Dashboard</p>
@@ -120,7 +119,11 @@ export const Navbar = () => {
   // ---- Mobile layout: top-left menu button + bottom floating bar ----
   const tabs = [
     { href: "/dashboard/client/my-classes", label: "Calendar", Icon: Calendar },
-    { href: "/search", label: "Search", Icon: SearchIcon },
+    {
+      href: "/dashboard/client/my-profile",
+      label: "My profile",
+      Icon: User2Icon,
+    },
     { href: "/create", label: "New", Icon: PlusCircleIcon }, // center CTA
     { href: "/favorites", label: "Saved", Icon: HeartIcon },
     user

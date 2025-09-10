@@ -39,6 +39,12 @@ export const updateUserById = async (
     email: string;
     oldPassword?: string;
     newPassword?: string;
+    country?: string;
+    city?: string;
+    postalCode?: string;
+    address?: string;
+    phoneNumber?: string;
+    birthDay?: string;
   }
 ) => {
   return stpApi.put(`/api/users/${userId}`, userData);
@@ -52,6 +58,12 @@ export const updateUserByIdAdmin = async (
     email: string;
     newPassword?: string;
     repeatNewPassword?: string;
+    country?: string;
+    city?: string;
+    postalCode?: string;
+    address?: string;
+    phoneNumber?: string;
+    birthDay?: string;
   }
 ) => {
   return stpApi.put(`/api/users/${userId}/admin`, userData);

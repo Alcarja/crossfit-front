@@ -109,13 +109,13 @@ const clientSection = [
     href: "/dashboard/client/my-classes",
   },
   {
-    icon: DollarSignIcon,
-    label: "My Purchases",
-    href: "/dashboard/client",
+    icon: SettingsIcon,
+    label: "My Profile",
+    href: "/dashboard/client/my-profile",
   },
   {
-    icon: SettingsIcon,
-    label: "My Membership",
+    icon: DollarSignIcon,
+    label: "My Purchases",
     href: "/dashboard/client",
   },
 ];
@@ -341,34 +341,36 @@ export const DashboardSidebar = () => {
               </SidebarGroupContent>
             </SidebarGroup>
           </div>
-          <div>
-            <SidebarGroup className="mb-3">
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {footerSection.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        className={cn(
-                          "h-9 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
-                          pathname === item.href &&
-                            "bg-linear-to-r/oklch border-[#5D6B68]/10"
-                        )}
-                        isActive={pathname === item.href}
-                      >
-                        <Link href={item.href}>
-                          <item.icon className="size-7" />
-                          <span className="text-sm font-medium tracking-tight">
-                            {item.label}
-                          </span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </div>
+          {(isAdmin || isCoach) && (
+            <div>
+              <SidebarGroup className="mb-3">
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {footerSection.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          className={cn(
+                            "h-9 hover:bg-linear-to-r/oklch border border-transparent hover:border-[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                            pathname === item.href &&
+                              "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                          )}
+                          isActive={pathname === item.href}
+                        >
+                          <Link href={item.href}>
+                            <item.icon className="size-7" />
+                            <span className="text-sm font-medium tracking-tight">
+                              {item.label}
+                            </span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </div>
+          )}
         </div>
       </SidebarContent>
     </Sidebar>
@@ -385,29 +387,34 @@ export const DashboardSidebar = () => {
               </Button>
             </SheetTrigger>
 
-            <SheetContent side="left" className="p-4 w-[250px] overflow-y-auto">
+            <SheetContent
+              side="left"
+              className="p-4 w-[250px] overflow-y-auto pt-12"
+            >
               <div className="space-y-6 mt-8">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-                    General
-                  </p>
-                  <div className="space-y-1">
-                    {coachSection.map((item) => (
-                      <SheetClose asChild key={item.href}>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
-                            pathname === item.href && "bg-muted font-semibold"
-                          )}
-                        >
-                          <item.icon className="size-5" />
-                          {item.label}
-                        </Link>
-                      </SheetClose>
-                    ))}
+                {(isAdmin || isCoach) && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                      General
+                    </p>
+                    <div className="space-y-1">
+                      {coachSection.map((item) => (
+                        <SheetClose asChild key={item.href}>
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
+                              pathname === item.href && "bg-muted font-semibold"
+                            )}
+                          >
+                            <item.icon className="size-5" />
+                            {item.label}
+                          </Link>
+                        </SheetClose>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {user?.role === "admin" && (
                   <div>
@@ -444,50 +451,50 @@ export const DashboardSidebar = () => {
                   </div>
                 )}
 
-                {user?.role === "admin" && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-                      Client
-                    </p>
-
-                    {clientSection.map((item) => (
-                      <SheetClose asChild key={item.href}>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
-                            pathname === item.href && "bg-muted font-semibold"
-                          )}
-                        >
-                          <item.icon className="size-5" />
-                          {item.label}
-                        </Link>
-                      </SheetClose>
-                    ))}
-                  </div>
-                )}
-
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-                    Settings
+                    Client
                   </p>
-                  <div className="space-y-1">
-                    {footerSection.map((item) => (
-                      <SheetClose asChild key={item.href}>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
-                            pathname === item.href && "bg-muted font-semibold"
-                          )}
-                        >
-                          <item.icon className="size-5" />
-                          {item.label}
-                        </Link>
-                      </SheetClose>
-                    ))}
-                  </div>
+
+                  {clientSection.map((item) => (
+                    <SheetClose asChild key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
+                          pathname === item.href && "bg-muted font-semibold"
+                        )}
+                      >
+                        <item.icon className="size-5" />
+                        {item.label}
+                      </Link>
+                    </SheetClose>
+                  ))}
                 </div>
+
+                {(isAdmin || isCoach) && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                      Settings
+                    </p>
+                    <div className="space-y-1">
+                      {footerSection.map((item) => (
+                        <SheetClose asChild key={item.href}>
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-muted transition",
+                              pathname === item.href && "bg-muted font-semibold"
+                            )}
+                          >
+                            <item.icon className="size-5" />
+                            {item.label}
+                          </Link>
+                        </SheetClose>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>
