@@ -6,6 +6,7 @@ import {
   getAllBonoTariffs,
   getAllGroupedActiveOrFutureMontlhyUserTariffs,
   getAllMonthlyTariffs,
+  getUserActiveTariffs,
   getUserFutureTariffs,
   getUserTariffHistory,
   updatebonoTariff,
@@ -117,6 +118,13 @@ export const useAllGroupedActiveOrFutureMonthlyUserTariffs = () =>
   useQuery({
     queryKey: ["allGroupedActiveMonthlyUserTariffs"],
     queryFn: getAllGroupedActiveOrFutureMontlhyUserTariffs,
+  });
+
+export const useUserActiveTariffs = (userId: number) =>
+  useQuery({
+    queryKey: ["userActiveTariffs", userId],
+    queryFn: () => getUserActiveTariffs(userId),
+    enabled: !!userId, // only run if userId is defined
   });
 
 export const useUserTariffHistory = (userId: number) =>

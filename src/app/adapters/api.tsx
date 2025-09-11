@@ -457,6 +457,10 @@ export const getAllGroupedActiveOrFutureMontlhyUserTariffs = async () => {
   );
 };
 
+export const getUserActiveTariffs = async (userId: number) => {
+  return await stpApi.get(`/api/tariffs/get-user-active-tariffs/${userId}`);
+};
+
 export const getUserTariffHistory = async (userId: number) => {
   return await stpApi.get(`/api/tariffs/get-user-tariff-history/${userId}`);
 };

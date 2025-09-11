@@ -168,14 +168,8 @@ export const MyProfileView = () => {
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="datos" className="mt-4 md:mt-6">
+          <Tabs defaultValue="planes" className="mt-4 md:mt-6">
             <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/60 p-1">
-              <TabsTrigger
-                value="datos"
-                className="rounded-xl md:px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-              >
-                Datos
-              </TabsTrigger>
               <TabsTrigger
                 value="planes"
                 className="rounded-xl md:px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm"
@@ -188,25 +182,17 @@ export const MyProfileView = () => {
               >
                 Actividad
               </TabsTrigger>
+
+              <TabsTrigger
+                value="datos"
+                className="rounded-xl md:px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Datos
+              </TabsTrigger>
             </TabsList>
 
-            {/* Tab: Datos */}
-            <TabsContent value="datos" className="mt-3 md:mt-5">
-              <Card className="rounded-2xl shadow-sm">
-                <CardHeader className="pb-3 md:pb-4">
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
-                    <ShieldCheck className="h-5 w-5 md:h-6 md:w-6" />
-                    Información personal
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PersonalInformation userId={user?.id} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
             {/* Tab: Planes */}
-            <TabsContent value="planes" className="mt-3 md:mt-5">
+            <TabsContent value="planes" className="mt-3 md:mt-5 mb-6">
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader className="pb-3 md:pb-4">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
@@ -221,7 +207,7 @@ export const MyProfileView = () => {
             </TabsContent>
 
             {/* Tab: Actividad */}
-            <TabsContent value="actividad" className="mt-3 md:mt-5">
+            <TabsContent value="actividad" className="mt-3 md:mt-5 mb-6">
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader className="pb-3 md:pb-4">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
@@ -231,6 +217,21 @@ export const MyProfileView = () => {
                 </CardHeader>
                 <CardContent>
                   <PersonalActivity userId={user?.id} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab: Datos */}
+            <TabsContent value="datos" className="mt-3 md:mt-5 mb-6">
+              <Card className="rounded-2xl shadow-sm">
+                <CardHeader className="pb-3 md:pb-4">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+                    <ShieldCheck className="h-5 w-5 md:h-6 md:w-6" />
+                    Información personal
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PersonalInformation userId={user?.id} />
                 </CardContent>
               </Card>
             </TabsContent>
