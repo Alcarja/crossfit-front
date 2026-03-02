@@ -328,3 +328,13 @@
   margin: 2rem 0;
   text-align: center;
 }
+
+/* ========== LANDING PAGE ========== */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
