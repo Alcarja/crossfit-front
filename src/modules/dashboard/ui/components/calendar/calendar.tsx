@@ -147,20 +147,20 @@ export default function Calendar() {
           end: endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 }),
         }
       : view === "week"
-      ? {
-          start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-          end: endOfWeek(currentDate, { weekStartsOn: 1 }),
-        }
-      : {
-          start: startOfDay(currentDate),
-          end: endOfDay(currentDate),
-        };
+        ? {
+            start: startOfWeek(currentDate, { weekStartsOn: 1 }),
+            end: endOfWeek(currentDate, { weekStartsOn: 1 }),
+          }
+        : {
+            start: startOfDay(currentDate),
+            end: endOfDay(currentDate),
+          };
 
   const { data: classes } = useQuery(
     classesQueryOptions(
       visibleRange.start.toISOString(),
-      visibleRange.end.toISOString()
-    )
+      visibleRange.end.toISOString(),
+    ),
   );
 
   useEffect(() => {
@@ -269,7 +269,7 @@ export default function Calendar() {
           toast.error("Error creating class.");
           console.error(err);
         },
-      }
+      },
     );
   }
 
@@ -372,8 +372,8 @@ export default function Calendar() {
                     end: end.toISOString(),
                     isHalfHour: values.isHalfHour ?? false, // ✅ update flag locally too
                   }
-                : cls
-            )
+                : cls,
+            ),
           );
 
           queryClient.invalidateQueries({ queryKey: ["classes"] });
@@ -383,7 +383,7 @@ export default function Calendar() {
           toast.error("Failed to update class");
           console.error("❌ Error updating class:", err);
         },
-      }
+      },
     );
   }
 
@@ -433,7 +433,7 @@ export default function Calendar() {
 
     // Get Monday of the week
     const minDate = new Date(
-      Math.min(...classes.map((c) => new Date(c.start).getTime()))
+      Math.min(...classes.map((c) => new Date(c.start).getTime())),
     );
     const monday = new Date(minDate);
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // Force Monday
@@ -689,6 +689,7 @@ export default function Calendar() {
             <SelectItem value="Endurance">Endurance</SelectItem>
             <SelectItem value="Foundations">Foundations</SelectItem>
             <SelectItem value="Kids">Kids</SelectItem>
+            <SelectItem value="HYROX">HYROX</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -774,6 +775,7 @@ export default function Calendar() {
                           { value: "Endurance", label: "Endurance" },
                           { value: "Foundations", label: "Foundations" },
                           { value: "Kids", label: "Kids" },
+                          { value: "HYROX", label: "HYROX" },
                         ]}
                         value={field.value}
                         onValueChange={field.onChange}
@@ -903,6 +905,7 @@ export default function Calendar() {
                           { value: "Endurance", label: "Endurance" },
                           { value: "Foundations", label: "Foundations" },
                           { value: "Kids", label: "Kids" },
+                          { value: "HYROX", label: "HYROX" },
                         ]}
                         value={field.value}
                         onValueChange={field.onChange}

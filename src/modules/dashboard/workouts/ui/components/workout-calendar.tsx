@@ -56,7 +56,7 @@ const WorkoutCalendar = () => {
       queryKey: ["workouts", "disabled"],
       queryFn: async () => [],
       enabled: false,
-    }
+    },
   );
 
   const openCreateDialog = (info: DateSelectArg) => {
@@ -123,6 +123,7 @@ const WorkoutCalendar = () => {
             endurance: "bg-green-100 border-green-300 text-green-900",
             kids: "bg-pink-100 border-pink-300 text-pink-900",
             foundations: "bg-orange-100 border-orange-300 text-orange-900",
+            HYROX: "bg-gray-100 border-gray-300 text-gray-900",
           };
 
           const classNames =
@@ -161,7 +162,7 @@ const WorkoutCalendar = () => {
                         year: "numeric",
                         month: "short",
                         day: "numeric",
-                      }
+                      },
                     )}
                   </div>
                 </div>

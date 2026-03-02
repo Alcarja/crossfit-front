@@ -100,7 +100,7 @@ export default function ScheduleCalendar() {
     //Get classes
     dateRange
       ? classesQueryOptions(dateRange.start, dateRange.end)
-      : { queryKey: [], queryFn: async () => [] }
+      : { queryKey: [], queryFn: async () => [] },
   );
 
   //Formats the classes from the query and saves them to the local state
@@ -202,7 +202,7 @@ export default function ScheduleCalendar() {
           toast.error("Error creating class");
           console.error("❌ Failed to create class:", err);
         },
-      }
+      },
     );
   }
 
@@ -270,8 +270,8 @@ export default function ScheduleCalendar() {
                     coach: coachName,
                     type: values.type,
                   }
-                : cls
-            )
+                : cls,
+            ),
           );
 
           queryClient.invalidateQueries({ queryKey: ["classes"] });
@@ -281,7 +281,7 @@ export default function ScheduleCalendar() {
           toast.error("Failed to update class");
           console.error("❌ Error updating class:", err);
         },
-      }
+      },
     );
 
     return;
@@ -337,8 +337,8 @@ export default function ScheduleCalendar() {
                     isOpen,
                     isClose,
                   }
-                : cls
-            )
+                : cls,
+            ),
           );
 
           queryClient.invalidateQueries({ queryKey: ["classes"] });
@@ -348,7 +348,7 @@ export default function ScheduleCalendar() {
           console.error("❌ Update failed:", error);
           info.revert();
         },
-      }
+      },
     );
   };
 
@@ -368,7 +368,7 @@ export default function ScheduleCalendar() {
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {Array.from(
-                  new Set(calendarClasses?.map((cls) => cls.type))
+                  new Set(calendarClasses?.map((cls) => cls.type)),
                 ).map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
@@ -390,7 +390,7 @@ export default function ScheduleCalendar() {
               <SelectContent>
                 <SelectItem value="all">All Coaches</SelectItem>
                 {Array.from(
-                  new Set(calendarClasses?.map((cls) => cls.coach))
+                  new Set(calendarClasses?.map((cls) => cls.coach)),
                 ).map((coach) => (
                   <SelectItem key={coach} value={coach}>
                     {coach}
@@ -449,7 +449,7 @@ export default function ScheduleCalendar() {
 
             if (viewType === "dayGridMonth") {
               toast.info(
-                "You can't add classes in the month view. Switch to week or day view."
+                "You can't add classes in the month view. Switch to week or day view.",
               );
               return false;
             }
@@ -481,13 +481,14 @@ export default function ScheduleCalendar() {
               Endurance: "bg-green-100 border-green-300 text-green-900",
               Kids: "bg-pink-100 border-pink-300 text-pink-900",
               Foundations: "bg-orange-100 border-orange-300 text-orange-900",
+              HYROX: "bg-gray-100 border-gray-300 text-gray-900",
             };
 
             const classNames =
               colorMap[type] || "bg-gray-100 border-gray-300 text-gray-800";
 
             const tooltipText = `Coach: ${coach}\n${new Date(
-              event.startStr
+              event.startStr,
             ).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",

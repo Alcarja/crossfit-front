@@ -5,4 +5,5 @@ export const typeColors: Record<string, string> = {
   Endurance: "bg-green-200 text-green-900",
   Foundations: "bg-pink-200 text-pink-900",
   Kids: "bg-yellow-200 text-yellow-900",
+  HYROX: "bg-gray-200 text-gray-900",
 };

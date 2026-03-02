@@ -55,6 +55,7 @@ const WORKOUT_TYPES = [
   "Endurance",
   "Foundations",
   "Kids",
+  "HYROX",
 ];
 
 //Formats the date
@@ -112,7 +113,7 @@ export function EditWorkoutForm({
           scaled: part.versions?.scaled || { description: "" },
           beginner: part.versions?.beginner || { description: "" },
         },
-      })
+      }),
     );
 
     setPartCounter(normalizedParts.length + 1); //This tracks how many parts have been loaded and sets the local counter. If there are three parts, sets the counter to four.
@@ -127,7 +128,7 @@ export function EditWorkoutForm({
   }, [workoutData]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -174,7 +175,7 @@ export function EditWorkoutForm({
   const handleUpdatePart = (
     index: number,
     key: keyof WorkoutPart,
-    value: any
+    value: any,
   ) => {
     const updatedParts = [...(formData.parts || [])];
     updatedParts[index] = { ...updatedParts[index], [key]: value };
@@ -236,7 +237,7 @@ export function EditWorkoutForm({
           console.error("Failed to update workout:", err);
           toast.error("Error updating workout");
         },
-      }
+      },
     );
   };
 

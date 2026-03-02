@@ -59,7 +59,8 @@ export type Workout = {
     | "Weightlifting"
     | "Endurance"
     | "Foundations"
-    | "Kids";
+    | "Kids"
+    | "HYROX";
 
   cap?: string; // e.g. "20 min"
   parts?: WorkoutPart[];
@@ -77,6 +78,7 @@ const WORKOUT_TYPES = [
   "Endurance",
   "Foundations",
   "Kids",
+  "HYROX",
 ];
 
 export function CreateWorkoutForm({
@@ -110,7 +112,7 @@ export function CreateWorkoutForm({
   }, [initialDate, open]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
   const [partCounter, setPartCounter] = useState(1); // starts at 1, increment for each new part
@@ -164,7 +166,7 @@ export function CreateWorkoutForm({
   const handleUpdatePart = (
     index: number,
     key: keyof WorkoutPart,
-    value: any
+    value: any,
   ) => {
     const updatedParts = [...(formData.parts || [])];
     updatedParts[index] = { ...updatedParts[index], [key]: value };
@@ -205,7 +207,7 @@ export function CreateWorkoutForm({
           console.error("Failed to create workout:", err);
           alert("Error creating workout");
         },
-      }
+      },
     );
   };
 

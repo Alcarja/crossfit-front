@@ -63,6 +63,7 @@ const hourlyRates: Record<string, number> = {
   Endurance: 10,
   Kids: 15,
   Foundations: 10,
+  HYROX: 10,
   isOpen: 5,
   isClose: 5,
 };
@@ -79,11 +80,11 @@ const AdminCoachesView = () => {
   const { data: usersData } = useQuery(usersQueryOptions());
 
   const { data: classesData } = useQuery(
-    classesByMonthQueryOptions(selectedMonth, selectedYear)
+    classesByMonthQueryOptions(selectedMonth, selectedYear),
   );
 
   const { data: expensesData } = useQuery(
-    coachExpensesByMonthAndYearQueryOptions(selectedMonth, selectedYear)
+    coachExpensesByMonthAndYearQueryOptions(selectedMonth, selectedYear),
   );
 
   const userOptions = [
@@ -96,14 +97,14 @@ const AdminCoachesView = () => {
 
   const coachStats = (usersData ?? [])
     .filter(
-      (user: User) => !selectedCoachId || String(user.id) === selectedCoachId
+      (user: User) => !selectedCoachId || String(user.id) === selectedCoachId,
     )
     .map((user: User) => {
       const fullName = `${user.name} ${user.lastName}`;
 
       const userClasses =
         classesData?.results.filter(
-          (cls: Class) => cls.coach?.id === user.id
+          (cls: Class) => cls.coach?.id === user.id,
         ) ?? [];
 
       let totalHours = 0;
@@ -134,14 +135,14 @@ const AdminCoachesView = () => {
 
       const coachExpenses =
         expensesData?.results.filter(
-          (item: any) => String(item.coachId) === String(user.id)
+          (item: any) => String(item.coachId) === String(user.id),
         ) ?? [];
 
       const totalExpenses = coachExpenses.reduce(
         (sum: number, expense: any) => {
           return sum + parseFloat(expense.totalPrice);
         },
-        0
+        0,
       );
 
       const totalPay =
@@ -254,8 +255,8 @@ const AdminCoachesView = () => {
                         net > 0
                           ? "green" // positive
                           : net < 0
-                          ? "red" // negative
-                          : "gray" // zero
+                            ? "red" // negative
+                            : "gray" // zero
                       }
                       className="rounded-full"
                     >
@@ -323,7 +324,7 @@ const AdminCoachesView = () => {
                         </thead>
                         <tbody>
                           {Object.entries(
-                            coach.classTypeHours as Record<string, number>
+                            coach.classTypeHours as Record<string, number>,
                           ).map(([type, hours]) => {
                             const rate = hourlyRates[type] || 0;
                             const total = rate * hours;
@@ -477,8 +478,8 @@ const AdminCoachesView = () => {
                   net > 0
                     ? "text-emerald-700"
                     : net < 0
-                    ? "text-red-700"
-                    : "text-black";
+                      ? "text-red-700"
+                      : "text-black";
 
                 return (
                   <TableRow key={row.name}>

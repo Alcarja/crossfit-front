@@ -21,7 +21,8 @@ export type Workout = {
     | "Weightlifting"
     | "Endurance"
     | "Foundations"
-    | "Kids";
+    | "Kids"
+    | "HYROX";
   cap?: string;
   parts?: WorkoutPart[];
   versions?: {
