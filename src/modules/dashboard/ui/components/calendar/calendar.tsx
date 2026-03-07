@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import * as XLSX from "xlsx";
+/* import * as XLSX from "xlsx"; */
 
 import { useEffect, useState } from "react";
 import {
@@ -18,7 +18,7 @@ import {
   startOfDay,
   endOfDay,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, TableIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -427,7 +427,7 @@ export default function Calendar() {
     });
   }
 
-  const exportClassesToExcel = (classes: any[]) => {
+  /* const exportClassesToExcel = (classes: any[]) => {
     const startHour = 9;
     const endHour = 22;
 
@@ -578,7 +578,7 @@ export default function Calendar() {
 
     // Save
     XLSX.writeFile(workbook, fileName);
-  };
+  }; */
 
   return (
     <div className="space-y-4 my-6">
@@ -700,7 +700,7 @@ export default function Calendar() {
       )}
       {view === "week" && (
         <>
-          <Button
+          {/* <Button
             className="w-auto bg-blue-200"
             onClick={() => {
               exportClassesToExcel(classes?.results || []);
@@ -708,7 +708,7 @@ export default function Calendar() {
           >
             <TableIcon />
             Export Classes
-          </Button>
+          </Button> */}
           <WeekView
             date={currentDate}
             classes={filteredClasses}
