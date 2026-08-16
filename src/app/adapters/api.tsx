@@ -6,6 +6,7 @@ export const register = async (userData: {
   lastName: string;
   email: string;
   password: string;
+  role: "admin" | "coach" | "moderator" | "client";
 }) => {
   return stpApi.post("/api/auth/register", userData);
 };

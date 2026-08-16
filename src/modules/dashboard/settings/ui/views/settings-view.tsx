@@ -130,7 +130,7 @@ export const SettingsView = () => {
       },
       onError: (error: Error) => {
         console.error("Failed to update user:", error);
-        toast.error("Error updating user");
+        toast.error(`Error updating user: ${error.message}`);
       },
     });
   }
