@@ -8,7 +8,7 @@ class StpApi {
   }
 
   private async request(
-    method: "GET" | "POST" | "PUT" | "DELETE",
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
     endpoint: string,
     body?: any,
     customHeaders: Record<string, string> = {}
@@ -59,6 +59,10 @@ class StpApi {
 
   put(endpoint: string, body: any, headers = {}) {
     return this.request("PUT", endpoint, body, headers);
+  }
+
+  patch(endpoint: string, body: any, headers = {}) {
+    return this.request("PATCH", endpoint, body, headers);
   }
 
   delete(endpoint: string, body: any = null, headers = {}) {

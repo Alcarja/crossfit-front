@@ -1,12 +1,14 @@
 import stpApi from "@/utils/stp-api";
 
+export type UserRole = "admin" | "coach" | "moderator" | "client";
+
 // 🧑‍💻 Auth
 export const register = async (userData: {
   name: string;
   lastName: string;
   email: string;
   password: string;
-  role: "admin" | "coach" | "moderator" | "client";
+  role: UserRole;
 }) => {
   return stpApi.post("/api/auth/register", userData);
 };
@@ -55,6 +57,10 @@ export const updateUserByIdAdmin = async (
   }
 ) => {
   return stpApi.put(`/api/users/${userId}/admin`, userData);
+};
+
+export const updateUserRole = async (userId: number, role: UserRole) => {
+  return stpApi.patch(`/api/users/${userId}/role`, { role });
 };
 
 //Classes

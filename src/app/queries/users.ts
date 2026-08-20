@@ -3,6 +3,8 @@ import {
   getUserById,
   updateUserById,
   updateUserByIdAdmin,
+  updateUserRole,
+  type UserRole,
 } from "../adapters/api";
 
 export const usersQueryOptions = () => ({
@@ -44,5 +46,12 @@ export const updateUserByIdAdminMutationOptions = (userId: number) => ({
     repeatNewPassword?: string;
   }) => {
     return await updateUserByIdAdmin(userId, userData);
+  },
+});
+
+export const updateUserRoleMutationOptions = () => ({
+  mutationKey: ["updateUserRole"],
+  mutationFn: async ({ userId, role }: { userId: number; role: UserRole }) => {
+    return await updateUserRole(userId, role);
   },
 });

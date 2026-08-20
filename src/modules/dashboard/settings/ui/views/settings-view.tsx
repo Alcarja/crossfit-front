@@ -17,16 +17,18 @@ import { useAuth } from "@/context/authContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "../components/tables/data-table";
-import { getUsersColumns } from "../components/tables/columns";
+import { getUsersColumns, type User } from "../components/tables/columns";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 import {
   updateUserByIdMutationOptions,
+  updateUserRoleMutationOptions,
   userByIdQueryOptions,
   usersQueryOptions,
 } from "@/app/queries/users";
+import { type UserRole } from "@/app/adapters/api";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Loader } from "lucide-react";
@@ -87,7 +89,35 @@ export const SettingsView = () => {
 
   const handleDeleteUser = () => {};
 
-  const columns = getUsersColumns(handleUpdateUser, handleDeleteUser);
+  const roleMutation = useMutation(updateUserRoleMutationOptions());
+
+  const handleRoleChange = (target: User, role: UserRole) => {
+    roleMutation.mutate(
+      { userId: target.id, role },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["users"] });
+          queryClient.invalidateQueries({ queryKey: ["user", target.id] });
+          toast.success(
+            `${target.name} ${target.lastName} is now ${role}. They must sign in again for it to take effect.`
+          );
+        },
+        onError: (error: Error) => {
+          toast.error(`Failed to change role: ${error.message}`);
+        },
+      }
+    );
+  };
+
+  const columns = getUsersColumns({
+    handleUpdateUser,
+    handleDeleteUser,
+    handleRoleChange,
+    currentUserId: user?.id,
+    pendingUserId: roleMutation.isPending
+      ? roleMutation.variables?.userId
+      : undefined,
+  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
