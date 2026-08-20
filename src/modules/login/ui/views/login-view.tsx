@@ -25,7 +25,7 @@ const formSchema = z.object({
     .string()
     .email({ message: "Please enter a valid email address" })
     .max(100),
-  password: z.string().min(2, { message: "Password can't be empty" }).max(50),
+  password: z.string().min(1, { message: "Password can't be empty" }),
 });
 
 export const LoginView = () => {
