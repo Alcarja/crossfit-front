@@ -7,6 +7,7 @@ import {
   allCategoriesQueryOptions,
   useCreateCategory,
   useDeleteCategory,
+  useRenameCategory,
 } from "@/app/queries/categories";
 
 import {
@@ -24,6 +25,7 @@ import {
   History,
   Package,
   PackageSearch,
+  Pencil,
   PlusCircle,
   RotateCcw,
   Search,
@@ -117,6 +119,7 @@ export const InventoryView = () => {
   const [itemCategory, setItemCategory] = useState("");
   const [priceRegular, setPriceRegular] = useState("");
   const [priceCoach, setPriceCoach] = useState("");
+  const [openingStock, setOpeningStock] = useState("");
 
   const [searchItem, setSearchItem] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -129,6 +132,13 @@ export const InventoryView = () => {
   //Edit item
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+
+  //Rename category
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renamingCategory, setRenamingCategory] = useState<Category | null>(
+    null
+  );
+  const [renameDraft, setRenameDraft] = useState("");
 
   //Stock filters
   const [stockSearchTerm, setStockSearchTerm] = useState("");
@@ -209,11 +219,50 @@ export const InventoryView = () => {
         queryClient.invalidateQueries({ queryKey: ["categories"] });
         toast.success("Category created");
       },
-      onError: (error) => {
-        console.error("Failed to create category:", error);
-        toast.error("Error creating category");
+      onError: (error: Error) => {
+        toast.error(`Failed to create category: ${error.message}`);
       },
     });
+  };
+
+  //Rename categories
+  const renameCategoryMutation = useRenameCategory();
+
+  const openRenameDialog = (target: Category) => {
+    setRenamingCategory(target);
+    setRenameDraft(target.name);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRenameSubmit = () => {
+    if (!renamingCategory || !renameDraft.trim()) return;
+
+    const previousName = renamingCategory.name;
+    const nextName = renameDraft;
+
+    renameCategoryMutation.mutate(
+      { categoryId: renamingCategory.id, name: nextName },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["categories"] });
+          queryClient.invalidateQueries({ queryKey: ["inventory"] });
+
+          const follow = (value: string) =>
+            value === previousName ? nextName : value;
+          setFilterCategory(follow);
+          setStockCategoryFilter(follow);
+          setItemCategory(follow);
+
+          toast.success(`Category renamed to "${nextName}"`);
+          setRenameDialogOpen(false);
+          setRenamingCategory(null);
+          setRenameDraft("");
+        },
+        onError: (error: Error) => {
+          toast.error(`Failed to rename category: ${error.message}`);
+        },
+      }
+    );
   };
 
   //Delete categories
@@ -225,9 +274,8 @@ export const InventoryView = () => {
         queryClient.invalidateQueries({ queryKey: ["categories"] });
         toast.success("Category deleted successfully");
       },
-      onError: (error) => {
-        console.error("Delete failed:", error);
-        toast.error("Error deleting category");
+      onError: (error: Error) => {
+        toast.error(`Failed to delete category: ${error.message}`);
       },
     });
   };
@@ -245,22 +293,35 @@ export const InventoryView = () => {
       return;
     }
 
+    const enteredStock = openingStock.trim();
+    const opening = enteredStock === "" ? undefined : Number(enteredStock);
+
+    if (opening !== undefined && (!Number.isInteger(opening) || opening < 0)) {
+      toast.error("Opening stock must be a whole number of 0 or more.");
+      return;
+    }
+
     createInventoryItemMutation.mutate(
       {
         name: itemName,
         categoryId: category.id,
         priceRegular: parseFloat(priceRegular),
         priceCoach: parseFloat(priceCoach),
+        unitsInStock: opening,
       },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["inventory"] });
+          queryClient.invalidateQueries({
+            queryKey: ["inventory-transactions"],
+          });
           toast.success("Inventory item added!");
           // Optionally clear the form
           setItemName("");
           setItemCategory("");
           setPriceRegular("0");
           setPriceCoach("0");
+          setOpeningStock("");
         },
         onError: (error: Error) => {
           toast.error(
@@ -827,41 +888,58 @@ export const InventoryView = () => {
                                 <TableRow key={c.id}>
                                   <TableCell>{c.name}</TableCell>
                                   <TableCell className="py-1">
-                                    <Dialog>
-                                      <DialogTrigger asChild>
-                                        <Button
-                                          variant="delete"
-                                          size="sm"
-                                          className="w-auto"
-                                        >
-                                          <Trash2 className="h-4 w-4" />{" "}
-                                        </Button>
-                                      </DialogTrigger>
-                                      <DialogContent>
-                                        <DialogHeader>
-                                          <DialogTitle>
-                                            Confirm Deletion
-                                          </DialogTitle>
-                                          <DialogDescription>
-                                            Are you sure you want to delete the
-                                            category <strong>{c.name}</strong>?
-                                          </DialogDescription>
-                                        </DialogHeader>
-                                        <DialogFooter className="mt-2 flex gap-2">
-                                          <Button variant="outline">
-                                            Cancel
-                                          </Button>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          openRenameDialog({
+                                            id: Number(c.id),
+                                            name: c.name,
+                                          })
+                                        }
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Dialog>
+                                        <DialogTrigger asChild>
                                           <Button
                                             variant="delete"
-                                            onClick={() =>
-                                              handleDeleteCategory(Number(c.id))
-                                            }
+                                            size="sm"
+                                            className="w-auto"
                                           >
-                                            Yes, Delete
+                                            <Trash2 className="h-4 w-4" />{" "}
                                           </Button>
-                                        </DialogFooter>
-                                      </DialogContent>
-                                    </Dialog>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                          <DialogHeader>
+                                            <DialogTitle>
+                                              Confirm Deletion
+                                            </DialogTitle>
+                                            <DialogDescription>
+                                              Are you sure you want to delete
+                                              the category{" "}
+                                              <strong>{c.name}</strong>?
+                                            </DialogDescription>
+                                          </DialogHeader>
+                                          <DialogFooter className="mt-2 flex gap-2">
+                                            <Button variant="outline">
+                                              Cancel
+                                            </Button>
+                                            <Button
+                                              variant="delete"
+                                              onClick={() =>
+                                                handleDeleteCategory(
+                                                  Number(c.id)
+                                                )
+                                              }
+                                            >
+                                              Yes, Delete
+                                            </Button>
+                                          </DialogFooter>
+                                        </DialogContent>
+                                      </Dialog>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               )
@@ -871,6 +949,67 @@ export const InventoryView = () => {
                       </ScrollArea>
                     </div>
                   )}
+
+                  <Dialog
+                    open={renameDialogOpen}
+                    onOpenChange={(open) => {
+                      if (!open) setRenamingCategory(null);
+                      setRenameDialogOpen(open);
+                    }}
+                  >
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Rename Category</DialogTitle>
+                        <DialogDescription>
+                          Items keep their category; only the name changes.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      {renamingCategory && (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleRenameSubmit();
+                          }}
+                          className="space-y-4 pt-2"
+                        >
+                          <div>
+                            <Label htmlFor="rename-category">
+                              Category Name
+                            </Label>
+                            <Input
+                              id="rename-category"
+                              className="bg-background"
+                              value={renameDraft}
+                              onChange={(e) => setRenameDraft(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setRenameDialogOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="submit"
+                              variant="default"
+                              disabled={
+                                !renameDraft.trim() ||
+                                renameCategoryMutation.isPending
+                              }
+                            >
+                              {renameCategoryMutation.isPending
+                                ? "Saving..."
+                                : "Save Changes"}
+                            </Button>
+                          </div>
+                        </form>
+                      )}
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
@@ -958,6 +1097,21 @@ export const InventoryView = () => {
                           onChange={(e) => setPriceCoach(e.target.value)}
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="opening-stock">Opening Stock</Label>
+                      <Input
+                        id="opening-stock"
+                        className="bg-background"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step="1"
+                        placeholder="0"
+                        value={openingStock}
+                        onChange={(e) => setOpeningStock(e.target.value)}
+                      />
                     </div>
                   </div>
 
