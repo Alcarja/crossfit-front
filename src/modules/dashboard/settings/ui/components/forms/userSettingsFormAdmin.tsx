@@ -26,7 +26,7 @@ import {
 import { Card } from "@/components/ui/card";
 
 const passwordRegex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=<>?{}[\]~]).{6,50}$/;
+  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=<>?{}[\]~]).{8,50}$/;
 
 const formSchema = z
   .object({
@@ -55,7 +55,7 @@ const formSchema = z
     },
     {
       message:
-        "New password must include an uppercase letter, a number, and a special character.",
+        "New password must be at least 8 characters and include an uppercase letter, a number, and a special character.",
       path: ["newPassword"],
     }
   );
