@@ -49,9 +49,19 @@ export const updateUserByIdAdminMutationOptions = (userId: number) => ({
   },
 });
 
+// Callbacks live on the useMutation options, so name/lastName travel in the
+// variables for them; the request itself only uses userId and role.
 export const updateUserRoleMutationOptions = () => ({
   mutationKey: ["updateUserRole"],
-  mutationFn: async ({ userId, role }: { userId: number; role: UserRole }) => {
+  mutationFn: async ({
+    userId,
+    role,
+  }: {
+    userId: number;
+    role: UserRole;
+    name: string;
+    lastName: string;
+  }) => {
     return await updateUserRole(userId, role);
   },
 });

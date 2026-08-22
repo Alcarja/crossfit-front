@@ -89,24 +89,29 @@ export const SettingsView = () => {
 
   const handleDeleteUser = () => {};
 
-  const roleMutation = useMutation(updateUserRoleMutationOptions());
+  // Callbacks passed to mutate() belong to the observer and are dropped when a
+  // second change starts before the first answers; on the options they always fire.
+  const roleMutation = useMutation({
+    ...updateUserRoleMutationOptions(),
+    onSuccess: (_data, { userId, role, name, lastName }) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user", userId] });
+      toast.success(
+        `${name} ${lastName} is now ${role}. They must sign in again for it to take effect.`
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to change role: ${error.message}`);
+    },
+  });
 
   const handleRoleChange = (target: User, role: UserRole) => {
-    roleMutation.mutate(
-      { userId: target.id, role },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["users"] });
-          queryClient.invalidateQueries({ queryKey: ["user", target.id] });
-          toast.success(
-            `${target.name} ${target.lastName} is now ${role}. They must sign in again for it to take effect.`
-          );
-        },
-        onError: (error: Error) => {
-          toast.error(`Failed to change role: ${error.message}`);
-        },
-      }
-    );
+    roleMutation.mutate({
+      userId: target.id,
+      role,
+      name: target.name,
+      lastName: target.lastName,
+    });
   };
 
   const columns = getUsersColumns({
