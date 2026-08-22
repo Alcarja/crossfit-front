@@ -34,7 +34,7 @@ export const LoginView = () => {
   const { mutate: loginMutate } = useMutation({
     mutationFn: login,
     onSuccess: (data) => {
-      setUser(data); //Save user data to the authContext
+      setUser(data.user);
       toast.success("Log in completado.");
       window.location.href = "/dashboard";
     },
