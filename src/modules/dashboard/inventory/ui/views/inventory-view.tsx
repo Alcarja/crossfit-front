@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/select";
 import {
   Dialog,
-  DialogTrigger,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -132,6 +132,11 @@ export const InventoryView = () => {
   //Edit item
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+
+  //Delete category
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(
+    null
+  );
 
   //Rename category
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -273,6 +278,7 @@ export const InventoryView = () => {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["categories"] });
         toast.success("Category deleted successfully");
+        setDeletingCategory(null);
       },
       onError: (error: Error) => {
         toast.error(`Failed to delete category: ${error.message}`);
@@ -901,44 +907,19 @@ export const InventoryView = () => {
                                       >
                                         <Pencil className="h-4 w-4" />
                                       </Button>
-                                      <Dialog>
-                                        <DialogTrigger asChild>
-                                          <Button
-                                            variant="delete"
-                                            size="sm"
-                                            className="w-auto"
-                                          >
-                                            <Trash2 className="h-4 w-4" />{" "}
-                                          </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                          <DialogHeader>
-                                            <DialogTitle>
-                                              Confirm Deletion
-                                            </DialogTitle>
-                                            <DialogDescription>
-                                              Are you sure you want to delete
-                                              the category{" "}
-                                              <strong>{c.name}</strong>?
-                                            </DialogDescription>
-                                          </DialogHeader>
-                                          <DialogFooter className="mt-2 flex gap-2">
-                                            <Button variant="outline">
-                                              Cancel
-                                            </Button>
-                                            <Button
-                                              variant="delete"
-                                              onClick={() =>
-                                                handleDeleteCategory(
-                                                  Number(c.id)
-                                                )
-                                              }
-                                            >
-                                              Yes, Delete
-                                            </Button>
-                                          </DialogFooter>
-                                        </DialogContent>
-                                      </Dialog>
+                                      <Button
+                                        variant="delete"
+                                        size="sm"
+                                        className="w-auto"
+                                        onClick={() =>
+                                          setDeletingCategory({
+                                            id: Number(c.id),
+                                            name: c.name,
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -949,6 +930,38 @@ export const InventoryView = () => {
                       </ScrollArea>
                     </div>
                   )}
+
+                  <Dialog
+                    open={deletingCategory !== null}
+                    onOpenChange={(open) => {
+                      if (!open) setDeletingCategory(null);
+                    }}
+                  >
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Confirm Deletion</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to delete the category{" "}
+                          <strong>{deletingCategory?.name}</strong>?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter className="mt-2 flex gap-2">
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button
+                          variant="delete"
+                          onClick={() => {
+                            if (deletingCategory) {
+                              handleDeleteCategory(deletingCategory.id);
+                            }
+                          }}
+                        >
+                          Yes, Delete
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
 
                   <Dialog
                     open={renameDialogOpen}
