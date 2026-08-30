@@ -1,11 +1,14 @@
 import stpApi from "@/utils/stp-api";
 
+export type UserRole = "admin" | "coach" | "moderator" | "client";
+
 // 🧑‍💻 Auth
 export const register = async (userData: {
   name: string;
   lastName: string;
   email: string;
   password: string;
+  role: UserRole;
 }) => {
   return stpApi.post("/api/auth/register", userData);
 };
@@ -54,6 +57,10 @@ export const updateUserByIdAdmin = async (
   }
 ) => {
   return stpApi.put(`/api/users/${userId}/admin`, userData);
+};
+
+export const updateUserRole = async (userId: number, role: UserRole) => {
+  return stpApi.patch(`/api/users/${userId}/role`, { role });
 };
 
 //Classes
@@ -108,6 +115,10 @@ export const createCategory = async (name: string) => {
   return await stpApi.post("/api/categories", { name });
 };
 
+export const renameCategory = async (categoryId: number, name: string) => {
+  return await stpApi.put("/api/categories", { categoryId, name });
+};
+
 export const deleteCategory = async (categoryId: number) => {
   return await stpApi.delete("/api/categories", { categoryId });
 };
@@ -117,18 +128,14 @@ export const getAllInventory = async () => {
   return await stpApi.get("/api/inventory", {});
 };
 
-export const createInventoryItem = async (
-  name: string,
-  categoryId: number,
-  priceRegular: number,
-  priceCoach: number
-) => {
-  return await stpApi.post("/api/inventory", {
-    name,
-    categoryId,
-    priceRegular,
-    priceCoach,
-  });
+export const createInventoryItem = async (data: {
+  name: string;
+  categoryId: number;
+  priceRegular: number;
+  priceCoach: number;
+  unitsInStock?: number;
+}) => {
+  return await stpApi.post("/api/inventory", data);
 };
 
 export const deleteInventoryItem = async (inventoryItemId: number) => {

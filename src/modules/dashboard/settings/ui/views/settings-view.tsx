@@ -17,16 +17,18 @@ import { useAuth } from "@/context/authContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "../components/tables/data-table";
-import { getUsersColumns } from "../components/tables/columns";
+import { getUsersColumns, type User } from "../components/tables/columns";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 import {
   updateUserByIdMutationOptions,
+  updateUserRoleMutationOptions,
   userByIdQueryOptions,
   usersQueryOptions,
 } from "@/app/queries/users";
+import { type UserRole } from "@/app/adapters/api";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Loader } from "lucide-react";
@@ -37,7 +39,7 @@ export interface Category {
 }
 
 const passwordRegex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=<>?{}[\]~]).{6,50}$/;
+  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=<>?{}[\]~]).{8,50}$/;
 
 const formSchema = z.object({
   name: z.string().min(2).max(50),
@@ -49,7 +51,7 @@ const formSchema = z.object({
     .optional()
     .refine(
       (val) => !val || passwordRegex.test(val),
-      "New password must include an uppercase letter, a number, and a special character."
+      "New password must be at least 8 characters and include an uppercase letter, a number, and a special character."
     ),
 });
 
@@ -87,7 +89,40 @@ export const SettingsView = () => {
 
   const handleDeleteUser = () => {};
 
-  const columns = getUsersColumns(handleUpdateUser, handleDeleteUser);
+  // Callbacks passed to mutate() belong to the observer and are dropped when a
+  // second change starts before the first answers; on the options they always fire.
+  const roleMutation = useMutation({
+    ...updateUserRoleMutationOptions(),
+    onSuccess: (_data, { userId, role, name, lastName }) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user", userId] });
+      toast.success(
+        `${name} ${lastName} is now ${role}. They must sign in again for it to take effect.`
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to change role: ${error.message}`);
+    },
+  });
+
+  const handleRoleChange = (target: User, role: UserRole) => {
+    roleMutation.mutate({
+      userId: target.id,
+      role,
+      name: target.name,
+      lastName: target.lastName,
+    });
+  };
+
+  const columns = getUsersColumns({
+    handleUpdateUser,
+    handleDeleteUser,
+    handleRoleChange,
+    currentUserId: user?.id,
+    pendingUserId: roleMutation.isPending
+      ? roleMutation.variables?.userId
+      : undefined,
+  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -130,7 +165,7 @@ export const SettingsView = () => {
       },
       onError: (error: Error) => {
         console.error("Failed to update user:", error);
-        toast.error("Error updating user");
+        toast.error(`Error updating user: ${error.message}`);
       },
     });
   }

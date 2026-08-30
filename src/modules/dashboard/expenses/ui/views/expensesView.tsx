@@ -220,6 +220,7 @@ const ExpensesView = () => {
         setIsSubmitting(false);
         setExpenseDialogOpen(false);
         setQuantity(1);
+        setCustomPrice(undefined);
       },
       onError: (error: any) => {
         toast.error(`Failed to add expense: ${error.message}`);
@@ -667,12 +668,18 @@ const ExpensesView = () => {
                 />
               </div>
               <div>
-                <Label className="mb-1 block">Custom Price (optional)</Label>
+                <Label className="mb-1 block">
+                  Custom Price per item (optional)
+                </Label>
                 <Input
                   type="number"
-                  min={1}
-                  value={customPrice}
-                  onChange={(e) => setCustomPrice(Number(e?.target?.value))}
+                  min={0}
+                  value={customPrice ?? ""}
+                  onChange={(e) =>
+                    setCustomPrice(
+                      e.target.value === "" ? undefined : Number(e.target.value)
+                    )
+                  }
                 />
               </div>
               <div className="md:col-span-2">

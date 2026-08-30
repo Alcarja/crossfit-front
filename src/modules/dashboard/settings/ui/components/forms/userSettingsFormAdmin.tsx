@@ -18,6 +18,7 @@ import { Loader, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/authContext";
 import {
   updateUserByIdAdminMutationOptions,
   userByIdQueryOptions,
@@ -25,7 +26,7 @@ import {
 import { Card } from "@/components/ui/card";
 
 const passwordRegex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=<>?{}[\]~]).{6,50}$/;
+  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=<>?{}[\]~]).{8,50}$/;
 
 const formSchema = z
   .object({
@@ -54,7 +55,7 @@ const formSchema = z
     },
     {
       message:
-        "New password must include an uppercase letter, a number, and a special character.",
+        "New password must be at least 8 characters and include an uppercase letter, a number, and a special character.",
       path: ["newPassword"],
     }
   );
@@ -66,11 +67,24 @@ interface UserSettingsFormProps {
 const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { user, isLoading: authLoading } = useAuth();
+
+  const isAdmin = user?.role === "admin";
 
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showRepeatNewPassword, setShowRepeatNewPassword] = useState(false);
 
-  const { data: userData } = useQuery(userByIdQueryOptions(Number(coachId)));
+  const { data: userData } = useQuery({
+    ...userByIdQueryOptions(Number(coachId)),
+    enabled: isAdmin,
+  });
+
+  // Editing another user's account is admin-only; the route is reachable directly.
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace("/dashboard/settings");
+    }
+  }, [authLoading, isAdmin, router]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -106,10 +120,12 @@ const UserSettingsFormAdmin = ({ coachId }: UserSettingsFormProps) => {
       },
       onError: (error: Error) => {
         console.error("Failed to update user:", error);
-        toast.error("Error updating user");
+        toast.error(`Error updating user: ${error.message}`);
       },
     });
   }
+
+  if (authLoading || !isAdmin) return <div>Loading...</div>;
 
   return (
     <section className="min-h-screen w-full flex items-start justify-center bg-muted px-4 py-8">

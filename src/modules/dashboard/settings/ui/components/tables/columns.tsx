@@ -1,6 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { type UserRole } from "@/app/adapters/api";
 import { ColumnDef } from "@tanstack/react-table";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
@@ -13,10 +21,24 @@ export type User = {
   createdAt: string;
 };
 
-export const getUsersColumns = (
-  handleUpdateUser: (user: User) => void,
-  handleDeleteUser: (id: number) => void
-): ColumnDef<User>[] => [
+const assignableRoles = ["admin", "coach", "client"] as const;
+
+const formatRole = (role: string) =>
+  role.charAt(0).toUpperCase() + role.slice(1);
+
+export const getUsersColumns = ({
+  handleUpdateUser,
+  handleDeleteUser,
+  handleRoleChange,
+  currentUserId,
+  pendingUserId,
+}: {
+  handleUpdateUser: (user: User) => void;
+  handleDeleteUser: (id: number) => void;
+  handleRoleChange: (user: User, role: UserRole) => void;
+  currentUserId?: number;
+  pendingUserId?: number;
+}): ColumnDef<User>[] => [
   {
     accessorKey: "id",
     header: "Id",
@@ -33,11 +55,41 @@ export const getUsersColumns = (
     accessorKey: "role",
     header: "Role",
     cell: ({ row }) => {
-      const role = row.getValue("role") as string | undefined;
+      const item = row.original;
 
-      if (!role) return <span className="text-muted-foreground">—</span>;
+      if (!item.role) return <span className="text-muted-foreground">—</span>;
 
-      return role.charAt(0).toUpperCase() + role.slice(1);
+      const isSelf = item.id === currentUserId;
+      const options = assignableRoles.some((role) => role === item.role)
+        ? [...assignableRoles]
+        : [item.role, ...assignableRoles];
+
+      return (
+        <div
+          className="flex items-center gap-2"
+          title={isSelf ? "You cannot change your own role" : undefined}
+        >
+          <Select
+            value={item.role}
+            onValueChange={(value) => handleRoleChange(item, value as UserRole)}
+            disabled={isSelf || pendingUserId === item.id}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {formatRole(role)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {isSelf && (
+            <span className="text-xs text-muted-foreground">(you)</span>
+          )}
+        </div>
+      );
     },
   },
   {

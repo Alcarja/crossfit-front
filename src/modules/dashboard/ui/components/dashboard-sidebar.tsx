@@ -88,12 +88,20 @@ const footerSection = [
   },
 ];
 
-export const DashboardSidebar = () => {
+export const DashboardSidebar = ({
+  allowedRoles,
+}: {
+  allowedRoles: readonly string[];
+}) => {
   const pathname = usePathname();
 
   const { user } = useAuth();
 
   const { state, toggleSidebar, isMobile } = useSidebar();
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return null;
+  }
 
   const sidebarContent = (
     <Sidebar

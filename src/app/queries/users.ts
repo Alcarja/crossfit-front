@@ -3,6 +3,8 @@ import {
   getUserById,
   updateUserById,
   updateUserByIdAdmin,
+  updateUserRole,
+  type UserRole,
 } from "../adapters/api";
 
 export const usersQueryOptions = () => ({
@@ -44,5 +46,22 @@ export const updateUserByIdAdminMutationOptions = (userId: number) => ({
     repeatNewPassword?: string;
   }) => {
     return await updateUserByIdAdmin(userId, userData);
+  },
+});
+
+// Callbacks live on the useMutation options, so name/lastName travel in the
+// variables for them; the request itself only uses userId and role.
+export const updateUserRoleMutationOptions = () => ({
+  mutationKey: ["updateUserRole"],
+  mutationFn: async ({
+    userId,
+    role,
+  }: {
+    userId: number;
+    role: UserRole;
+    name: string;
+    lastName: string;
+  }) => {
+    return await updateUserRole(userId, role);
   },
 });
