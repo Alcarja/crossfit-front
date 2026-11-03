@@ -3,6 +3,7 @@ import {
   createCategory,
   deleteCategory,
   getAllCategories,
+  renameCategory,
 } from "../adapters/api";
 
 export const allCategoriesQueryOptions = () => ({
@@ -15,6 +16,12 @@ export const allCategoriesQueryOptions = () => ({
 export const useCreateCategory = () =>
   useMutation({
     mutationFn: (name: string) => createCategory(name),
+  });
+
+export const useRenameCategory = () =>
+  useMutation({
+    mutationFn: ({ categoryId, name }: { categoryId: number; name: string }) =>
+      renameCategory(categoryId, name),
   });
 
 export const useDeleteCategory = () =>

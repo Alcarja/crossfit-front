@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/authContext";
 import { Input } from "@/components/ui/input";
 import { register } from "@/app/adapters/api";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name can't be empty" }).max(50),
   lastName: z.string().min(2, { message: "Last name can't be empty" }).max(50),
@@ -25,21 +35,33 @@ const formSchema = z.object({
     .string()
     .email({ message: "Please enter a valid email address" })
     .max(100),
-  password: z.string().min(2, { message: "Password can't be empty" }).max(50),
+  password: z
+    .string()
+    .min(8, { message: "Password must be at least 8 characters" })
+    .max(50),
+  role: z.enum(["coach", "client"]),
 });
 
 export const RegisterView = () => {
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const { user, isLoading } = useAuth();
+
+  // The endpoint lets an admin pick the role, a coach only create clients.
+  const isAdmin = user?.role === "admin";
 
   // React Query: Mutation to create a user
   const {
     mutate: createUserMutate, //Random name we assign to the mutation and then use in the handle submit. It is connected to my nutationFn below
   } = useMutation({
     mutationFn: register, //This createUser is my function from the api
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("User has been created.");
-      window.location.href = "/login";
+      toast.success(`New ${variables.role} has been created.`);
+      router.push("/dashboard/settings");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to create user: ${error.message}`);
     },
   });
 
@@ -49,6 +71,7 @@ export const RegisterView = () => {
       lastName: values.lastName,
       email: values.email,
       password: values.password,
+      role: isAdmin ? values.role : "client",
     });
   };
 
@@ -59,8 +82,11 @@ export const RegisterView = () => {
       lastName: "",
       email: "",
       password: "",
+      role: "coach",
     },
   });
+
+  const roleToCreate = isAdmin ? form.watch("role") : "client";
 
   return (
     <div className="w-full min-h-screen flex items-start justify-center bg-muted px-4 py-16">
@@ -70,7 +96,7 @@ export const RegisterView = () => {
             Create an Account
           </h1>
           <p className="text-sm text-muted-foreground">
-            Fill in the details to register a new user.
+            Fill in the details to register a new {roleToCreate}.
           </p>
         </div>
 
@@ -136,7 +162,34 @@ export const RegisterView = () => {
               )}
             />
 
-            <Button type="submit" className="w-full">
+            {isAdmin && (
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="coach">Coach</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
               Create Account
             </Button>
           </form>

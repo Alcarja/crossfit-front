@@ -17,17 +17,13 @@ export const useAllInventoryQuery = () => ({
 
 export const useCreateInventoryItemQuery = () =>
   useMutation({
-    mutationFn: ({
-      name,
-      categoryId,
-      priceRegular,
-      priceCoach,
-    }: {
+    mutationFn: (data: {
       name: string;
       categoryId: number;
       priceRegular: number;
       priceCoach: number;
-    }) => createInventoryItem(name, categoryId, priceRegular, priceCoach),
+      unitsInStock?: number;
+    }) => createInventoryItem(data),
   });
 
 export const useDeleteInventoryItem = () =>
