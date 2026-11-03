@@ -43,16 +43,16 @@ export const WorkoutsCalendar2 = () => {
 
   const start = useMemo(
     () => calendarStartDate.toISOString().split("T")[0],
-    [calendarStartDate]
+    [calendarStartDate],
   );
 
   const end = useMemo(
     () => calendarEndDate.toISOString().split("T")[0],
-    [calendarEndDate]
+    [calendarEndDate],
   );
 
   const { data: workouts = [] } = useQuery(
-    workoutsByDateRangeQueryOptions(start, end)
+    workoutsByDateRangeQueryOptions(start, end),
   );
 
   const workoutsByDate = useMemo(() => {
@@ -80,7 +80,7 @@ export const WorkoutsCalendar2 = () => {
     return days;
   }, [calendarStartDate, calendarEndDate]);
 
-  const availableYears = [2025, 2026, 2027, 2028];
+  const availableYears = [2025, 2026, 2027, 2028, 2029];
 
   return (
     <div className="space-y-4">

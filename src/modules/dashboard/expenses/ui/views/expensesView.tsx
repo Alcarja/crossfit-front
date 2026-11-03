@@ -114,14 +114,14 @@ const ExpensesView = () => {
   const { data: usersData } = useQuery(usersQueryOptions());
 
   const { data: expensesData } = useQuery(
-    coachExpensesByMonthAndYearQueryOptions(selectedMonth, selectedYear)
+    coachExpensesByMonthAndYearQueryOptions(selectedMonth, selectedYear),
   );
 
   const { data: inventoryData } = useQuery(useAllInventoryQuery());
 
   //Check if the user selected in the combobox is a coach or a client
   const selectedCoach = usersData?.find(
-    (user: User) => String(user.id) === String(selectedCoachForAddingExpense)
+    (user: User) => String(user.id) === String(selectedCoachForAddingExpense),
   );
 
   const isClient = selectedCoach?.role === "client";
@@ -147,23 +147,23 @@ const ExpensesView = () => {
 
   const filteredData = (usersData ?? [])
     .filter(
-      (user: User) => !selectedCoachId || String(user.id) === selectedCoachId
+      (user: User) => !selectedCoachId || String(user.id) === selectedCoachId,
     )
     .map((user: User) => {
       const fullName = `${user.name} ${user.lastName}`;
 
       const userExpenses =
         expensesData?.results.filter(
-          (expense: any) => expense.coach?.id === user.id
+          (expense: any) => expense.coach?.id === user.id,
         ) ?? [];
 
       const totalQuantity = userExpenses.reduce(
         (sum: number, exp: any) => sum + exp.quantity,
-        0
+        0,
       );
       const totalAmount = userExpenses.reduce(
         (sum: number, exp: any) => sum + parseFloat(exp.totalPrice),
-        0
+        0,
       );
 
       return {
@@ -302,11 +302,11 @@ const ExpensesView = () => {
     const totalCoaches = filteredData.length;
     const totalItems = filteredData.reduce(
       (sum: number, c: any) => sum + (Number(c.totalQuantity) || 0),
-      0
+      0,
     );
     const totalAmount = filteredData.reduce(
       (sum: number, c: any) => sum + (Number(c.totalAmount) || 0),
-      0
+      0,
     );
     return { totalCoaches, totalItems, totalAmount };
   }, [filteredData]);
@@ -419,6 +419,9 @@ const ExpensesView = () => {
                   <SelectItem value="2024">2024</SelectItem>
                   <SelectItem value="2025">2025</SelectItem>
                   <SelectItem value="2026">2026</SelectItem>
+                  <SelectItem value="2027">2027</SelectItem>
+                  <SelectItem value="2028">2028</SelectItem>
+                  <SelectItem value="2029">2029</SelectItem>
                 </SelectContent>
               </Select>
             </div>

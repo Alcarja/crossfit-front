@@ -44,7 +44,7 @@ export const MonthlyWorkoutCalendar = () => {
   const allMonthDays = useMemo(() => {
     const start = startOfWeek(
       startOfMonth(new Date(selectedYear, selectedMonth)),
-      { weekStartsOn: 1 }
+      { weekStartsOn: 1 },
     );
     const end = endOfMonth(new Date(selectedYear, selectedMonth));
     const days: Date[] = [];
@@ -71,7 +71,7 @@ export const MonthlyWorkoutCalendar = () => {
   const end = allMonthDays[allMonthDays.length - 1].toISOString().split("T")[0];
 
   const { data: workouts = [] } = useQuery(
-    workoutsByDateRangeQueryOptions(start, end)
+    workoutsByDateRangeQueryOptions(start, end),
   );
 
   const workoutsByDate = useMemo(() => {
@@ -84,7 +84,7 @@ export const MonthlyWorkoutCalendar = () => {
     return map;
   }, [workouts]);
 
-  const availableYears = [2025, 2026, 2027, 2028];
+  const availableYears = [2025, 2026, 2027, 2028, 2029];
 
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [createDate, setCreateDate] = useState<string | null>(null);
@@ -98,7 +98,7 @@ export const MonthlyWorkoutCalendar = () => {
     div.innerHTML = html;
 
     const paragraphs = Array.from(div.querySelectorAll("p")).map(
-      (p) => p.textContent?.trim().replace(/\u00a0/g, "") || ""
+      (p) => p.textContent?.trim().replace(/\u00a0/g, "") || "",
     );
 
     return paragraphs.filter(Boolean);
@@ -112,7 +112,7 @@ export const MonthlyWorkoutCalendar = () => {
 
     // Create empty 2D array
     const sheetData: string[][] = Array.from({ length: rowCount }, () =>
-      Array(colCount).fill("")
+      Array(colCount).fill(""),
     );
 
     workouts.forEach((workout, index) => {
@@ -152,7 +152,7 @@ export const MonthlyWorkoutCalendar = () => {
 
     // Optional: widen workout columns
     worksheet["!cols"] = Array.from({ length: colCount }, (_, i) =>
-      i % 2 === 0 ? { wch: 40 } : { wch: 2 }
+      i % 2 === 0 ? { wch: 40 } : { wch: 2 },
     );
 
     const workbook = XLSX.utils.book_new();
